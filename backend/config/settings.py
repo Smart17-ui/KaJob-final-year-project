@@ -10,25 +10,66 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ============================================
+# LOAD ENVIRONMENT VARIABLES FROM .env
+# ============================================
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+# Load .env file from the root directory
+ENV_PATH = BASE_DIR / '.env'
+
+if ENV_PATH.exists():
+    load_dotenv(ENV_PATH)
+    print(f"Loaded environment variables from: {ENV_PATH}")
+else:
+    print(f"Warning: .env file not found at {ENV_PATH}")
+    print("   Please create a .env file with your database configuration.")
+
+# ============================================
+# HELPER FUNCTION TO GET ENV VARIABLES
+# ============================================
+
+def get_env(key, default=None, required=False):
+    """
+    Get environment variable with optional required check.
+    
+    Args:
+        key: Environment variable name
+        default: Default value if not found
+        required: If True, raises error when variable is missing
+    
+    Returns:
+        The environment variable value
+    
+    Raises:
+        ValueError: If required is True and variable is missing
+    """
+    value = os.getenv(key, default)
+    if required and value is None:
+        raise ValueError(f"Required environment variable '{key}' is missing!")
+    return value
+
+# ============================================
+# DJANGO CORE SETTINGS
+# ============================================
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-kqzu=w7*9uc-8p0^4v%&)be-lvzjp1o-avf680$g77j!bx0_h$'
+SECRET_KEY = get_env('SECRET_KEY', required=True)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = get_env('DEBUG', default='True').lower() in ('true', '1', 'yes', 'on')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = get_env('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
-
-# Application definition
+# ============================================
+# APPLICATION DEFINITION
+# ============================================
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,6 +78,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Local apps
+    'apps.accounts',
+    'apps.jobs',
+    'apps.notifications',
+    'apps.reports',
+    'apps.common',
+    'apps.matching',
+    'apps.audit',
+    'apps.identity_verification',
+    'apps.reviews',
+    'apps.admin_panel',
+
+    # Third party apps
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -68,20 +124,28 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+# ============================================
+# DATABASE CONFIGURATION (FROM .env)
+# ============================================
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': get_env('DB_ENGINE', default='django.db.backends.postgresql'),
+        'NAME': get_env('DB_NAME', required=True),
+        'USER': get_env('DB_USER', required=True),
+        'PASSWORD': get_env('DB_PASSWORD', required=True),  # Now properly loaded from .env
+        'HOST': get_env('DB_HOST', default='localhost'),
+        'PORT': get_env('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': int(get_env('DB_CONN_MAX_AGE', default='600')),
+        'OPTIONS': {
+            'options': get_env('DB_OPTIONS', default='-c search_path=public'),
+        },
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
+# ============================================
+# PASSWORD VALIDATION
+# ============================================
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -98,20 +162,91 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# ============================================
+# INTERNATIONALIZATION
+# ============================================
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+LANGUAGE_CODE = get_env('LANGUAGE_CODE', default='en-us')
+TIME_ZONE = get_env('TIME_ZONE', default='Africa/Lusaka')
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
+# ============================================
+# STATIC FILES
+# ============================================
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Only add STATICFILES_DIRS if the directory exists
+static_dir = BASE_DIR / 'static'
+if static_dir.exists():
+    STATICFILES_DIRS = [static_dir]
+else:
+    STATICFILES_DIRS = []
+
+# ============================================
+# MEDIA FILES
+# ============================================
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ============================================
+# DEFAULT PRIMARY KEY FIELD
+# ============================================
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ============================================
+# LOGGING
+# ============================================
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'kajob.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'apps': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+# Ensure logs directory exists
+LOG_DIR = BASE_DIR / 'logs'
+if not LOG_DIR.exists():
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+print(f"Database: {DATABASES['default']['NAME']} at {DATABASES['default']['HOST']}:{DATABASES['default']['PORT']}")
+print(f"User: {DATABASES['default']['USER']}")
+print(f"Debug Mode: {DEBUG}")
