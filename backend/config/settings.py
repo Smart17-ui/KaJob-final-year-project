@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     'apps.reviews',
     'apps.admin_panel',
 
+
     # Third party apps
     'rest_framework',
 ]

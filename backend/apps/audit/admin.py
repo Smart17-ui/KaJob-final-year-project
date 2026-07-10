@@ -1,13 +1,14 @@
 from django.contrib import admin
-from .models import AdminAction, AuditLog
+from .models import DisciplinaryAction, AuditLog
+
 
 # ============================================
-# ADMIN ACTION ADMIN
+# DISCIPLINARY ACTION ADMIN
 # ============================================
 
-@admin.register(AdminAction)
-class AdminActionAdmin(admin.ModelAdmin):
-    """Admin configuration for AdminAction model"""
+@admin.register(DisciplinaryAction)
+class DisciplinaryActionAdmin(admin.ModelAdmin):
+    """Admin configuration for DisciplinaryAction model"""
     
     list_display = (
         'id', 'admin', 'target_user', 'action_type', 
@@ -24,7 +25,7 @@ class AdminActionAdmin(admin.ModelAdmin):
             'fields': ('admin', 'target_user', 'action_type', 'reason')
         }),
         ('Related Report', {
-            'fields': ('related_report',)
+            'fields': ('related_report', 'related_investigation')
         }),
         ('Timestamps', {
             'fields': ('performed_at', 'expires_at')
@@ -38,17 +39,18 @@ class AdminActionAdmin(admin.ModelAdmin):
     def get_actions(self, request):
         actions = super().get_actions(request)
         actions['view_audit_trail'] = (
-            'view_audit_trail', 
-            'view_audit_trail', 
+            self.view_audit_trail,
+            'view_audit_trail',
             "View audit trail for selected"
         )
         return actions
     
     def view_audit_trail(self, request, queryset):
-        """View audit trail for selected admin actions"""
+        """View audit trail for selected disciplinary actions"""
         # This would redirect to audit log filtered by the target user
-        pass
+        self.message_user(request, f"Audit trail view for {queryset.count()} actions")
     view_audit_trail.short_description = "View audit trail"
+
 
 # ============================================
 # AUDIT LOG ADMIN (Read Only)

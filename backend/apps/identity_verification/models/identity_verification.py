@@ -1,113 +1,91 @@
 from django.db import models
-from apps.common.models.mixins import SoftDeleteMixin, SoftDeleteManager
+from apps.common.models.mixins import BaseModel
+from apps.common.constants import VerificationStatus, DocumentType
+from django.utils import timezone
 
-class IdentityVerification(SoftDeleteMixin):
+
+class IdentityVerification(BaseModel):
     """
-    Manages user identity verification process.
-    Stores documents and tracks verification status.
+    Tracks user identity verification.
     """
-    DOCUMENT_TYPES = [
-        ('NRC', 'National Registration Card'),
-        ('PASSPORT', 'Passport'),
-        ('DRIVERS_LICENSE', 'Driver\'s License'),
-    ]
-
-    VERIFICATION_STATUSES = [
-        ('NOT_SUBMITTED', 'Not Submitted'),
-        ('PENDING', 'Pending'),
-        ('UNDER_REVIEW', 'Under Review'),
-        ('VERIFIED', 'Verified'),
-        ('REJECTED', 'Rejected'),
-        ('EXPIRED', 'Expired'),
-    ]
-
     user = models.ForeignKey(
         'accounts.User',
         on_delete=models.CASCADE,
-        related_name='identity_verifications',
-        help_text="User requesting verification"
+        related_name='identity_verifications'
     )
+    
+    # Document Information
     document_type = models.CharField(
         max_length=20,
-        choices=DOCUMENT_TYPES,
-        help_text="Type of identification document"
+        choices=DocumentType.CHOICES
     )
-    document_number = models.CharField(
-        max_length=100,
-        help_text="Document identification number"
-    )
-    front_document_path = models.CharField(
-        max_length=500,
-        help_text="Path to front document image"
-    )
-    back_document_path = models.CharField(
-        max_length=500,
-        blank=True,
-        help_text="Path to back document image (optional)"
-    )
-    selfie_photo_path = models.CharField(
-        max_length=500,
-        blank=True,
-        help_text="Path to user's selfie photo (optional)"
-    )
+    document_number = models.CharField(max_length=100)
+    
+    # Status
     verification_status = models.CharField(
         max_length=20,
-        choices=VERIFICATION_STATUSES,
-        default='NOT_SUBMITTED',
-        help_text="Current verification status"
+        choices=VerificationStatus.CHOICES,
+        default=VerificationStatus.NOT_SUBMITTED
     )
-    submitted_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="When documents were submitted"
-    )
+    
+    # Review Information
     reviewed_by = models.ForeignKey(
         'accounts.User',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='verifications_reviewed',
-        help_text="Admin who reviewed this verification"
+        related_name='verifications_reviewed'
     )
-    reviewed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When the verification was reviewed"
-    )
-    rejection_reason = models.TextField(
-        blank=True,
-        help_text="Reason for rejection (if rejected)"
-    )
-    verification_notes = models.TextField(
-        blank=True,
-        help_text="Internal admin notes"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    objects = SoftDeleteManager()
-
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    verification_notes = models.TextField(blank=True)
+    
+    # Timestamps
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    
     class Meta:
         db_table = 'identity_verifications'
         ordering = ['-submitted_at']
+        verbose_name = 'Identity Verification'
+        verbose_name_plural = 'Identity Verifications'
         indexes = [
             models.Index(fields=['user', 'verification_status']),
             models.Index(fields=['verification_status', 'submitted_at']),
         ]
-
+    
     def __str__(self):
-        return f"{self.user.full_name} - {self.verification_status}"
-
+        return f"{self.user.full_name} - {self.get_verification_status_display()}"
+    
     @property
     def is_pending(self):
-        """Check if verification is pending"""
-        return self.verification_status in ['PENDING', 'UNDER_REVIEW']
-
+        return self.verification_status in [
+            VerificationStatus.PENDING,
+            VerificationStatus.UNDER_REVIEW
+        ]
+    
     @property
     def is_verified(self):
-        """Check if user is verified"""
-        return self.verification_status == 'VERIFIED'
-
-    @property
-    def is_rejected(self):
-        """Check if verification was rejected"""
-        return self.verification_status == 'REJECTED'
+        return self.verification_status == VerificationStatus.VERIFIED
+    
+    def approve(self, admin):
+        """Approve verification"""
+        self.verification_status = VerificationStatus.VERIFIED
+        self.reviewed_by = admin
+        self.reviewed_at = timezone.now()
+        self.save()
+        
+        # Update user verification status
+        self.user.is_verified = True
+        self.user.save(update_fields=['is_verified'])
+    
+    def reject(self, admin, reason):
+        """Reject verification"""
+        self.verification_status = VerificationStatus.REJECTED
+        self.reviewed_by = admin
+        self.reviewed_at = timezone.now()
+        self.rejection_reason = reason
+        self.save()
+        
+        # Update user verification status
+        self.user.is_verified = False
+        self.user.save(update_fields=['is_verified'])

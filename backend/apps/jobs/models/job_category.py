@@ -1,29 +1,27 @@
 from django.db import models
+from apps.common.models.mixins import TimestampMixin
 
-class JobCategory(models.Model):
+
+class JobCategory(TimestampMixin):
     """
     Master list of job categories.
     """
-    name = models.CharField(
-        max_length=100,
-        unique=True,
-        help_text="Category name (e.g., Plumbing, Electrical)"
-    )
-    description = models.TextField(
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True)
+    parent_category = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
-        help_text="Category description"
+        related_name='subcategories'
     )
-    icon = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="Icon class or path"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
+    
     class Meta:
         db_table = 'job_categories'
         ordering = ['name']
-
+        verbose_name = 'Job Category'
+        verbose_name_plural = 'Job Categories'
+    
     def __str__(self):
         return self.name

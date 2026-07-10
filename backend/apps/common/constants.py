@@ -1,10 +1,17 @@
 # apps/common/constants.py
 
 # ============================================
-# ACCOUNT STATUS
+# ENUMS / CONSTANTS
 # ============================================
 
-class AccountStatus:
+from django.db import models
+
+
+# ============================================
+# USER ACCOUNT STATUS
+# ============================================
+
+class UserAccountStatus:
     """User account statuses"""
     ACTIVE = 'ACTIVE'
     SUSPENDED = 'SUSPENDED'
@@ -77,6 +84,92 @@ class ApplicationStatus:
 
 
 # ============================================
+# ASSIGNMENT STATUS
+# ============================================
+
+class AssignmentStatus:
+    """Job assignment statuses"""
+    ACTIVE = 'ACTIVE'
+    COMPLETED = 'COMPLETED'
+    CANCELLED = 'CANCELLED'
+    
+    CHOICES = [
+        (ACTIVE, 'Active'),
+        (COMPLETED, 'Completed'),
+        (CANCELLED, 'Cancelled'),
+    ]
+
+
+# ============================================
+# VERIFICATION STATUS
+# ============================================
+
+class VerificationStatus:
+    """Identity verification statuses"""
+    NOT_SUBMITTED = 'NOT_SUBMITTED'
+    PENDING = 'PENDING'
+    UNDER_REVIEW = 'UNDER_REVIEW'
+    VERIFIED = 'VERIFIED'
+    REJECTED = 'REJECTED'
+    EXPIRED = 'EXPIRED'
+    
+    CHOICES = [
+        (NOT_SUBMITTED, 'Not Submitted'),
+        (PENDING, 'Pending'),
+        (UNDER_REVIEW, 'Under Review'),
+        (VERIFIED, 'Verified'),
+        (REJECTED, 'Rejected'),
+        (EXPIRED, 'Expired'),
+    ]
+
+
+# ============================================
+# DOCUMENT TYPE
+# ============================================
+
+class DocumentType:
+    """Identity document types"""
+    NRC_FRONT = 'NRC_FRONT'
+    NRC_BACK = 'NRC_BACK'
+    PASSPORT_PHOTO = 'PASSPORT_PHOTO'
+    SELFIE = 'SELFIE'
+    
+    CHOICES = [
+        (NRC_FRONT, 'NRC Front'),
+        (NRC_BACK, 'NRC Back'),
+        (PASSPORT_PHOTO, 'Passport Photo'),
+        (SELFIE, 'Selfie'),
+    ]
+
+
+# ============================================
+# REPORT CATEGORY
+# ============================================
+
+class ReportCategory:
+    """Report categories"""
+    THEFT = 'THEFT'
+    VIOLENCE = 'VIOLENCE'
+    HARASSMENT = 'HARASSMENT'
+    FRAUD = 'FRAUD'
+    PROPERTY_DAMAGE = 'PROPERTY_DAMAGE'
+    NO_SHOW = 'NO_SHOW'
+    POOR_CONDUCT = 'POOR_CONDUCT'
+    OTHER = 'OTHER'
+    
+    CHOICES = [
+        (THEFT, 'Theft'),
+        (VIOLENCE, 'Violence'),
+        (HARASSMENT, 'Harassment'),
+        (FRAUD, 'Fraud'),
+        (PROPERTY_DAMAGE, 'Property Damage'),
+        (NO_SHOW, 'No Show'),
+        (POOR_CONDUCT, 'Poor Conduct'),
+        (OTHER, 'Other'),
+    ]
+
+
+# ============================================
 # REPORT STATUS
 # ============================================
 
@@ -121,74 +214,32 @@ class AdminDecision:
 
 
 # ============================================
-# REPORT CATEGORIES
+# DISCIPLINARY ACTION TYPE
 # ============================================
 
-class ReportCategory:
-    """Report categories"""
-    THEFT = 'THEFT'
-    VIOLENCE = 'VIOLENCE'
-    HARASSMENT = 'HARASSMENT'
-    FRAUD = 'FRAUD'
-    PROPERTY_DAMAGE = 'PROPERTY_DAMAGE'
-    NO_SHOW = 'NO_SHOW'
-    POOR_CONDUCT = 'POOR_CONDUCT'
-    OTHER = 'OTHER'
+class DisciplinaryActionType:
+    """Disciplinary action types"""
+    WARN = 'WARN'
+    SUSPEND = 'SUSPEND'
+    BAN = 'BAN'
+    UNBAN = 'UNBAN'
+    VERIFY = 'VERIFY'
+    REJECT_VERIFICATION = 'REJECT_VERIFICATION'
+    DISMISS_REPORT = 'DISMISS_REPORT'
     
     CHOICES = [
-        (THEFT, 'Theft'),
-        (VIOLENCE, 'Violence'),
-        (HARASSMENT, 'Harassment'),
-        (FRAUD, 'Fraud'),
-        (PROPERTY_DAMAGE, 'Property Damage'),
-        (NO_SHOW, 'No Show'),
-        (POOR_CONDUCT, 'Poor Conduct'),
-        (OTHER, 'Other'),
+        (WARN, 'Warning'),
+        (SUSPEND, 'Suspend'),
+        (BAN, 'Ban'),
+        (UNBAN, 'Unban'),
+        (VERIFY, 'Verify'),
+        (REJECT_VERIFICATION, 'Reject Verification'),
+        (DISMISS_REPORT, 'Dismiss Report'),
     ]
 
 
 # ============================================
-# VERIFICATION STATUS
-# ============================================
-
-class VerificationStatus:
-    """Identity verification statuses"""
-    NOT_SUBMITTED = 'NOT_SUBMITTED'
-    PENDING = 'PENDING'
-    UNDER_REVIEW = 'UNDER_REVIEW'
-    VERIFIED = 'VERIFIED'
-    REJECTED = 'REJECTED'
-    EXPIRED = 'EXPIRED'
-    
-    CHOICES = [
-        (NOT_SUBMITTED, 'Not Submitted'),
-        (PENDING, 'Pending'),
-        (UNDER_REVIEW, 'Under Review'),
-        (VERIFIED, 'Verified'),
-        (REJECTED, 'Rejected'),
-        (EXPIRED, 'Expired'),
-    ]
-
-
-# ============================================
-# DOCUMENT TYPES
-# ============================================
-
-class DocumentType:
-    """Identity document types"""
-    NRC = 'NRC'
-    PASSPORT = 'PASSPORT'
-    DRIVERS_LICENSE = 'DRIVERS_LICENSE'
-    
-    CHOICES = [
-        (NRC, 'National Registration Card'),
-        (PASSPORT, 'Passport'),
-        (DRIVERS_LICENSE, "Driver's License"),
-    ]
-
-
-# ============================================
-# NOTIFICATION TYPES
+# NOTIFICATION TYPE
 # ============================================
 
 class NotificationType:
@@ -221,32 +272,7 @@ class NotificationType:
 
 
 # ============================================
-# ADMIN ACTION TYPES
-# ============================================
-
-class AdminActionType:
-    """Administrator action types"""
-    WARN = 'WARN'
-    SUSPEND = 'SUSPEND'
-    BAN = 'BAN'
-    UNBAN = 'UNBAN'
-    VERIFY = 'VERIFY'
-    REJECT_VERIFICATION = 'REJECT_VERIFICATION'
-    DISMISS_REPORT = 'DISMISS_REPORT'
-    
-    CHOICES = [
-        (WARN, 'Warning'),
-        (SUSPEND, 'Suspend'),
-        (BAN, 'Ban'),
-        (UNBAN, 'Unban'),
-        (VERIFY, 'Verify'),
-        (REJECT_VERIFICATION, 'Reject Verification'),
-        (DISMISS_REPORT, 'Dismiss Report'),
-    ]
-
-
-# ============================================
-# FILE TYPES
+# FILE TYPE
 # ============================================
 
 class FileType:
@@ -263,7 +289,7 @@ class FileType:
 
 
 # ============================================
-# ROLE TYPES
+# ROLE TYPE
 # ============================================
 
 class RoleType:
@@ -277,3 +303,46 @@ class RoleType:
         (WORKER, 'Worker'),
         (CLIENT, 'Client'),
     ]
+
+
+# ============================================
+# PERMISSION CODENAMES
+# ============================================
+
+class PermissionCodename:
+    """Permission codenames"""
+    VIEW_USERS = 'can_view_users'
+    CREATE_USER = 'can_create_user'
+    SUSPEND_USER = 'can_suspend_user'
+    BAN_USER = 'can_ban_user'
+    UNBAN_USER = 'can_unban_user'
+    VERIFY_USER = 'can_verify_user'
+    REJECT_VERIFICATION = 'can_reject_verification'
+    
+    CREATE_JOB = 'can_create_job'
+    VIEW_JOBS = 'can_view_jobs'
+    APPLY_JOB = 'can_apply_for_job'
+    ASSIGN_WORKER = 'can_assign_worker'
+    COMPLETE_JOB = 'can_complete_job'
+    DELETE_JOB = 'can_delete_job'
+    
+    CREATE_REVIEW = 'can_create_review'
+    VIEW_REVIEWS = 'can_view_reviews'
+    DELETE_REVIEW = 'can_delete_review'
+    
+    CREATE_REPORT = 'can_create_report'
+    VIEW_REPORTS = 'can_view_reports'
+    REVIEW_REPORTS = 'can_review_reports'
+    ESCALATE_REPORT = 'can_escalate_reports'
+    
+    VIEW_AUDIT_LOGS = 'can_view_audit_logs'
+    VIEW_DASHBOARD = 'can_view_dashboard'
+    MANAGE_SYSTEM = 'can_manage_system'
+
+
+# ============================================
+# ALIAS FOR BACKWARD COMPATIBILITY
+# ============================================
+
+# This allows you to use both UserAccountStatus and AccountStatus
+AccountStatus = UserAccountStatus

@@ -1,32 +1,51 @@
 # apps/common/__init__.py
 from .constants import (
-    AccountStatus,
+    # User/Account
+    UserAccountStatus,
+    AccountStatus,  # Alias for backward compatibility
+    RoleType,
     AvailabilityStatus,
+    
+    # Job Related
     JobStatus,
     ApplicationStatus,
-    ReportStatus,
-    AdminDecision,
-    ReportCategory,
+    AssignmentStatus,
+    
+    # Verification
     VerificationStatus,
     DocumentType,
+    
+    # Reports
+    ReportCategory,
+    ReportStatus,
+    AdminDecision,
+    DisciplinaryActionType,
+    
+    # Notifications
     NotificationType,
-    AdminActionType,
+    
+    # Files
     FileType,
-    RoleType,
+    
+    # Permissions
+    PermissionCodename,
 )
 
 __all__ = [
+    'UserAccountStatus',
     'AccountStatus',
+    'RoleType',
     'AvailabilityStatus',
     'JobStatus',
     'ApplicationStatus',
-    'ReportStatus',
-    'AdminDecision',
-    'ReportCategory',
+    'AssignmentStatus',
     'VerificationStatus',
     'DocumentType',
+    'ReportCategory',
+    'ReportStatus',
+    'AdminDecision',
+    'DisciplinaryActionType',
     'NotificationType',
-    'AdminActionType',
     'FileType',
-    'RoleType',
+    'PermissionCodename',
 ]

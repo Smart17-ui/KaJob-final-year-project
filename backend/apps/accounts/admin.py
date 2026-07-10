@@ -1,8 +1,10 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
-    Role, User, WorkerProfile, ClientProfile, Skill, WorkerSkill
+    Role, Permission, RolePermission, User, UserRole, 
+    Profile, WorkerProfile, ClientProfile, Skill, WorkerSkill
 )
+
 
 # ============================================
 # ROLE ADMIN
@@ -19,19 +21,46 @@ class RoleAdmin(admin.ModelAdmin):
 
 
 # ============================================
+# PERMISSION ADMIN
+# ============================================
+
+@admin.register(Permission)
+class PermissionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'codename', 'created_at')
+    list_display_links = ('id', 'name')
+    search_fields = ('name', 'codename', 'description')
+    list_per_page = 20
+    ordering = ('name',)
+    readonly_fields = ('created_at', 'updated_at')
+
+
+# ============================================
+# ROLE PERMISSION ADMIN
+# ============================================
+
+@admin.register(RolePermission)
+class RolePermissionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'role', 'permission', 'created_at')
+    list_display_links = ('id',)
+    search_fields = ('role__name', 'permission__name')
+    list_per_page = 20
+    readonly_fields = ('created_at', 'updated_at')
+
+
+# ============================================
 # USER ADMIN
 # ============================================
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'full_name', 'email', 'phone_number', 'role', 
+        'id', 'full_name', 'email', 'phone_number', 'get_roles', 
         'account_status', 'is_verified', 'created_at'
     )
     list_display_links = ('id', 'full_name')
     list_filter = (
-        'role', 'account_status', 'is_verified', 'created_at'
-    )  # Removed 'is_deleted'
+        'account_status', 'is_verified', 'created_at'
+    )
     search_fields = ('first_name', 'last_name', 'email', 'phone_number')
     list_per_page = 25
     ordering = ('-created_at',)
@@ -41,6 +70,38 @@ class UserAdmin(admin.ModelAdmin):
         return obj.full_name
     full_name.short_description = 'Full Name'
     full_name.admin_order_field = 'first_name'
+    
+    def get_roles(self, obj):
+        """Display roles as a comma-separated list"""
+        return ", ".join([role.name for role in obj.roles])
+    get_roles.short_description = 'Roles'
+
+
+# ============================================
+# USER ROLE ADMIN
+# ============================================
+
+@admin.register(UserRole)
+class UserRoleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'role', 'created_at')
+    list_display_links = ('id',)
+    search_fields = ('user__email', 'role__name')
+    list_per_page = 20
+    readonly_fields = ('created_at', 'updated_at')
+
+
+# ============================================
+# PROFILE ADMIN
+# ============================================
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'province', 'district', 'created_at')
+    list_display_links = ('id', 'user')
+    search_fields = ('user__email', 'province', 'district')
+    list_filter = ('province', 'district')
+    list_per_page = 25
+    readonly_fields = ('created_at', 'updated_at')
 
 
 # ============================================
@@ -51,14 +112,19 @@ class UserAdmin(admin.ModelAdmin):
 class WorkerProfileAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'user', 'availability_status', 'average_rating', 
-        'total_reviews', 'created_at'
+        'total_reviews', 'jobs_completed', 'created_at'
     )
     list_display_links = ('id', 'user')
-    list_filter = ('availability_status', 'average_rating', 'created_at')  # Removed 'is_deleted'
+    list_filter = ('availability_status', 'average_rating', 'created_at')
     search_fields = ('user__first_name', 'user__last_name', 'user__email')
     list_per_page = 25
     ordering = ('-average_rating',)
     readonly_fields = ('availability_updated_at', 'created_at', 'updated_at')
+    
+    def get_skills(self, obj):
+        """Display skills as a comma-separated list"""
+        return ", ".join([skill.name for skill in obj.skills.all()])
+    get_skills.short_description = 'Skills'
 
 
 # ============================================
@@ -69,7 +135,7 @@ class WorkerProfileAdmin(admin.ModelAdmin):
 class ClientProfileAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'organization_name', 'created_at')
     list_display_links = ('id', 'user')
-    list_filter = ('created_at',)  # Removed 'is_deleted'
+    list_filter = ('created_at',)
     search_fields = ('user__first_name', 'user__last_name', 'organization_name')
     list_per_page = 25
     ordering = ('-created_at',)
@@ -82,10 +148,10 @@ class ClientProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Skill)
 class SkillAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'category', 'created_at')
+    list_display = ('id', 'name', 'category', 'icon', 'created_at')
     list_display_links = ('id', 'name')
     list_filter = ('category',)
-    search_fields = ('name', 'category')
+    search_fields = ('name', 'category', 'description')
     list_per_page = 20
     ordering = ('name',)
     readonly_fields = ('created_at', 'updated_at')
@@ -97,9 +163,9 @@ class SkillAdmin(admin.ModelAdmin):
 
 @admin.register(WorkerSkill)
 class WorkerSkillAdmin(admin.ModelAdmin):
-    list_display = ('id', 'worker_profile', 'skill', 'created_at')
+    list_display = ('id', 'worker_profile', 'skill', 'proficiency', 'years_experience', 'created_at')
     list_display_links = ('id',)
-    list_filter = ('skill', 'created_at')
+    list_filter = ('skill', 'proficiency', 'created_at')
     search_fields = ('worker_profile__user__first_name', 'skill__name')
     list_per_page = 20
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'updated_at')

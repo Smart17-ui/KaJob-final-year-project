@@ -1,55 +1,41 @@
 from django.db import models
+from apps.common.constants import FileType
+
 
 class ReportEvidence(models.Model):
     """
-    Stores evidence for reports.
+    Evidence for reports.
     """
-    FILE_TYPES = [
-        ('IMAGE', 'Image'),
-        ('VIDEO', 'Video'),
-        ('DOCUMENT', 'Document'),
-    ]
-
     report = models.ForeignKey(
         'Report',
         on_delete=models.CASCADE,
-        related_name='evidence',
-        help_text="Report this evidence belongs to"
-    )
-    file_path = models.CharField(
-        max_length=500,
-        help_text="Path to the evidence file"
-    )
-    file_type = models.CharField(
-        max_length=20,
-        choices=FILE_TYPES,
-        help_text="Type of evidence file"
-    )
-    file_name = models.CharField(
-        max_length=255,
-        help_text="Original file name"
-    )
-    description = models.TextField(
-        blank=True,
-        help_text="Description of the evidence"
+        related_name='evidence'
     )
     uploaded_by = models.ForeignKey(
         'accounts.User',
         on_delete=models.CASCADE,
-        related_name='evidence_uploaded',
-        help_text="User who uploaded the evidence"
+        related_name='evidence_uploaded'
     )
-    uploaded_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="When the evidence was uploaded"
-    )
-
+    
+    # Evidence Information
+    file_path = models.CharField(max_length=500)
+    file_type = models.CharField(max_length=20, choices=FileType.CHOICES)
+    file_name = models.CharField(max_length=255)
+    file_size = models.BigIntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+    
+    # Timestamps
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
     class Meta:
         db_table = 'report_evidence'
         ordering = ['-uploaded_at']
+        verbose_name = 'Report Evidence'
+        verbose_name_plural = 'Report Evidences'
         indexes = [
             models.Index(fields=['report', 'uploaded_at']),
         ]
-
+    
     def __str__(self):
         return f"Evidence for {self.report.reference_number}"

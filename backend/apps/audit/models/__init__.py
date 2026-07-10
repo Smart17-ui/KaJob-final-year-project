@@ -1,7 +1,7 @@
-from .admin_action import AdminAction
+from .disciplinary_action import DisciplinaryAction
 from .audit_log import AuditLog
 
 __all__ = [
-    'AdminAction',
+    'DisciplinaryAction',
     'AuditLog',
 ]

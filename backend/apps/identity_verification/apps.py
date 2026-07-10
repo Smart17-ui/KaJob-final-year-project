@@ -1,5 +1,5 @@
 from django.apps import AppConfig
 
 
-class IdentityVerificationConfig(AppConfig):
+class IdentifyVerificationConfig(AppConfig):
     name = 'apps.identity_verification'
