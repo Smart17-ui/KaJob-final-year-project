@@ -11,7 +11,6 @@ class VerificationDocument(models.Model):
         on_delete=models.CASCADE,
         related_name='documents'
     )
-    
     # Document Information
     document_type = models.CharField(
         max_length=20,
