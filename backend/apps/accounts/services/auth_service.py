@@ -35,20 +35,28 @@ class AuthService:
         self.token_service = TokenService()
     
     # ============================================
-    # REGISTRATION
+    # REGISTRATION (Role Player Pattern)
     # ============================================
     
     @transaction.atomic
     def register_user(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Register a new user and send verification email.
+        Register a new user OR add a role to existing user.
+        Implements the Role Player Pattern - one user can have multiple roles.
         """
-        # ✅ Normalize email - case insensitive
+        # Normalize email - case insensitive
         data['email'] = data['email'].lower().strip()
         
-        # Validate email uniqueness
-        if self.user_repo.email_exists(data['email']):
-            raise BusinessRuleViolation("Email is already registered.")
+        # Check if user already exists
+        existing_user = self.user_repo.get_by_email(data['email'])
+        
+        # If user exists, add the new role (Role Player Pattern)
+        if existing_user:
+            return self._add_role_to_existing_user(existing_user, data)
+        
+        # ============================================
+        # NEW USER REGISTRATION
+        # ============================================
         
         # Validate phone uniqueness
         if self.user_repo.phone_exists(data['phone_number']):
@@ -109,14 +117,75 @@ class AuthService:
         }
     
     # ============================================
-    # LOGIN / LOGOUT / REFRESH
+    # PRIVATE METHODS
     # ============================================
     
-    def login_user(self, email: str, password: str, request=None) -> Dict[str, Any]:
+    def _add_role_to_existing_user(self, user: User, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Authenticate user and generate tokens.
+        Add a new role to an existing user (Role Player Pattern).
         """
-        # ✅ Normalize email - case insensitive
+        # Get the role
+        role = self.role_repo.get_by_name(data['role'])
+        if not role:
+            raise BusinessRuleViolation(f"Role '{data['role']}' does not exist.")
+        
+        # Check if user already has this role
+        if user.has_role(data['role']):
+            raise BusinessRuleViolation(f"User already has the '{data['role']}' role.")
+        
+        # Add the new role to the user
+        user.add_role(role)
+        
+        # Create role-specific profile if needed
+        if role.name == RoleType.WORKER and not hasattr(user, 'worker_profile'):
+            self.worker_repo.create(user=user)
+        elif role.name == RoleType.CLIENT and not hasattr(user, 'client_profile'):
+            self.client_repo.create(user=user)
+        
+        # Audit log
+        AuditLog.objects.create(
+            user=user,
+            action='ROLE_ADDED',
+            entity_type='USER',
+            entity_id=user.id,
+            details={'role': role.name},
+        )
+        
+        # Generate tokens
+        tokens = self.token_service.generate_tokens(user)
+        
+        # Determine the message based on role
+        if role.name == RoleType.WORKER:
+            message = "Worker role added successfully! You can now apply for jobs."
+        elif role.name == RoleType.CLIENT:
+            message = "Client role added successfully! You can now post jobs."
+        else:
+            message = f"{role.name} role added successfully!"
+        
+        return {
+            'user': user,
+            'tokens': tokens,
+            'message': message
+        }
+    
+    # ============================================
+    # LOGIN / LOGOUT / REFRESH (WITH ROLE SELECTION)
+    # ============================================
+    
+    def login_user(self, email: str, password: str, role: str = None, request=None) -> Dict[str, Any]:
+        """
+        Authenticate user and generate tokens with role selection.
+        
+        Args:
+            email: User's email
+            password: User's password
+            role: Optional role to login as (WORKER or CLIENT)
+            request: HTTP request (for IP logging)
+        
+        Returns:
+            Dict with user, tokens, selected_role, and available_roles
+        """
+        # Normalize email - case insensitive
         email = email.lower().strip()
         
         # Get user by email
@@ -133,6 +202,23 @@ class AuthService:
         if not user.check_password(password):
             raise BusinessRuleViolation("Invalid email or password.")
         
+        # Handle role selection
+        user_roles = user.get_roles_names()
+        
+        if not user_roles:
+            raise BusinessRuleViolation("User has no roles assigned.")
+        
+        # If role is provided, validate it
+        if role:
+            if role not in user_roles:
+                raise BusinessRuleViolation(
+                    f"User does not have the '{role}' role. Available roles: {', '.join(user_roles)}"
+                )
+            selected_role = role
+        else:
+            # If no role provided, use the first role
+            selected_role = user_roles[0]
+        
         # Update last login
         self.user_repo.update_last_login(user)
         
@@ -145,6 +231,7 @@ class AuthService:
             details={
                 'ip': request.META.get('REMOTE_ADDR') if request else None,
                 'user_agent': request.META.get('HTTP_USER_AGENT') if request else None,
+                'login_as': selected_role,
             },
         )
         
@@ -154,6 +241,8 @@ class AuthService:
         return {
             'user': user,
             'tokens': tokens,
+            'selected_role': selected_role,
+            'available_roles': user_roles,
         }
     
     def logout_user(self, refresh_token: str) -> bool:
@@ -187,7 +276,7 @@ class AuthService:
     
     def forgot_password(self, email: str) -> bool:
         """Send password reset email."""
-        # ✅ Normalize email - case insensitive
+        # Normalize email - case insensitive
         email = email.lower().strip()
         
         user = self.user_repo.get_by_email(email)

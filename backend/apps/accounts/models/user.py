@@ -199,13 +199,22 @@ class User(BaseModel):
     # ROLE ASSIGNMENT
     # ============================================
     
-    def add_role(self, role):
-        from .user_role import UserRole
-        UserRole.objects.get_or_create(user=self, role=role)
-    
-    def remove_role(self, role):
-        from .user_role import UserRole
-        UserRole.objects.filter(user=self, role=role).delete()
-    
-    def get_roles_names(self):
-        return [role.name for role in self.roles]
+    # apps/accounts/models/user.py
+# ... existing code ...
+
+# These methods are already implemented:
+def get_roles_names(self):
+    """Get list of role names as strings"""
+    return [role.name for role in self.roles]
+
+def has_role(self, role_name):
+    """Check if user has a specific role"""
+    return any(role.name == role_name for role in self.roles)
+
+def add_role(self, role):
+    from .user_role import UserRole
+    UserRole.objects.get_or_create(user=self, role=role)
+
+def remove_role(self, role):
+    from .user_role import UserRole
+    UserRole.objects.filter(user=self, role=role).delete()

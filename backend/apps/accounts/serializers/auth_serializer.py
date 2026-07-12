@@ -29,10 +29,17 @@ class RegisterSerializer(serializers.Serializer):
 
 class LoginSerializer(serializers.Serializer):
     """
-    Serializer for user login.
+    Serializer for user login with role selection.
     """
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True)
+    role = serializers.ChoiceField(
+        choices=[RoleType.WORKER, RoleType.CLIENT],
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="Optional: Specify role to login as (WORKER or CLIENT)"
+    )
     
     def validate_email(self, value):
         """Normalize email to lowercase for case-insensitive login"""

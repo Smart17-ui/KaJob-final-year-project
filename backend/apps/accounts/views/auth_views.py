@@ -1,11 +1,10 @@
-# apps/accounts/views/auth_views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from rest_framework.throttling import AnonRateThrottle
 
-from apps.accounts.services import AuthService, TokenService
+from apps.accounts.services import AuthService
 from apps.accounts.serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -14,26 +13,20 @@ from apps.accounts.serializers import (
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
     VerifyEmailSerializer,
-    UserSerializer,  # ✅ Import from serializers package
+    UserSerializer,
 )
 from apps.common.permissions import IsActiveUser
 from apps.common.exceptions import BusinessRuleViolation
 
 
-# ============================================
-# SERVICE INSTANCES
-# ============================================
-
+# Service instance
 auth_service = AuthService()
 
-
-# ============================================
-# REGISTER VIEW
-# ============================================
 
 class RegisterView(APIView):
     """
     User registration endpoint.
+    Supports Role Player Pattern - one user can have multiple roles.
     """
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
@@ -57,13 +50,9 @@ class RegisterView(APIView):
             }, status=e.status_code if hasattr(e, 'status_code') else status.HTTP_400_BAD_REQUEST)
 
 
-# ============================================
-# LOGIN VIEW
-# ============================================
-
 class LoginView(APIView):
     """
-    User login endpoint.
+    User login endpoint with role selection.
     """
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
@@ -76,6 +65,7 @@ class LoginView(APIView):
             result = auth_service.login_user(
                 serializer.validated_data['email'],
                 serializer.validated_data['password'],
+                role=serializer.validated_data.get('role'),
                 request=request
             )
             
@@ -83,6 +73,8 @@ class LoginView(APIView):
                 'message': 'Login successful',
                 'user': UserSerializer(result['user']).data,
                 'tokens': result['tokens'],
+                'selected_role': result['selected_role'],
+                'available_roles': result['available_roles'],
             }, status=status.HTTP_200_OK)
             
         except BusinessRuleViolation as e:
@@ -90,10 +82,6 @@ class LoginView(APIView):
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
             }, status=e.status_code if hasattr(e, 'status_code') else status.HTTP_401_UNAUTHORIZED)
 
-
-# ============================================
-# REFRESH TOKEN VIEW
-# ============================================
 
 class RefreshTokenView(APIView):
     """
@@ -116,10 +104,6 @@ class RefreshTokenView(APIView):
                 'error': 'Invalid or expired refresh token'
             }, status=status.HTTP_401_UNAUTHORIZED)
 
-
-# ============================================
-# LOGOUT VIEW
-# ============================================
 
 class LogoutView(APIView):
     """
@@ -147,10 +131,6 @@ class LogoutView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ============================================
-# CURRENT USER VIEW
-# ============================================
-
 class MeView(APIView):
     """
     Get current user information.
@@ -162,10 +142,6 @@ class MeView(APIView):
             'user': UserSerializer(request.user).data
         }, status=status.HTTP_200_OK)
 
-
-# ============================================
-# CHANGE PASSWORD VIEW
-# ============================================
 
 class ChangePasswordView(APIView):
     """
@@ -194,10 +170,6 @@ class ChangePasswordView(APIView):
             }, status=e.status_code if hasattr(e, 'status_code') else status.HTTP_400_BAD_REQUEST)
 
 
-# ============================================
-# FORGOT PASSWORD VIEW
-# ============================================
-
 class ForgotPasswordView(APIView):
     """
     Forgot password endpoint.
@@ -215,10 +187,6 @@ class ForgotPasswordView(APIView):
             'message': 'If an account exists with this email, you will receive a password reset link.'
         }, status=status.HTTP_200_OK)
 
-
-# ============================================
-# RESET PASSWORD VIEW
-# ============================================
 
 class ResetPasswordView(APIView):
     """
@@ -246,10 +214,6 @@ class ResetPasswordView(APIView):
             }, status=e.status_code if hasattr(e, 'status_code') else status.HTTP_400_BAD_REQUEST)
 
 
-# ============================================
-# VERIFY EMAIL VIEW
-# ============================================
-
 class VerifyEmailView(APIView):
     """
     Verify email endpoint.
@@ -272,10 +236,6 @@ class VerifyEmailView(APIView):
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
             }, status=e.status_code if hasattr(e, 'status_code') else status.HTTP_400_BAD_REQUEST)
 
-
-# ============================================
-# RESEND VERIFICATION VIEW
-# ============================================
 
 class ResendVerificationView(APIView):
     """
