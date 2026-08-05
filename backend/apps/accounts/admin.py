@@ -211,9 +211,7 @@ class UserAdmin(BaseUserAdmin):
     get_is_active.boolean = True
     get_is_active.short_description = 'Active'
     
-    def get_queryset(self, request):
-        return self.model.objects.all_with_deleted()
-
+    
 
 # ============================================
 # USER ROLE ADMIN

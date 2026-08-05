@@ -55,9 +55,9 @@ class User(BaseModel):
     Uses email as the username field.
     """
     
-    # Required fields for Django auth
+    # ✅ Required fields for Django auth
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']
+    REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number']  # ✅ ADDED PHONE NUMBER
     
     # Personal Information
     first_name = models.CharField(max_length=100)
@@ -136,7 +136,6 @@ class User(BaseModel):
         """
         if self.is_superuser:
             return True
-        # Check if user has the permission through roles
         return self.has_permission(perm)
     
     def has_module_perms(self, app_label):
@@ -146,8 +145,6 @@ class User(BaseModel):
         """
         if self.is_superuser:
             return True
-        # For now, return True for any app
-        # In a more complex system, you'd check actual permissions
         return True
     
     # ============================================
@@ -199,22 +196,14 @@ class User(BaseModel):
     # ROLE ASSIGNMENT
     # ============================================
     
-    # apps/accounts/models/user.py
-# ... existing code ...
-
-# These methods are already implemented:
-def get_roles_names(self):
-    """Get list of role names as strings"""
-    return [role.name for role in self.roles]
-
-def has_role(self, role_name):
-    """Check if user has a specific role"""
-    return any(role.name == role_name for role in self.roles)
-
-def add_role(self, role):
-    from .user_role import UserRole
-    UserRole.objects.get_or_create(user=self, role=role)
-
-def remove_role(self, role):
-    from .user_role import UserRole
-    UserRole.objects.filter(user=self, role=role).delete()
+    def add_role(self, role):
+        from .user_role import UserRole
+        UserRole.objects.get_or_create(user=self, role=role)
+    
+    def remove_role(self, role):
+        from .user_role import UserRole
+        UserRole.objects.filter(user=self, role=role).delete()
+    
+    def get_roles_names(self):
+        """Get list of role names as strings"""
+        return [role.name for role in self.roles]

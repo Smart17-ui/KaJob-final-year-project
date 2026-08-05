@@ -2,7 +2,7 @@
 from .constants import (
     # User/Account
     UserAccountStatus,
-    AccountStatus,  # Alias for backward compatibility
+    AccountStatus,
     RoleType,
     AvailabilityStatus,
     
@@ -42,6 +42,17 @@ from .exceptions import (
     ServiceUnavailable,
 )
 
+from .permissions import (
+    IsAuthenticated,
+    IsActiveUser,
+    IsVerifiedUser,
+    IsAdmin,
+    IsWorker,
+    IsClient,
+    HasPermission,
+    HasAnyPermission,
+)
+
 __all__ = [
     # Constants
     'UserAccountStatus',
@@ -70,4 +81,14 @@ __all__ = [
     'ConflictError',
     'RateLimitExceeded',
     'ServiceUnavailable',
+    
+    # Permissions
+    'IsAuthenticated',
+    'IsActiveUser',
+    'IsVerifiedUser',
+    'IsAdmin',
+    'IsWorker',
+    'IsClient',
+    'HasPermission',
+    'HasAnyPermission',
 ]

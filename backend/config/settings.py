@@ -90,15 +90,51 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
 ]
 
+# config/settings.py - Add these to your existing settings
+
+# ============================================
+# MIDDLEWARE CONFIGURATION
+# ============================================
+
 MIDDLEWARE = [
+    # Django default middleware (in correct order)
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    
+    # Custom CORS middleware (early)
+    'infrastructure.middleware.cors_middleware.CORSMiddleware',
+    
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    # Custom middleware (order matters!)
+    'infrastructure.middleware.request_id_middleware.RequestIDMiddleware',  # 1. Request ID
+    'infrastructure.middleware.logging_middleware.RequestLoggingMiddleware',  # 2. Request logging
+    'infrastructure.middleware.auth_middleware.JWTAuthenticationMiddleware',  # 3. JWT auth
+    'infrastructure.middleware.rate_limit_middleware.RateLimitMiddleware',  # 4. Rate limiting
+    'infrastructure.middleware.audit_middleware.AuditMiddleware',  # 5. Audit logging
+    'infrastructure.middleware.performance_middleware.PerformanceMiddleware',  # 6. Performance tracking
+    'infrastructure.middleware.security_middleware.SecurityHeadersMiddleware',  # 7. Security headers
 ]
+
+# ============================================
+# CORS SETTINGS
+# ============================================
+
+CORS_ALLOWED_ORIGINS = get_env('CORS_ALLOWED_ORIGINS', default='http://localhost:3000', cast=list)
+CORS_ALLOWED_METHODS = [
+    'DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT'
+]
+CORS_ALLOWED_HEADERS = [
+    'accept', 'accept-encoding', 'authorization',
+    'content-type', 'dnt', 'origin', 'user-agent',
+    'x-csrftoken', 'x-request-id', 'x-requested-with'
+]
+CORS_ALLOW_CREDENTIALS = True
+CORS_MAX_AGE = 86400  # 24 hours
 
 ROOT_URLCONF = 'config.urls'
 
