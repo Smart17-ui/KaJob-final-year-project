@@ -70,11 +70,14 @@ class JobRepository(BaseRepository[Job]):
         ).order_by('-posted_at')
     
     # ============================================
-    # SEARCH AND FILTER
+    # SEARCH AND FILTER (Optional)
     # ============================================
     
     def search_jobs(self, query: str) -> List[Job]:
-        """Search jobs by title or description"""
+        """
+        Search jobs by title or description.
+        Optional - keep if users want to search by keyword.
+        """
         return self.filter(
             Q(title__icontains=query) | Q(description__icontains=query),
             status=JobStatus.OPEN,
@@ -86,9 +89,11 @@ class JobRepository(BaseRepository[Job]):
         category_id: int = None, 
         min_budget: float = None, 
         max_budget: float = None,
-        location: str = None
     ) -> List[Job]:
-        """Filter jobs by category, budget, and location"""
+        """
+        Filter jobs by category and budget.
+        (Location is handled by the Matching Service)
+        """
         filters = {'status': JobStatus.OPEN, 'deleted_at__isnull': True}
         
         if category_id:
@@ -97,10 +102,50 @@ class JobRepository(BaseRepository[Job]):
             filters['budget__gte'] = min_budget
         if max_budget is not None:
             filters['budget__lte'] = max_budget
-        if location:
-            filters['general_location__icontains'] = location
         
         return self.filter(**filters).order_by('-posted_at')
+    
+    # ============================================
+    # LOCATION-BASED QUERIES (For Matching Service)
+    # ============================================
+    
+    def get_jobs_with_location(self) -> List[Job]:
+        """
+        Get all open jobs that have location coordinates.
+        Used by matching service for distance calculations.
+        """
+        return self.filter(
+            status=JobStatus.OPEN,
+            latitude__isnull=False,
+            longitude__isnull=False,
+            deleted_at__isnull=True
+        ).order_by('-posted_at')
+    
+    def get_jobs_nearby(
+        self, 
+        latitude: float, 
+        longitude: float, 
+        radius_km: float
+    ) -> List[Job]:
+        """
+        Get open jobs within a radius.
+        This is the PRIMARY way to find jobs - location-based matching!
+        """
+        # 1 degree latitude ≈ 111km
+        lat_range = radius_km / 111.0
+        # 1 degree longitude ≈ 111km * cos(latitude)
+        lng_range = radius_km / (111.0 * 111.0)
+        
+        return self.filter(
+            status=JobStatus.OPEN,
+            latitude__isnull=False,
+            longitude__isnull=False,
+            latitude__gte=latitude - lat_range,
+            latitude__lte=latitude + lat_range,
+            longitude__gte=longitude - lng_range,
+            longitude__lte=longitude + lng_range,
+            deleted_at__isnull=True
+        ).order_by('-posted_at')
     
     # ============================================
     # UPDATE OPERATIONS
@@ -139,5 +184,21 @@ class JobRepository(BaseRepository[Job]):
         return self.filter(
             assigned_worker_id=worker_id,
             status__in=[JobStatus.ASSIGNED, JobStatus.IN_PROGRESS],
+            deleted_at__isnull=True
+        ).count()
+    
+    def count_jobs_nearby(self, latitude: float, longitude: float, radius_km: float) -> int:
+        """Count open jobs within a radius"""
+        lat_range = radius_km / 111.0
+        lng_range = radius_km / (111.0 * 111.0)
+        
+        return self.filter(
+            status=JobStatus.OPEN,
+            latitude__isnull=False,
+            longitude__isnull=False,
+            latitude__gte=latitude - lat_range,
+            latitude__lte=latitude + lat_range,
+            longitude__gte=longitude - lng_range,
+            longitude__lte=longitude + lng_range,
             deleted_at__isnull=True
         ).count()

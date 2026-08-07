@@ -72,7 +72,7 @@ class OpenJobsView(APIView):
 
 class MyJobsView(APIView):
     """
-    Get jobs posted by the authenticated user.
+    Get jobs posted by or assigned to the authenticated user.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
     
@@ -85,6 +85,34 @@ class MyJobsView(APIView):
         else:
             jobs = []
         
+        return Response({
+            'count': len(jobs),
+            'results': JobListSerializer(jobs, many=True).data
+        }, status=status.HTTP_200_OK)
+
+
+class MyOpenJobsView(APIView):
+    """
+    Get open jobs posted by the authenticated client.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
+    
+    def get(self, request):
+        jobs = job_service.get_open_jobs_by_client(request.user.id)
+        return Response({
+            'count': len(jobs),
+            'results': JobListSerializer(jobs, many=True).data
+        }, status=status.HTTP_200_OK)
+
+
+class MyActiveJobsView(APIView):
+    """
+    Get active jobs assigned to the authenticated worker.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
+    
+    def get(self, request):
+        jobs = job_service.get_active_jobs_by_worker(request.user.id)
         return Response({
             'count': len(jobs),
             'results': JobListSerializer(jobs, many=True).data
@@ -113,7 +141,8 @@ class SearchJobsView(APIView):
 
 class FilterJobsView(APIView):
     """
-    Filter jobs by category, budget, and location.
+    Filter jobs by category and budget.
+    Location filtering is handled by the Matching Service.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
     
@@ -121,7 +150,6 @@ class FilterJobsView(APIView):
         category_id = request.query_params.get('category')
         min_budget = request.query_params.get('min_budget')
         max_budget = request.query_params.get('max_budget')
-        location = request.query_params.get('location')
         
         # Convert parameters
         try:
@@ -133,7 +161,7 @@ class FilterJobsView(APIView):
                 'error': 'Invalid parameter format'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        jobs = job_service.filter_jobs(category_id, min_budget, max_budget, location)
+        jobs = job_service.filter_jobs(category_id, min_budget, max_budget)
         return Response({
             'count': len(jobs),
             'results': JobListSerializer(jobs, many=True).data
@@ -178,24 +206,6 @@ class DeleteJobView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CompleteJobView(APIView):
-    """
-    Mark a job as completed.
-    The client or the assigned worker can complete the job.
-    """
-    permission_classes = [IsAuthenticated, IsActiveUser]
-    
-    def post(self, request, job_id):
-        try:
-            result = job_service.complete_job(request.user, job_id)
-            return Response({
-                'message': result['message'],
-                'job': JobSerializer(result['job']).data
-            }, status=status.HTTP_200_OK)
-        except (BusinessRuleViolation, ResourceNotFound) as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
 class CancelJobView(APIView):
     """
     Cancel a job.
@@ -206,6 +216,28 @@ class CancelJobView(APIView):
     def post(self, request, job_id):
         try:
             result = job_service.cancel_job(request.user, job_id)
+            return Response({
+                'message': result['message'],
+                'job': JobSerializer(result['job']).data
+            }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ============================================
+# DEPRECATED VIEW (Use assignment service instead)
+# ============================================
+
+class CompleteJobView(APIView):
+    """
+    Mark a job as completed.
+    DEPRECATED: Use WorkerMarkCompleteView and ClientConfirmCompleteView instead.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+    
+    def post(self, request, job_id):
+        try:
+            result = job_service.complete_job(request.user, job_id)
             return Response({
                 'message': result['message'],
                 'job': JobSerializer(result['job']).data

@@ -4,9 +4,13 @@ from django.utils import timezone
 from typing import Dict, Any, List, Optional
 from apps.jobs.repositories import JobRepository, JobApplicationRepository
 from apps.jobs.models import JobApplication
+from apps.accounts.repositories import WorkerProfileRepository  # ✅ Add this import
 from apps.audit.models import AuditLog
 from apps.common.constants import ApplicationStatus, JobStatus
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class JobApplicationService:
@@ -18,7 +22,8 @@ class JobApplicationService:
     def __init__(self):
         self.job_repo = JobRepository()
         self.application_repo = JobApplicationRepository()
-        
+        self.worker_repo = WorkerProfileRepository()  # ✅ Add this
+    
     # ============================================
     # APPLY FOR JOB
     # ============================================
@@ -52,6 +57,11 @@ class JobApplicationService:
         if not worker.is_verified:
             raise BusinessRuleViolation("You must be verified to apply for jobs.")
         
+        # ✅ Check if worker is available (not busy)
+        worker_profile = self.worker_repo.get_by_user_id(worker.id)
+        if worker_profile and not worker_profile.is_available:
+            raise BusinessRuleViolation("You are currently busy with another job.")
+        
         # Create application
         application = self.application_repo.create(
             job=job,
@@ -71,8 +81,7 @@ class JobApplicationService:
             }
         )
         
-        # Notify client
-        # self._notify_client(application)
+        logger.info(f"Worker {worker.id} applied for job {job_id}")
         
         return {
             'application': application,
@@ -80,11 +89,11 @@ class JobApplicationService:
         }
     
     # ============================================
-    # GET APPLICATIONS
+    # GET APPLICATIONS (NEWEST FIRST)
     # ============================================
     
     def get_applications_for_job(self, client, job_id: int) -> List[JobApplication]:
-        """Get all applications for a job"""
+        """Get all applications for a job (newest first)"""
         job = self.job_repo.get_by_id(job_id)
         if not job:
             raise ResourceNotFound("Job not found.")
@@ -92,10 +101,10 @@ class JobApplicationService:
         if job.client_id != client.id:
             raise BusinessRuleViolation("You don't have permission to view applications for this job.")
         
-        return self.application_repo.get_by_job_id(job_id)
+        return self.application_repo.get_by_job_id(job_id).order_by('-applied_at')
     
     def get_pending_applications_for_job(self, client, job_id: int) -> List[JobApplication]:
-        """Get pending applications for a job"""
+        """Get pending applications for a job (newest first)"""
         job = self.job_repo.get_by_id(job_id)
         if not job:
             raise ResourceNotFound("Job not found.")
@@ -103,11 +112,27 @@ class JobApplicationService:
         if job.client_id != client.id:
             raise BusinessRuleViolation("You don't have permission to view applications for this job.")
         
-        return self.application_repo.get_pending_applications_by_job(job_id)
+        return self.application_repo.get_pending_applications_by_job(job_id).order_by('-applied_at')
     
     def get_applications_by_worker(self, worker_id: int) -> List[JobApplication]:
-        """Get applications by a worker"""
-        return self.application_repo.get_by_worker_id(worker_id)
+        """Get applications by a worker (newest first)"""
+        return self.application_repo.get_by_worker_id(worker_id).order_by('-applied_at')
+    
+    def get_pending_applications_by_worker(self, worker_id: int) -> List[JobApplication]:
+        """Get pending applications by a worker (newest first)"""
+        return self.application_repo.get_pending_applications_by_worker(worker_id).order_by('-applied_at')
+    
+    def get_application_detail(self, client, application_id: int) -> JobApplication:
+        """Get detailed application information"""
+        application = self.application_repo.get_by_id(application_id)
+        if not application:
+            raise ResourceNotFound("Application not found.")
+        
+        job = application.job
+        if job.client_id != client.id:
+            raise BusinessRuleViolation("You don't have permission to view this application.")
+        
+        return application
     
     # ============================================
     # UPDATE APPLICATION STATUS
@@ -154,6 +179,8 @@ class JobApplicationService:
             }
         )
         
+        logger.info(f"Client {client.id} accepted application {application_id}")
+        
         return {
             'application': application,
             'message': 'Application accepted successfully!'
@@ -193,6 +220,8 @@ class JobApplicationService:
             }
         )
         
+        logger.info(f"Client {client.id} rejected application {application_id}")
+        
         return {
             'application': application,
             'message': 'Application rejected successfully!'
@@ -228,6 +257,8 @@ class JobApplicationService:
                 'job_id': application.job.id,
             }
         )
+        
+        logger.info(f"Worker {worker.id} withdrew application {application_id}")
         
         return {
             'application': application,

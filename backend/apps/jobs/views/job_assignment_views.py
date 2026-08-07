@@ -41,7 +41,8 @@ class AssignWorkerView(APIView):
             return Response({
                 'message': result['message'],
                 'assignment': JobAssignmentSerializer(result['assignment']).data,
-                'job': result['job']
+                'job': result['job'],
+                'withdrawn_applications': result.get('withdrawn_applications', 0),
             }, status=status.HTTP_200_OK)
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -118,37 +119,48 @@ class CancelAssignmentView(APIView):
             }, status=status.HTTP_200_OK)
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-class ActiveAssignmentsView(APIView):
-    """
-    Get active assignments for the authenticated worker.
-    """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
-    def get(self, request):
-        assignments = job_assignment_service.get_active_assignments_by_worker(
-            request.user.id
-        )
-        return Response({
-            'count': len(assignments),
-            'results': JobAssignmentSerializer(assignments, many=True).data
-        }, status=status.HTTP_200_OK)
 
 
-class CancelAssignmentView(APIView):
+# ============================================
+# NEW VIEWS FOR THE COMPLETION FLOW
+# ============================================
+
+class WorkerMarkCompleteView(APIView):
     """
-    Cancel an assignment (only if not completed yet).
+    Worker marks the job as complete (pending client confirmation).
+    Worker becomes AVAILABLE and can accept other jobs.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
     
-    def post(self, request, assignment_id):
+    def post(self, request, job_id):
         try:
-            result = job_assignment_service.cancel_assignment(
+            result = job_assignment_service.worker_mark_complete(
                 request.user,
-                assignment_id
+                job_id
             )
             return Response({
                 'message': result['message'],
-                'assignment': JobAssignmentSerializer(result['assignment']).data
+                'job': result['job']
+            }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ClientConfirmCompleteView(APIView):
+    """
+    Client confirms the job is complete (after worker marked complete).
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
+    
+    def post(self, request, job_id):
+        try:
+            result = job_assignment_service.client_confirm_complete(
+                request.user,
+                job_id
+            )
+            return Response({
+                'message': result['message'],
+                'job': result['job']
             }, status=status.HTTP_200_OK)
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

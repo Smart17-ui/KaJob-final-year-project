@@ -46,7 +46,7 @@ class ApplyForJobView(APIView):
 
 class JobApplicationsView(APIView):
     """
-    Get all applications for a job.
+    Get all applications for a job (newest first).
     Only the client who posted the job can view applications.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
@@ -67,7 +67,7 @@ class JobApplicationsView(APIView):
 
 class PendingApplicationsView(APIView):
     """
-    Get pending applications for a job.
+    Get pending applications for a job (newest first).
     Only the client who posted the job can view pending applications.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
@@ -123,21 +123,7 @@ class UpdateApplicationStatusView(APIView):
 
 class MyApplicationsView(APIView):
     """
-    Get all applications made by the authenticated worker.
-    """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
-    def get(self, request):
-        applications = job_application_service.get_applications_by_worker(
-            request.user.id
-        )
-        return Response({
-            'count': len(applications),
-            'results': JobApplicationListSerializer(applications, many=True).data
-        }, status=status.HTTP_200_OK)
-class MyApplicationsView(APIView):
-    """
-    Get all applications made by the authenticated worker.
+    Get all applications made by the authenticated worker (newest first).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
     

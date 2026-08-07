@@ -10,8 +10,8 @@ class JobSerializer(serializers.ModelSerializer):
     """
     client_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
-    assigned_worker_name = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
+    assigned_worker_name = serializers.SerializerMethodField()
     
     class Meta:
         model = Job
@@ -24,8 +24,9 @@ class JobSerializer(serializers.ModelSerializer):
             'client_name',
             'category',
             'category_name',
-            'assigned_worker',
-            'assigned_worker_name',
+            # ✅ Remove 'assigned_worker' - it doesn't exist in Job model
+            # 'assigned_worker',  # ❌ REMOVE THIS
+            'assigned_worker_name',  # ✅ Keep this - it's a method field
             'general_location',
             'exact_location',
             'latitude',
@@ -53,11 +54,16 @@ class JobSerializer(serializers.ModelSerializer):
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
     
-    def get_assigned_worker_name(self, obj):
-        return obj.assigned_worker.full_name if obj.assigned_worker else None
-    
     def get_status_display(self, obj):
         return dict(JobStatus.CHOICES).get(obj.status)
+    
+    def get_assigned_worker_name(self, obj):
+        """Get the assigned worker name from the active assignment"""
+        # Get the active assignment for this job
+        assignment = obj.assignments.filter(status='ACTIVE').first()
+        if assignment:
+            return assignment.worker.full_name
+        return None
 
 
 class JobCreateSerializer(serializers.Serializer):

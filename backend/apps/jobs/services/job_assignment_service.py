@@ -1,4 +1,5 @@
 # apps/jobs/services/job_assignment_service.py
+import logging
 from django.db import transaction
 from django.utils import timezone
 from typing import Dict, Any, List, Optional
@@ -13,6 +14,9 @@ from apps.accounts.repositories import WorkerProfileRepository
 from apps.audit.models import AuditLog
 from apps.common.constants import JobStatus, ApplicationStatus, AssignmentStatus
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
+
+logger = logging.getLogger(__name__)
+
 
 class JobAssignmentService:
     """
@@ -34,6 +38,9 @@ class JobAssignmentService:
     def assign_worker(self, client, job_id: int, worker_id: int) -> Dict[str, Any]:
         """
         Assign a worker to a job.
+        
+        Worker becomes BUSY
+        All other pending applications for this worker are withdrawn
         
         Args:
             client: The client user
@@ -64,12 +71,17 @@ class JobAssignmentService:
         if not worker_profile.is_available:
             raise BusinessRuleViolation("Worker is not available.")
         
+        # Check if worker already has an active assignment
+        active_assignment = self.assignment_repo.get_active_by_worker_id(worker_id)
+        if active_assignment:
+            raise BusinessRuleViolation("Worker is already assigned to another job.")
+        
         # Check if worker has applied
         application = self.application_repo.get_by_job_and_worker(job_id, worker_id)
         if not application:
             raise BusinessRuleViolation("Worker has not applied for this job.")
         
-        # Check if there's already an active assignment
+        # Check if there's already an active assignment for this job
         existing_assignment = self.assignment_repo.get_active_by_job_id(job_id)
         if existing_assignment:
             raise BusinessRuleViolation("A worker is already assigned to this job.")
@@ -83,10 +95,13 @@ class JobAssignmentService:
         # Accept the worker's application
         self.application_repo.accept_application(application)
         
-        # Reject all other applications
+        # Reject all other applications for this job
         self.application_repo.reject_all_other_applications(job_id, worker_id)
         
-        # Update worker availability
+        # Auto-withdraw all other pending applications for this worker
+        withdrawn_count = self._withdraw_other_applications(worker_id, job_id)
+        
+        # Update worker availability to BUSY
         self.worker_repo.update_availability(worker_id, 'BUSY')
         
         # Audit log
@@ -99,14 +114,45 @@ class JobAssignmentService:
                 'job_id': job_id,
                 'worker_id': worker_id,
                 'job_title': job.title,
+                'withdrew_applications': withdrawn_count,
             }
+        )
+        
+        logger.info(
+            f"Worker {worker_id} assigned to job {job_id}. "
+            f"Withdrew {withdrawn_count} other pending applications."
         )
         
         return {
             'assignment': assignment,
             'job': JobSerializer(job).data,
-            'message': 'Worker assigned successfully!'
+            'withdrawn_applications': withdrawn_count,
+            'message': 'Worker assigned successfully! All other applications have been withdrawn.'
         }
+    
+    def _withdraw_other_applications(self, worker_id: int, assigned_job_id: int) -> int:
+        """
+        Withdraw all other pending applications for a worker.
+        This ensures the worker is only considered for the job they were assigned to.
+        
+        Returns:
+            Number of applications withdrawn
+        """
+        # Get all pending applications for this worker
+        pending_apps = self.application_repo.get_pending_applications_by_worker(worker_id)
+        
+        # Withdraw all except the assigned job
+        withdrawn_count = 0
+        for app in pending_apps:
+            if app.job_id != assigned_job_id:
+                self.application_repo.withdraw_application(app)
+                withdrawn_count += 1
+                logger.info(f"Auto-withdrew application {app.id} for job {app.job_id}")
+        
+        if withdrawn_count > 0:
+            logger.info(f"Withdrew {withdrawn_count} applications for worker {worker_id}")
+        
+        return withdrawn_count
     
     # ============================================
     # GET ASSIGNMENTS
@@ -124,6 +170,52 @@ class JobAssignmentService:
     def get_assignments_by_job(self, job_id: int) -> List[JobAssignment]:
         """Get all assignments for a job"""
         return self.assignment_repo.get_by_job_id(job_id)
+    
+    # ============================================
+    # START JOB (Worker)
+    # ============================================
+    
+    @transaction.atomic
+    def start_job(self, worker, job_id: int) -> Dict[str, Any]:
+        """
+        Worker starts the job.
+        """
+        job = self.job_repo.get_by_id(job_id)
+        if not job:
+            raise ResourceNotFound("Job not found.")
+        
+        # Check if worker is assigned to this job
+        if job.assigned_worker_id != worker.id:
+            raise BusinessRuleViolation("You are not assigned to this job.")
+        
+        # Check if job can be started
+        if job.status != JobStatus.ASSIGNED:
+            raise BusinessRuleViolation(f"Cannot start a {job.status} job.")
+        
+        # Update job status
+        job = self.job_repo.update_status(job, JobStatus.IN_PROGRESS)
+        
+        # Update assignment
+        assignment = self.assignment_repo.get_active_by_job_id(job_id)
+        if assignment:
+            assignment.started_at = timezone.now()
+            assignment.save()
+        
+        # Audit log
+        AuditLog.objects.create(
+            user=worker,
+            action='JOB_STARTED',
+            entity_type='JOB',
+            entity_id=job.id,
+            details={'job_title': job.title}
+        )
+        
+        logger.info(f"Worker {worker.id} started job {job_id}")
+        
+        return {
+            'job': job,
+            'message': 'Job started successfully!'
+        }
     
     # ============================================
     # COMPLETE ASSIGNMENT
@@ -171,6 +263,8 @@ class JobAssignmentService:
             }
         )
         
+        logger.info(f"Worker {worker.id} completed assignment {assignment_id}")
+        
         return {
             'assignment': assignment,
             'message': 'Assignment completed successfully!'
@@ -214,6 +308,8 @@ class JobAssignmentService:
                 'job_title': job.title,
             }
         )
+        
+        logger.info(f"Worker {worker.id} cancelled assignment {assignment_id}")
         
         return {
             'assignment': assignment,

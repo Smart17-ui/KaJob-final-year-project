@@ -44,6 +44,19 @@ class JobService:
         if not client.is_verified:
             raise BusinessRuleViolation("You must be verified to post a job.")
         
+        # Check if client is active
+        if not client.is_active:
+            raise BusinessRuleViolation("Your account is not active.")
+        
+        # Validate budget
+        if data['budget'] <= 0:
+            raise BusinessRuleViolation("Budget must be greater than zero.")
+        
+        # Validate radius
+        radius = data.get('radius', 5)
+        if radius < 1 or radius > 100:
+            raise BusinessRuleViolation("Radius must be between 1 and 100 kilometers.")
+        
         # Create job
         job = self.job_repo.create(
             client=client,
@@ -55,7 +68,7 @@ class JobService:
             exact_location=data.get('exact_location', ''),
             latitude=data.get('latitude'),
             longitude=data.get('longitude'),
-            radius=data.get('radius', 5),
+            radius=radius,
             status=JobStatus.OPEN,
         )
         
@@ -72,7 +85,6 @@ class JobService:
             }
         )
         
-        # Log instead of sending notifications (for now)
         logger.info(f"Job created: {job.title} by {client.email} (ID: {job.id})")
         
         return {
@@ -103,19 +115,33 @@ class JobService:
         """Get jobs assigned to a worker"""
         return self.job_repo.get_jobs_by_worker(worker_id)
     
+    def get_active_jobs_by_worker(self, worker_id: int) -> List[Job]:
+        """Get active jobs assigned to a worker"""
+        return self.job_repo.get_active_jobs_by_worker(worker_id)
+    
+    def get_open_jobs_by_client(self, client_id: int) -> List[Job]:
+        """Get open jobs posted by a client"""
+        return self.job_repo.get_open_jobs_by_client(client_id)
+    
     def search_jobs(self, query: str) -> List[Job]:
         """Search jobs by title or description"""
         return self.job_repo.search_jobs(query)
+    
+    # ============================================
+    # FILTER JOBS (Non-location filters)
+    # ============================================
     
     def filter_jobs(
         self, 
         category_id: int = None, 
         min_budget: float = None, 
         max_budget: float = None,
-        location: str = None
     ) -> List[Job]:
-        """Filter jobs by category, budget, and location"""
-        return self.job_repo.filter_jobs(category_id, min_budget, max_budget, location)
+        """
+        Filter jobs by category and budget.
+        Location filtering is handled by the Matching Service.
+        """
+        return self.job_repo.filter_jobs(category_id, min_budget, max_budget)
     
     # ============================================
     # UPDATE JOB
@@ -138,6 +164,12 @@ class JobService:
         if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
             raise BusinessRuleViolation(f"Cannot update a {job.status} job.")
         
+        # Check if job has active applications (optional - prevent updates if applications exist)
+        # This is a business decision - you can choose to allow updates or not
+        # applications_count = self.application_repo.count_applications_by_job(job_id)
+        # if applications_count > 0:
+        #     raise BusinessRuleViolation("Cannot update a job that has applications.")
+        
         # Update job
         for key, value in data.items():
             if hasattr(job, key) and key not in ['id', 'client', 'created_at', 'posted_at']:
@@ -152,6 +184,8 @@ class JobService:
             entity_id=job.id,
             details={'updated_fields': list(data.keys())}
         )
+        
+        logger.info(f"Job {job_id} updated by {client.email}")
         
         return {
             'job': job,
@@ -179,6 +213,11 @@ class JobService:
         if job.status == JobStatus.COMPLETED:
             raise BusinessRuleViolation("Cannot delete a completed job.")
         
+        # Check if job has pending applications (optional)
+        # pending_count = self.application_repo.count_pending_applications_by_job(job_id)
+        # if pending_count > 0:
+        #     raise BusinessRuleViolation("Cannot delete a job with pending applications.")
+        
         # Soft delete
         self.job_repo.delete(job, user=client)
         
@@ -191,18 +230,23 @@ class JobService:
             details={'title': job.title}
         )
         
+        logger.info(f"Job {job_id} deleted by {client.email}")
+        
         return {
             'message': 'Job deleted successfully!'
         }
     
     # ============================================
-    # COMPLETE JOB
+    # COMPLETE JOB (DEPRECATED - Use assignment service instead)
     # ============================================
     
     @transaction.atomic
     def complete_job(self, user, job_id: int) -> Dict[str, Any]:
         """
         Mark a job as completed.
+        
+        NOTE: This method is deprecated. Use JobAssignmentService.worker_mark_complete()
+        or JobAssignmentService.client_confirm_complete() instead.
         """
         job = self.job_repo.get_by_id(job_id)
         if not job:
@@ -227,6 +271,8 @@ class JobService:
             entity_id=job.id,
             details={'title': job.title}
         )
+        
+        logger.info(f"Job {job_id} completed by {user.email}")
         
         return {
             'job': job,
@@ -254,6 +300,19 @@ class JobService:
         if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
             raise BusinessRuleViolation(f"Cannot cancel a {job.status} job.")
         
+        # Check if job has an active assignment
+        # If there's an active assignment, we should handle it differently
+        # from apps.jobs.repositories import JobAssignmentRepository
+        # assignment_repo = JobAssignmentRepository()
+        # active_assignment = assignment_repo.get_active_by_job_id(job_id)
+        # if active_assignment:
+        #     # Cancel the assignment first
+        #     assignment_repo.cancel_assignment(active_assignment)
+        #     # Update worker availability
+        #     from apps.accounts.repositories import WorkerProfileRepository
+        #     worker_repo = WorkerProfileRepository()
+        #     worker_repo.update_availability(active_assignment.worker_id, 'AVAILABLE')
+        
         # Cancel job
         self.job_repo.cancel_job(job)
         
@@ -266,7 +325,25 @@ class JobService:
             details={'title': job.title}
         )
         
+        logger.info(f"Job {job_id} cancelled by {client.email}")
+        
         return {
             'job': job,
             'message': 'Job cancelled successfully!'
         }
+    
+    # ============================================
+    # COUNT OPERATIONS
+    # ============================================
+    
+    def count_open_jobs(self) -> int:
+        """Count open jobs"""
+        return self.job_repo.count_open_jobs()
+    
+    def count_jobs_by_client(self, client_id: int) -> int:
+        """Count jobs posted by a client"""
+        return self.job_repo.count_jobs_by_client(client_id)
+    
+    def count_active_jobs_by_worker(self, worker_id: int) -> int:
+        """Count active jobs assigned to a worker"""
+        return self.job_repo.count_active_jobs_by_worker(worker_id)
