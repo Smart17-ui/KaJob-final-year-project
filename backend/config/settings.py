@@ -89,7 +89,10 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-    "drf_spectacular",
+
+    
+    'corsheaders',
+
 ]
 
 # config/settings.py - Add these to your existing settings
@@ -105,6 +108,7 @@ MIDDLEWARE = [
     
     # Custom CORS middleware (early)
     'infrastructure.middleware.cors_middleware.CORSMiddleware',
+    
     
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -122,11 +126,15 @@ MIDDLEWARE = [
     'infrastructure.middleware.security_middleware.SecurityHeadersMiddleware',  # 7. Security headers
 ]
 
+
 # ============================================
 # CORS SETTINGS
 # ============================================
 
-CORS_ALLOWED_ORIGINS = get_env('CORS_ALLOWED_ORIGINS', default='http://localhost:3000', cast=list)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+]
 CORS_ALLOWED_METHODS = [
     'DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT'
 ]
@@ -296,13 +304,6 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'KaJob API',
-    'DESCRIPTION': 'Job marketplace API for KaJob',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-}
 """
 =====================
 email configuration
