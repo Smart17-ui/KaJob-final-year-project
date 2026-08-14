@@ -1,1 +1,43 @@
+# .gitignore
+# Environment variables - NEVER COMMIT THESE!
 .env
+.env.local
+.env.production
+.env.development
+*.env
+
+# Database
+*.db
+*.sqlite3
+*.sql
+*.sql.gz
+backups/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Django
+*.log
+*.pid
+*.pid.*
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

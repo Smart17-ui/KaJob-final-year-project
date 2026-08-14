@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+
     # Local apps
     'apps.accounts',
     'apps.jobs',
@@ -88,6 +89,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+    "drf_spectacular",
 ]
 
 # config/settings.py - Add these to your existing settings
@@ -263,6 +265,7 @@ REST_FRAMEWORK = {
         'register': '5/hour',
         'login': '10/minute',
     },
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # ============================================
@@ -293,10 +296,18 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-# ============================================
-# EMAIL CONFIGURATION
-# ============================================
 
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'KaJob API',
+    'DESCRIPTION': 'Job marketplace API for KaJob',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+"""
+=====================
+email configuration
+
+"""
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 FRONTEND_URL = get_env('FRONTEND_URL', default='http://localhost:3000')
 

@@ -4,7 +4,7 @@ from django.utils import timezone
 from typing import Dict, Any, List, Optional
 from apps.jobs.repositories import JobRepository, JobApplicationRepository
 from apps.jobs.models import JobApplication
-from apps.accounts.repositories import WorkerProfileRepository  # ✅ Add this import
+from apps.accounts.repositories import WorkerProfileRepository  # Add this import
 from apps.audit.models import AuditLog
 from apps.common.constants import ApplicationStatus, JobStatus
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
@@ -22,7 +22,7 @@ class JobApplicationService:
     def __init__(self):
         self.job_repo = JobRepository()
         self.application_repo = JobApplicationRepository()
-        self.worker_repo = WorkerProfileRepository()  # ✅ Add this
+        self.worker_repo = WorkerProfileRepository()  # Add this
     
     # ============================================
     # APPLY FOR JOB
@@ -57,7 +57,7 @@ class JobApplicationService:
         if not worker.is_verified:
             raise BusinessRuleViolation("You must be verified to apply for jobs.")
         
-        # ✅ Check if worker is available (not busy)
+        # Check if worker is available (not busy)
         worker_profile = self.worker_repo.get_by_user_id(worker.id)
         if worker_profile and not worker_profile.is_available:
             raise BusinessRuleViolation("You are currently busy with another job.")
