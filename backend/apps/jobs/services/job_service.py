@@ -1,5 +1,6 @@
 # apps/jobs/services/job_service.py
 import logging
+from datetime import date
 from django.db import transaction
 from django.utils import timezone
 from typing import Dict, Any, List, Optional
@@ -34,8 +35,17 @@ class JobService:
             client: The client user
             data: {
                 title, description, budget, category_id,
-                general_location, exact_location, latitude, longitude, radius
+                general_location, exact_location, latitude, longitude, radius,
+                job_date (optional), job_time (optional), timeframe,
+                is_flexible, duration_hours, urgency,
+                required_skills (optional)
             }
+        
+        Notes:
+            - latitude/longitude are auto-detected from device GPS
+            - general_location is manually entered for display
+            - required_skills is optional - only for skilled jobs
+            - timing fields are optional
         
         Returns:
             Dict with job details
@@ -57,7 +67,21 @@ class JobService:
         if radius < 1 or radius > 100:
             raise BusinessRuleViolation("Radius must be between 1 and 100 kilometers.")
         
-        # Create job
+        # Validate duration
+        duration_hours = data.get('duration_hours')
+        if duration_hours is not None:
+            if duration_hours <= 0:
+                raise BusinessRuleViolation("Duration must be greater than zero.")
+            if duration_hours > 24:
+                raise BusinessRuleViolation("Duration cannot exceed 24 hours.")
+        
+        # Validate job date
+        job_date = data.get('job_date')
+        if job_date:
+            if job_date < timezone.now().date():
+                raise BusinessRuleViolation("Job date cannot be in the past.")
+        
+        # Create job with all fields
         job = self.job_repo.create(
             client=client,
             title=data['title'],
@@ -70,7 +94,20 @@ class JobService:
             longitude=data.get('longitude'),
             radius=radius,
             status=JobStatus.OPEN,
+            # Timing fields
+            job_date=job_date,
+            job_time=data.get('job_time'),
+            timeframe=data.get('timeframe', 'ANYTIME'),
+            is_flexible=data.get('is_flexible', True),
+            duration_hours=duration_hours,
+            urgency=data.get('urgency', 'NORMAL'),
         )
+        
+        # Add skills if provided (OPTIONAL)
+        required_skills = data.get('required_skills', [])
+        if required_skills:
+            job.required_skills.set(required_skills)
+            logger.info(f"Added {len(required_skills)} skills to job {job.id}")
         
         # Audit log
         AuditLog.objects.create(
@@ -82,6 +119,9 @@ class JobService:
                 'title': job.title,
                 'budget': str(job.budget),
                 'category_id': job.category_id,
+                'job_date': str(job.job_date) if job.job_date else None,
+                'urgency': job.urgency,
+                'required_skills': required_skills,
             }
         )
         
@@ -107,6 +147,14 @@ class JobService:
         """Get all open jobs"""
         return self.job_repo.get_open_jobs()
     
+    def get_urgent_jobs(self) -> List[Job]:
+        """Get urgent and immediate jobs"""
+        return self.job_repo.filter(
+            status=JobStatus.OPEN,
+            urgency__in=['IMMEDIATE', 'URGENT'],
+            deleted_at__isnull=True
+        ).order_by('job_date', '-posted_at')
+    
     def get_jobs_by_client(self, client_id: int) -> List[Job]:
         """Get jobs posted by a client"""
         return self.job_repo.get_by_client_id(client_id)
@@ -123,6 +171,14 @@ class JobService:
         """Get open jobs posted by a client"""
         return self.job_repo.get_open_jobs_by_client(client_id)
     
+    def get_jobs_by_skills(self, skill_ids: List[int]) -> List[Job]:
+        """Get jobs that require specific skills (optional)"""
+        return self.job_repo.filter(
+            required_skills__in=skill_ids,
+            status=JobStatus.OPEN,
+            deleted_at__isnull=True
+        ).distinct().order_by('-posted_at')
+    
     def search_jobs(self, query: str) -> List[Job]:
         """Search jobs by title or description"""
         return self.job_repo.search_jobs(query)
@@ -136,12 +192,34 @@ class JobService:
         category_id: int = None, 
         min_budget: float = None, 
         max_budget: float = None,
+        skill_ids: List[int] = None,
+        urgency: str = None,
+        job_date: date = None,
+        timeframe: str = None,
     ) -> List[Job]:
         """
-        Filter jobs by category and budget.
+        Filter jobs by category, budget, skills, urgency, date, and timeframe.
         Location filtering is handled by the Matching Service.
         """
-        return self.job_repo.filter_jobs(category_id, min_budget, max_budget)
+        jobs = self.job_repo.filter_jobs(category_id, min_budget, max_budget)
+        
+        # Filter by skills if provided (optional)
+        if skill_ids:
+            jobs = jobs.filter(required_skills__in=skill_ids).distinct()
+        
+        # Filter by urgency if provided
+        if urgency:
+            jobs = jobs.filter(urgency=urgency)
+        
+        # Filter by date if provided
+        if job_date:
+            jobs = jobs.filter(job_date=job_date)
+        
+        # Filter by timeframe if provided
+        if timeframe:
+            jobs = jobs.filter(timeframe=timeframe)
+        
+        return jobs.order_by('-posted_at')
     
     # ============================================
     # UPDATE JOB
@@ -164,15 +242,14 @@ class JobService:
         if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
             raise BusinessRuleViolation(f"Cannot update a {job.status} job.")
         
-        # Check if job has active applications (optional - prevent updates if applications exist)
-        # This is a business decision - you can choose to allow updates or not
-        # applications_count = self.application_repo.count_applications_by_job(job_id)
-        # if applications_count > 0:
-        #     raise BusinessRuleViolation("Cannot update a job that has applications.")
-        
-        # Update job
+        # Update job fields (including timing and skills)
         for key, value in data.items():
-            if hasattr(job, key) and key not in ['id', 'client', 'created_at', 'posted_at']:
+            if key == 'required_skills':
+                if value:
+                    job.required_skills.set(value)
+                else:
+                    job.required_skills.clear()
+            elif hasattr(job, key) and key not in ['id', 'client', 'created_at', 'posted_at']:
                 setattr(job, key, value)
         job.save()
         
@@ -213,11 +290,6 @@ class JobService:
         if job.status == JobStatus.COMPLETED:
             raise BusinessRuleViolation("Cannot delete a completed job.")
         
-        # Check if job has pending applications (optional)
-        # pending_count = self.application_repo.count_pending_applications_by_job(job_id)
-        # if pending_count > 0:
-        #     raise BusinessRuleViolation("Cannot delete a job with pending applications.")
-        
         # Soft delete
         self.job_repo.delete(job, user=client)
         
@@ -237,7 +309,7 @@ class JobService:
         }
     
     # ============================================
-    # COMPLETE JOB (DEPRECATED - Use assignment service instead)
+    # COMPLETE JOB (DEPRECATED)
     # ============================================
     
     @transaction.atomic
@@ -300,19 +372,6 @@ class JobService:
         if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
             raise BusinessRuleViolation(f"Cannot cancel a {job.status} job.")
         
-        # Check if job has an active assignment
-        # If there's an active assignment, we should handle it differently
-        # from apps.jobs.repositories import JobAssignmentRepository
-        # assignment_repo = JobAssignmentRepository()
-        # active_assignment = assignment_repo.get_active_by_job_id(job_id)
-        # if active_assignment:
-        #     # Cancel the assignment first
-        #     assignment_repo.cancel_assignment(active_assignment)
-        #     # Update worker availability
-        #     from apps.accounts.repositories import WorkerProfileRepository
-        #     worker_repo = WorkerProfileRepository()
-        #     worker_repo.update_availability(active_assignment.worker_id, 'AVAILABLE')
-        
         # Cancel job
         self.job_repo.cancel_job(job)
         
@@ -347,3 +406,11 @@ class JobService:
     def count_active_jobs_by_worker(self, worker_id: int) -> int:
         """Count active jobs assigned to a worker"""
         return self.job_repo.count_active_jobs_by_worker(worker_id)
+    
+    def count_urgent_jobs(self) -> int:
+        """Count urgent and immediate jobs"""
+        return self.job_repo.filter(
+            status=JobStatus.OPEN,
+            urgency__in=['IMMEDIATE', 'URGENT'],
+            deleted_at__isnull=True
+        ).count()

@@ -38,19 +38,7 @@ class JobAssignmentService:
     def assign_worker(self, client, job_id: int, worker_id: int) -> Dict[str, Any]:
         """
         Assign a worker to a job.
-        
-        Worker becomes BUSY
-        All other pending applications for this worker are withdrawn
-        
-        Args:
-            client: The client user
-            job_id: ID of the job
-            worker_id: ID of the worker to assign
-        
-        Returns:
-            Dict with assignment details
         """
-        # Get the job
         job = self.job_repo.get_by_id(job_id)
         if not job:
             raise ResourceNotFound("Job not found.")
@@ -131,17 +119,9 @@ class JobAssignmentService:
         }
     
     def _withdraw_other_applications(self, worker_id: int, assigned_job_id: int) -> int:
-        """
-        Withdraw all other pending applications for a worker.
-        This ensures the worker is only considered for the job they were assigned to.
-        
-        Returns:
-            Number of applications withdrawn
-        """
-        # Get all pending applications for this worker
+        """Withdraw all other pending applications for a worker."""
         pending_apps = self.application_repo.get_pending_applications_by_worker(worker_id)
         
-        # Withdraw all except the assigned job
         withdrawn_count = 0
         for app in pending_apps:
             if app.job_id != assigned_job_id:
@@ -172,36 +152,29 @@ class JobAssignmentService:
         return self.assignment_repo.get_by_job_id(job_id)
     
     # ============================================
-    # START JOB (Worker)
+    # START JOB
     # ============================================
     
     @transaction.atomic
     def start_job(self, worker, job_id: int) -> Dict[str, Any]:
-        """
-        Worker starts the job.
-        """
+        """Worker starts the job."""
         job = self.job_repo.get_by_id(job_id)
         if not job:
             raise ResourceNotFound("Job not found.")
         
-        # Check if worker is assigned to this job
         if job.assigned_worker_id != worker.id:
             raise BusinessRuleViolation("You are not assigned to this job.")
         
-        # Check if job can be started
         if job.status != JobStatus.ASSIGNED:
             raise BusinessRuleViolation(f"Cannot start a {job.status} job.")
         
-        # Update job status
         job = self.job_repo.update_status(job, JobStatus.IN_PROGRESS)
         
-        # Update assignment
         assignment = self.assignment_repo.get_active_by_job_id(job_id)
         if assignment:
             assignment.started_at = timezone.now()
             assignment.save()
         
-        # Audit log
         AuditLog.objects.create(
             user=worker,
             action='JOB_STARTED',
@@ -223,35 +196,25 @@ class JobAssignmentService:
     
     @transaction.atomic
     def complete_assignment(self, worker, assignment_id: int) -> Dict[str, Any]:
-        """
-        Complete an assignment.
-        """
+        """Complete an assignment."""
         assignment = self.assignment_repo.get_by_id(assignment_id)
         if not assignment:
             raise ResourceNotFound("Assignment not found.")
         
-        # Check ownership
         if assignment.worker_id != worker.id:
             raise BusinessRuleViolation("You don't have permission to complete this assignment.")
         
-        # Check if assignment is active
         if assignment.status != AssignmentStatus.ACTIVE:
             raise BusinessRuleViolation(f"Cannot complete an assignment with status '{assignment.status}'.")
         
-        # Complete assignment
         self.assignment_repo.complete_assignment(assignment)
         
-        # Update job
         job = assignment.job
         self.job_repo.complete_job(job)
         
-        # Update worker availability
         self.worker_repo.update_availability(worker.id, 'AVAILABLE')
-        
-        # Increment jobs completed
         self.worker_repo.increment_jobs_completed(worker.id)
         
-        # Audit log
         AuditLog.objects.create(
             user=worker,
             action='ASSIGNMENT_COMPLETED',
@@ -272,32 +235,23 @@ class JobAssignmentService:
     
     @transaction.atomic
     def cancel_assignment(self, worker, assignment_id: int) -> Dict[str, Any]:
-        """
-        Cancel an assignment.
-        """
+        """Cancel an assignment."""
         assignment = self.assignment_repo.get_by_id(assignment_id)
         if not assignment:
             raise ResourceNotFound("Assignment not found.")
         
-        # Check ownership
         if assignment.worker_id != worker.id:
             raise BusinessRuleViolation("You don't have permission to cancel this assignment.")
         
-        # Check if assignment is active
         if assignment.status != AssignmentStatus.ACTIVE:
             raise BusinessRuleViolation(f"Cannot cancel an assignment with status '{assignment.status}'.")
         
-        # Cancel assignment
         self.assignment_repo.cancel_assignment(assignment)
         
-        # Update job status back to OPEN
         job = assignment.job
         self.job_repo.update_status(job, JobStatus.OPEN)
-        
-        # Update worker availability
         self.worker_repo.update_availability(worker.id, 'AVAILABLE')
         
-        # Audit log
         AuditLog.objects.create(
             user=worker,
             action='ASSIGNMENT_CANCELLED',
