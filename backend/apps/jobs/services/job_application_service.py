@@ -1,15 +1,15 @@
 # apps/jobs/services/job_application_service.py
+import logging
 from django.db import transaction
 from django.utils import timezone
 from typing import Dict, Any, List, Optional
 from apps.jobs.repositories import JobRepository, JobApplicationRepository
 from apps.jobs.models import JobApplication
-from apps.accounts.repositories import WorkerProfileRepository  # Add this import
+from apps.accounts.repositories import WorkerProfileRepository
 from apps.audit.models import AuditLog
 from apps.common.constants import ApplicationStatus, JobStatus
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +22,7 @@ class JobApplicationService:
     def __init__(self):
         self.job_repo = JobRepository()
         self.application_repo = JobApplicationRepository()
-        self.worker_repo = WorkerProfileRepository()  # Add this
+        self.worker_repo = WorkerProfileRepository()
     
     # ============================================
     # APPLY FOR JOB
@@ -30,46 +30,30 @@ class JobApplicationService:
     
     @transaction.atomic
     def apply_for_job(self, worker, job_id: int) -> Dict[str, Any]:
-        """
-        Apply for a job.
-        
-        Args:
-            worker: The worker user
-            job_id: ID of the job to apply for
-        
-        Returns:
-            Dict with application details
-        """
-        # Get the job
+        """Apply for a job."""
         job = self.job_repo.get_by_id(job_id)
         if not job:
             raise ResourceNotFound("Job not found.")
         
-        # Check if job is open
         if job.status != JobStatus.OPEN:
             raise BusinessRuleViolation(f"Cannot apply for a {job.status} job.")
         
-        # Check if worker has already applied
         if self.application_repo.has_applied(job_id, worker.id):
             raise BusinessRuleViolation("You have already applied for this job.")
         
-        # Check if worker is verified
         if not worker.is_verified:
             raise BusinessRuleViolation("You must be verified to apply for jobs.")
         
-        # Check if worker is available (not busy)
         worker_profile = self.worker_repo.get_by_user_id(worker.id)
         if worker_profile and not worker_profile.is_available:
             raise BusinessRuleViolation("You are currently busy with another job.")
         
-        # Create application
         application = self.application_repo.create(
             job=job,
             worker=worker,
             status=ApplicationStatus.PENDING,
         )
         
-        # Audit log
         AuditLog.objects.create(
             user=worker,
             action='JOB_APPLIED',
@@ -89,7 +73,7 @@ class JobApplicationService:
         }
     
     # ============================================
-    # GET APPLICATIONS (NEWEST FIRST)
+    # GET APPLICATIONS
     # ============================================
     
     def get_applications_for_job(self, client, job_id: int) -> List[JobApplication]:
@@ -140,34 +124,25 @@ class JobApplicationService:
     
     @transaction.atomic
     def accept_application(self, client, application_id: int) -> Dict[str, Any]:
-        """
-        Accept a job application.
-        """
+        """Accept a job application."""
         application = self.application_repo.get_by_id(application_id)
         if not application:
             raise ResourceNotFound("Application not found.")
         
         job = application.job
         
-        # Check ownership
         if job.client_id != client.id:
             raise BusinessRuleViolation("You don't have permission to accept this application.")
         
-        # Check if application is pending
         if application.status != ApplicationStatus.PENDING:
             raise BusinessRuleViolation(f"Cannot accept an application with status '{application.status}'.")
         
-        # Check if job is still open
         if job.status != JobStatus.OPEN:
             raise BusinessRuleViolation(f"Cannot accept application for a {job.status} job.")
         
-        # Accept application
         self.application_repo.accept_application(application)
-        
-        # Reject all other applications
         self.application_repo.reject_all_other_applications(job.id, application.worker_id)
         
-        # Audit log
         AuditLog.objects.create(
             user=client,
             action='APPLICATION_ACCEPTED',
@@ -188,27 +163,21 @@ class JobApplicationService:
     
     @transaction.atomic
     def reject_application(self, client, application_id: int) -> Dict[str, Any]:
-        """
-        Reject a job application.
-        """
+        """Reject a job application."""
         application = self.application_repo.get_by_id(application_id)
         if not application:
             raise ResourceNotFound("Application not found.")
         
         job = application.job
         
-        # Check ownership
         if job.client_id != client.id:
             raise BusinessRuleViolation("You don't have permission to reject this application.")
         
-        # Check if application is pending
         if application.status != ApplicationStatus.PENDING:
             raise BusinessRuleViolation(f"Cannot reject an application with status '{application.status}'.")
         
-        # Reject application
         self.application_repo.reject_application(application)
         
-        # Audit log
         AuditLog.objects.create(
             user=client,
             action='APPLICATION_REJECTED',
@@ -229,25 +198,19 @@ class JobApplicationService:
     
     @transaction.atomic
     def withdraw_application(self, worker, application_id: int) -> Dict[str, Any]:
-        """
-        Withdraw a job application.
-        """
+        """Withdraw a job application."""
         application = self.application_repo.get_by_id(application_id)
         if not application:
             raise ResourceNotFound("Application not found.")
         
-        # Check ownership
         if application.worker_id != worker.id:
             raise BusinessRuleViolation("You don't have permission to withdraw this application.")
         
-        # Check if application is pending
         if application.status != ApplicationStatus.PENDING:
             raise BusinessRuleViolation(f"Cannot withdraw an application with status '{application.status}'.")
         
-        # Withdraw application
         self.application_repo.withdraw_application(application)
         
-        # Audit log
         AuditLog.objects.create(
             user=worker,
             action='APPLICATION_WITHDRAWN',
