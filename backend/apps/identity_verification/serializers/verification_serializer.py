@@ -1,6 +1,7 @@
 # apps/identity_verification/serializers/verification_serializer.py
+import re
 from rest_framework import serializers
-from apps.identity_verification.models import IdentityVerification, VerificationDocument
+from apps.identity_verification.models import IdentityVerification
 from apps.common.constants import DocumentType, VerificationStatus
 
 
@@ -17,7 +18,11 @@ class DocumentUploadSerializer(serializers.Serializer):
 
 class SubmitVerificationSerializer(serializers.Serializer):
     """
-    Serializer for submitting identity verification.
+    Serializer for submitting identity verification with validation.
+    
+    ✅ Validates NRC format: 123456/78/1
+    ✅ Validates Passport format: ZA123456
+    ✅ Checks for duplicate document numbers
     """
     document_type = serializers.ChoiceField(choices=DocumentType.CHOICES, required=True)
     document_number = serializers.CharField(max_length=100, required=True)
@@ -30,34 +35,80 @@ class SubmitVerificationSerializer(serializers.Serializer):
     )
     
     def validate_document_number(self, value):
-        """Validate document number format"""
-        # Add custom validation if needed
-        if not value or len(value.strip()) < 3:
-            raise serializers.ValidationError("Document number is too short.")
-        return value.strip()
-
-
-class VerificationDocumentSerializer(serializers.ModelSerializer):
-    """
-    Serializer for verification documents.
-    """
-    document_type_display = serializers.SerializerMethodField()
+        """
+        Validate document number format.
+        
+        NRC: 123456/78/1 (6 digits / 2 digits / 1 digit)
+        Passport: ZA123456 (2 letters + 6 digits)
+        Unique check (no duplicates)
+        """
+        # Remove whitespace
+        value = value.strip()
+        
+        if not value:
+            raise serializers.ValidationError("Document number is required.")
+        
+        #Check if document number already exists
+        if self._document_number_exists(value):
+            raise serializers.ValidationError(
+                "This document number is already registered. Please use a different one."
+            )
+        
+        # Get document type
+        document_type = self.initial_data.get('document_type', '')
+        
+        # Validate based on document type
+        if document_type in ['NRC_FRONT', 'NRC_BACK']:
+            if not self._is_valid_nrc(value):
+                raise serializers.ValidationError(
+                    "Invalid NRC format. Expected format: 123456/78/1 "
+                    "(6 digits / 2 digits / 1 digit)"
+                )
+        elif document_type == 'PASSPORT_PHOTO':
+            if not self._is_valid_passport(value):
+                raise serializers.ValidationError(
+                    "Invalid Passport format. Expected format: ZA123456 "
+                    "(2 uppercase letters + 6 digits)"
+                )
+        elif document_type == 'SELFIE':
+            # Selfie doesn't have a document number
+            pass
+        
+        return value
     
-    class Meta:
-        model = VerificationDocument
-        fields = [
-            'id',
-            'document_type',
-            'document_type_display',
-            'file_path',
-            'file_name',
-            'file_size',
-            'mime_type',
-            'uploaded_at',
-        ]
+    def _is_valid_nrc(self, value):
+        """
+        Validate NRC format: 123456/78/1
+        - 6 digits
+        - slash
+        - 2 digits
+        - slash
+        - 1 digit
+        """
+        # Format: 6 digits / 2 digits / 1 digit
+        pattern = r'^\d{6}/\d{2}/\d{1}$'
+        return bool(re.match(pattern, value))
     
-    def get_document_type_display(self, obj):
-        return obj.get_document_type_display()
+    def _is_valid_passport(self, value):
+        """
+        Validate Passport format: ZA123456
+        - 2 uppercase letters
+        - 6 digits
+        """
+        # Format: 2 letters followed by 6 digits
+        pattern = r'^[A-Z]{2}\d{6}$'
+        return bool(re.match(pattern, value))
+    
+    def _document_number_exists(self, document_number):
+        """
+        Check if document number already exists in the system.
+        """
+        from apps.identity_verification.models import IdentityVerification
+        
+        return IdentityVerification.objects.filter(
+            document_number=document_number,
+            deleted_at__isnull=True
+        ).exists()
 
 
 class VerificationStatusSerializer(serializers.Serializer):

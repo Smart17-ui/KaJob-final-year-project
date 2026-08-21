@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/', include('apps.accounts.urls')),
     path('api/', include('apps.identity_verification.urls')),
     path('api/', include('apps.jobs.urls')),
+    path('api/', include('apps.matching.urls')),
     # Add other apps later:
     # path('api/', include('apps.jobs.urls')),
     # path('api/', include('apps.reports.urls')),

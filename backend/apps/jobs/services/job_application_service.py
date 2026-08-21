@@ -30,30 +30,47 @@ class JobApplicationService:
     
     @transaction.atomic
     def apply_for_job(self, worker, job_id: int) -> Dict[str, Any]:
-        """Apply for a job."""
+        """
+        Apply for a job.
+        
+        Worker must be verified
+        Worker must be available
+        Worker cannot apply to their own job
+        """
+        # Get the job
         job = self.job_repo.get_by_id(job_id)
         if not job:
             raise ResourceNotFound("Job not found.")
         
+        # Check if job is open
         if job.status != JobStatus.OPEN:
             raise BusinessRuleViolation(f"Cannot apply for a {job.status} job.")
         
+        # Check if worker has already applied
         if self.application_repo.has_applied(job_id, worker.id):
             raise BusinessRuleViolation("You have already applied for this job.")
         
+        # Check if worker is verified
         if not worker.is_verified:
             raise BusinessRuleViolation("You must be verified to apply for jobs.")
         
+        # NEW: Check if worker is applying to their own job
+        if job.client_id == worker.id:
+            raise BusinessRuleViolation("You cannot apply to a job you created.")
+        
+        # Check if worker is available (not busy)
         worker_profile = self.worker_repo.get_by_user_id(worker.id)
         if worker_profile and not worker_profile.is_available:
             raise BusinessRuleViolation("You are currently busy with another job.")
         
+        # Create application
         application = self.application_repo.create(
             job=job,
             worker=worker,
             status=ApplicationStatus.PENDING,
         )
         
+        # Audit log
         AuditLog.objects.create(
             user=worker,
             action='JOB_APPLIED',
@@ -117,6 +134,13 @@ class JobApplicationService:
             raise BusinessRuleViolation("You don't have permission to view this application.")
         
         return application
+    
+    def get_applications_by_client(self, client_id: int) -> List[JobApplication]:
+        """Get all applications for jobs posted by a client"""
+        return self.application_repo.filter(
+            job__client_id=client_id,
+            deleted_at__isnull=True
+        ).order_by('-applied_at')
     
     # ============================================
     # UPDATE APPLICATION STATUS

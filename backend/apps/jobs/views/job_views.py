@@ -1,4 +1,5 @@
 # apps/jobs/views/job_views.py
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -10,6 +11,7 @@ from apps.jobs.serializers import (
     JobCreateSerializer,
     JobUpdateSerializer,
     JobListSerializer,
+    WorkerJobDetailSerializer,  # 🆕 Import the new serializer
 )
 from apps.common.permissions import IsClient, IsWorker, IsActiveUser, IsVerifiedUser
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
@@ -244,3 +246,76 @@ class CompleteJobView(APIView):
             }, status=status.HTTP_200_OK)
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ============================================================
+# 🆕 JOB DETAIL FOR WORKER (Conditional Disclosure)
+# ============================================================
+
+class JobDetailForWorkerView(APIView):
+    """
+    GET /api/jobs/{job_id}/worker/
+    
+    Get job details for a worker with CONDITIONAL DISCLOSURE.
+    
+    🔑 KEY FEATURE: Workers only see full details after being assigned.
+    
+    What workers see:
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │  IF ASSIGNED:                                                     │
+    │  - exact_location: "Plot 15, Kamwala Road"  ✅                   │
+    │  - client_name: "John Doe"  ✅                                   │
+    │  - client_phone: "+260971234567"  ✅                             │
+    │  - can_view_full_details: true                                   │
+    │                                                                   │
+    │  IF NOT ASSIGNED:                                                │
+    │  - exact_location: null  ❌                                      │
+    │  - client_name: null  ❌                                         │
+    │  - client_phone: null  ❌                                        │
+    │  - can_view_full_details: false                                  │
+    └─────────────────────────────────────────────────────────────────────┘
+    
+    Why this matters:
+    - Protects client privacy until the job is officially assigned
+    - Workers only get contact details after commitment
+    - Builds trust in the platform
+    
+    Permissions:
+    - User must be authenticated
+    - User must be a worker
+    - User must be active and verified
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+    
+    def get(self, request, job_id):
+        try:
+            # Get job with conditional disclosure
+            result = job_service.get_job_for_worker(
+                job_id=job_id,
+                worker_id=request.user.id
+            )
+            
+            # Serialize with conditional disclosure
+            serializer = WorkerJobDetailSerializer(
+                result['job'],
+                context={'worker_id': request.user.id}
+            )
+            
+            # Return response with access info
+            return Response({
+                'job': serializer.data,
+                'can_view_full_details': result['can_view_full_details'],
+                'assignment_status': result['assignment_status'],
+                'application_status': result['application_status'],
+            }, status=status.HTTP_200_OK)
+            
+        except ResourceNotFound as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except BusinessRuleViolation as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_403_FORBIDDEN
+            )

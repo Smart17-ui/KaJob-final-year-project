@@ -21,7 +21,9 @@ job_application_service = JobApplicationService()
 class ApplyForJobView(APIView):
     """
     Apply for a job.
-    Only verified workers can apply for jobs.
+    
+    ✅ Only verified workers can apply
+    ✅ Worker cannot apply to their own job
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
     
@@ -129,6 +131,22 @@ class MyApplicationsView(APIView):
     
     def get(self, request):
         applications = job_application_service.get_applications_by_worker(
+            request.user.id
+        )
+        return Response({
+            'count': len(applications),
+            'results': JobApplicationListSerializer(applications, many=True).data
+        }, status=status.HTTP_200_OK)
+
+
+class MyJobApplicationsView(APIView):
+    """
+    Get all applications for jobs posted by the authenticated client.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
+    
+    def get(self, request):
+        applications = job_application_service.get_applications_by_client(
             request.user.id
         )
         return Response({

@@ -1,9 +1,11 @@
 # apps/jobs/urls.py
+
 from django.urls import path
 from apps.jobs.views import (
     # Job Views
     CreateJobView,
     JobDetailView,
+    JobDetailForWorkerView,  # 🆕 Import the new worker view
     OpenJobsView,
     MyJobsView,
     SearchJobsView,
@@ -36,6 +38,10 @@ urlpatterns = [
     path('jobs/', OpenJobsView.as_view(), name='jobs-list'),
     path('jobs/create/', CreateJobView.as_view(), name='jobs-create'),
     path('jobs/<int:job_id>/', JobDetailView.as_view(), name='jobs-detail'),
+    
+    # 🆕 Worker job detail with conditional disclosure
+    path('jobs/<int:job_id>/worker/', JobDetailForWorkerView.as_view(), name='jobs-detail-worker'),
+    
     path('jobs/<int:job_id>/update/', UpdateJobView.as_view(), name='jobs-update'),
     path('jobs/<int:job_id>/delete/', DeleteJobView.as_view(), name='jobs-delete'),
     path('jobs/<int:job_id>/complete/', CompleteJobView.as_view(), name='jobs-complete'),

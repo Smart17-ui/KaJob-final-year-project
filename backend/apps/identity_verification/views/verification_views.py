@@ -10,7 +10,7 @@ from apps.identity_verification.serializers import (
     SubmitVerificationSerializer,
     VerificationStatusSerializer,
 )
-from apps.common.permissions import IsActiveUser  # ✅ Using existing permission
+from apps.common.permissions import IsActiveUser  # Using existing permission
 from apps.common.exceptions import BusinessRuleViolation
 
 

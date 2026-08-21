@@ -1,4 +1,5 @@
 # apps/jobs/services/job_service.py
+
 import logging
 from datetime import date
 from django.db import transaction
@@ -9,6 +10,8 @@ from apps.jobs.models import Job
 from apps.audit.models import AuditLog
 from apps.common.constants import JobStatus
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
+from apps.matching.services import GeocodingService
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +26,48 @@ class JobService:
         self.job_repo = JobRepository()
     
     # ============================================
+    # 🆕 HELPER: GENERATE MAP URLs
+    # ============================================
+    
+    @staticmethod
+    def generate_map_urls(latitude: float, longitude: float, address: str = None) -> Dict[str, str]:
+        """
+        Generate Google Maps URLs for the location.
+        
+        Args:
+            latitude: GPS latitude
+            longitude: GPS longitude
+            address: Optional human-readable address
+        
+        Returns:
+            Dict with map_url and directions_url
+        """
+        # Google Maps base URLs
+        MAPS_BASE = "https://www.google.com/maps"
+        
+        # Use coordinates or address for the URL
+        if latitude and longitude:
+            location_param = f"{latitude},{longitude}"
+        elif address:
+            location_param = quote(address)
+        else:
+            return {
+                'map_url': '',
+                'directions_url': '',
+            }
+        
+        # Generate map URL (shows the location on map)
+        map_url = f"{MAPS_BASE}/place/{location_param}"
+        
+        # Generate directions URL (shows directions from current location)
+        directions_url = f"{MAPS_BASE}/dir/?api=1&destination={location_param}"
+        
+        return {
+            'map_url': map_url,
+            'directions_url': directions_url,
+        }
+    
+    # ============================================
     # CREATE JOB
     # ============================================
     
@@ -31,21 +76,20 @@ class JobService:
         """
         Create a new job posting.
         
+        🆕 Auto-fills general_location from GPS coordinates if not provided.
+        🆕 Auto-generates map_url and directions_url from GPS coordinates.
+        
         Args:
             client: The client user
             data: {
                 title, description, budget, category_id,
-                general_location, exact_location, latitude, longitude, radius,
+                general_location (optional), exact_location (optional),
+                latitude, longitude,
                 job_date (optional), job_time (optional), timeframe,
                 is_flexible, duration_hours, urgency,
-                required_skills (optional)
+                required_skills (optional),
+                place_id (optional)
             }
-        
-        Notes:
-            - latitude/longitude are auto-detected from device GPS
-            - general_location is manually entered for display
-            - required_skills is optional - only for skilled jobs
-            - timing fields are optional
         
         Returns:
             Dict with job details
@@ -62,11 +106,6 @@ class JobService:
         if data['budget'] <= 0:
             raise BusinessRuleViolation("Budget must be greater than zero.")
         
-        # Validate radius
-        radius = data.get('radius', 5)
-        if radius < 1 or radius > 100:
-            raise BusinessRuleViolation("Radius must be between 1 and 100 kilometers.")
-        
         # Validate duration
         duration_hours = data.get('duration_hours')
         if duration_hours is not None:
@@ -81,6 +120,36 @@ class JobService:
             if job_date < timezone.now().date():
                 raise BusinessRuleViolation("Job date cannot be in the past.")
         
+        # 🆕 Auto-fill general_location from GPS if not provided
+        general_location = data.get('general_location')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        
+        if not general_location and latitude and longitude:
+            try:
+                general_location = GeocodingService.get_display_location(
+                    float(latitude),
+                    float(longitude),
+                    fallback=f"{latitude}, {longitude}"
+                )
+                logger.info(f"Auto-filled general_location: {general_location}")
+            except Exception as e:
+                logger.warning(f"Failed to auto-fill location: {str(e)}")
+                general_location = f"{latitude}, {longitude}"
+        
+        # 🆕 Generate map URLs from GPS coordinates
+        map_urls = {}
+        if latitude and longitude:
+            try:
+                map_urls = self.generate_map_urls(
+                    float(latitude),
+                    float(longitude),
+                    general_location
+                )
+                logger.info(f"Generated map URLs for job")
+            except Exception as e:
+                logger.warning(f"Failed to generate map URLs: {str(e)}")
+        
         # Create job with all fields
         job = self.job_repo.create(
             client=client,
@@ -88,11 +157,14 @@ class JobService:
             description=data['description'],
             budget=data['budget'],
             category_id=data['category_id'],
-            general_location=data['general_location'],
+            general_location=general_location,
             exact_location=data.get('exact_location', ''),
-            latitude=data.get('latitude'),
-            longitude=data.get('longitude'),
-            radius=radius,
+            latitude=latitude,
+            longitude=longitude,
+            # 🆕 Map URLs
+            map_url=map_urls.get('map_url', ''),
+            directions_url=map_urls.get('directions_url', ''),
+            place_id=data.get('place_id', ''),
             status=JobStatus.OPEN,
             # Timing fields
             job_date=job_date,
@@ -122,6 +194,8 @@ class JobService:
                 'job_date': str(job.job_date) if job.job_date else None,
                 'urgency': job.urgency,
                 'required_skills': required_skills,
+                'general_location': general_location,
+                'has_map': bool(job.map_url),
             }
         )
         
@@ -249,8 +323,23 @@ class JobService:
                     job.required_skills.set(value)
                 else:
                     job.required_skills.clear()
+            elif key == 'latitude' or key == 'longitude':
+                # 🆕 If GPS coordinates change, regenerate map URLs
+                setattr(job, key, value)
+                if 'latitude' in data and 'longitude' in data:
+                    lat = data.get('latitude')
+                    lng = data.get('longitude')
+                    if lat and lng:
+                        map_urls = self.generate_map_urls(
+                            float(lat),
+                            float(lng),
+                            job.general_location
+                        )
+                        job.map_url = map_urls.get('map_url', '')
+                        job.directions_url = map_urls.get('directions_url', '')
             elif hasattr(job, key) and key not in ['id', 'client', 'created_at', 'posted_at']:
                 setattr(job, key, value)
+        
         job.save()
         
         # Audit log
@@ -309,86 +398,72 @@ class JobService:
         }
     
     # ============================================
-    # COMPLETE JOB (DEPRECATED)
+    # 🆕 GET JOB FOR WORKER (Conditional Disclosure)
     # ============================================
     
-    @transaction.atomic
-    def complete_job(self, user, job_id: int) -> Dict[str, Any]:
+    def get_job_for_worker(self, job_id: int, worker_id: int) -> Dict[str, Any]:
         """
-        Mark a job as completed.
+        Get job details for a worker with conditional disclosure.
         
-        NOTE: This method is deprecated. Use JobAssignmentService.worker_mark_complete()
-        or JobAssignmentService.client_confirm_complete() instead.
+        🔑 This is the KEY method for the conditional disclosure feature.
+        
+        What it does:
+        1. Gets the job by ID
+        2. Checks if the worker has an ACTIVE assignment
+        3. If assigned: Worker can see full details (exact_location, map_url, directions_url, client_name, client_phone)
+        4. If not assigned: Worker can only see general_location
+        
+        Why this matters:
+        - Protects client privacy until the job is officially assigned
+        - Workers only get contact details and map after commitment
+        - Builds trust in the platform
+        
+        Args:
+            job_id: The job ID
+            worker_id: The worker's user ID
+        
+        Returns:
+            Dict containing:
+            - job: The Job object
+            - can_view_full_details: Boolean
+            - assignment_status: str or None
+            - application_status: str or None
+        
+        Raises:
+            ResourceNotFound: If job doesn't exist
+            BusinessRuleViolation: If job is not available or assigned to someone else
         """
-        job = self.job_repo.get_by_id(job_id)
-        if not job:
-            raise ResourceNotFound("Job not found.")
+        # Get the job
+        job = self.get_job_by_id(job_id)
         
-        # Check if user is the client or the assigned worker
-        if job.client_id != user.id and job.assigned_worker_id != user.id:
-            raise BusinessRuleViolation("You don't have permission to complete this job.")
-        
-        # Check if job is in progress
-        if job.status != JobStatus.IN_PROGRESS:
-            raise BusinessRuleViolation(f"Cannot complete a job with status '{job.status}'.")
-        
-        # Complete job
-        self.job_repo.complete_job(job)
-        
-        # Audit log
-        AuditLog.objects.create(
-            user=user,
-            action='JOB_COMPLETED',
-            entity_type='JOB',
-            entity_id=job.id,
-            details={'title': job.title}
-        )
-        
-        logger.info(f"Job {job_id} completed by {user.email}")
-        
-        return {
-            'job': job,
-            'message': 'Job completed successfully!'
-        }
-    
-    # ============================================
-    # CANCEL JOB
-    # ============================================
-    
-    @transaction.atomic
-    def cancel_job(self, client, job_id: int) -> Dict[str, Any]:
-        """
-        Cancel a job.
-        """
-        job = self.job_repo.get_by_id(job_id)
-        if not job:
-            raise ResourceNotFound("Job not found.")
-        
-        # Check ownership
-        if job.client_id != client.id:
-            raise BusinessRuleViolation("You don't have permission to cancel this job.")
-        
-        # Check if job can be cancelled
+        # Check if job is available or assigned to this worker
         if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
-            raise BusinessRuleViolation(f"Cannot cancel a {job.status} job.")
+            raise BusinessRuleViolation("This job is no longer available.")
         
-        # Cancel job
-        self.job_repo.cancel_job(job)
+        # Check if worker is assigned to this job
+        is_assigned = job.is_accepted_by_worker(worker_id)
         
-        # Audit log
-        AuditLog.objects.create(
-            user=client,
-            action='JOB_CANCELLED',
-            entity_type='JOB',
-            entity_id=job.id,
-            details={'title': job.title}
-        )
+        # If job is assigned to someone else, worker can't view it
+        if job.status in [JobStatus.ASSIGNED, JobStatus.IN_PROGRESS, JobStatus.AWAITING_CONFIRMATION]:
+            from apps.jobs.models import JobAssignment
+            from apps.common.constants import AssignmentStatus
+            
+            has_active_assignment = JobAssignment.objects.filter(
+                job=job,
+                status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
+            ).exists()
+            
+            if has_active_assignment and not is_assigned:
+                raise BusinessRuleViolation(
+                    "This job has been assigned to another worker."
+                )
         
-        logger.info(f"Job {job_id} cancelled by {client.email}")
-        
+        # Return job with access information
         return {
             'job': job,
-            'message': 'Job cancelled successfully!'
+            'can_view_full_details': is_assigned,
+            'assignment_status': job.get_worker_assignment_status(worker_id),
+            'application_status': job.get_worker_application_status(worker_id),
         }
     
     # ============================================

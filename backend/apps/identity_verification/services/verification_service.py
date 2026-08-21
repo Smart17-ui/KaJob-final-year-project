@@ -13,8 +13,6 @@ from apps.common.constants import VerificationStatus, DocumentType
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
 from apps.common.services import EmailService
 
-# Optional notification service (will be implemented later)
-# For now, we'll just log notifications instead of sending them
 logger = logging.getLogger(__name__)
 
 
@@ -22,6 +20,11 @@ class VerificationService:
     """
     Service for identity verification operations.
     Single Responsibility: Manage user identity verification.
+    
+    Users submit documents once
+    Admin approves/rejects
+    is_verified is account-level (not role-level)
+    No duplicate NRC numbers allowed
     """
     
     def __init__(self):
@@ -38,24 +41,10 @@ class VerificationService:
         """
         Submit identity verification documents.
         
-        Args:
-            user: The user submitting verification
-            data: {
-                document_type: str,
-                document_number: str,
-                documents: [
-                    {
-                        document_type: str,
-                        file_path: str,
-                        file_name: str,
-                        file_size: int,
-                        mime_type: str
-                    }
-                ]
-            }
-        
-        Returns:
-            Dict with verification details
+        User must not already be verified
+        No pending verification allowed
+        Document validation done in serializer
+        Unique document number enforced
         """
         # Check if user already has a pending verification
         if self.verification_repo.has_pending_verification(user.id):
@@ -68,7 +57,7 @@ class VerificationService:
         if user.is_verified:
             raise BusinessRuleViolation("Your identity is already verified.")
         
-        # Create verification record
+        # Create verification record (validation already done in serializer)
         verification = self.verification_repo.create(
             user=user,
             document_type=data['document_type'],
@@ -101,10 +90,9 @@ class VerificationService:
             }
         )
         
-        # Simple logging instead of notifications (for now)
         logger.info(f"Verification submitted for user {user.email} (ID: {verification.id})")
         
-        # Send email notification (optional - EmailService handles it gracefully)
+        # Send email notification (optional)
         # self.email_service.send_verification_submitted_email(user)
         
         return {
