@@ -40,3 +40,20 @@ logs/
 *.swp
 *.swo
 .DS_Store
+
+# Node / React / Vite
+node_modules/
+frontend/node_modules/
+
+# Build files
+dist/
+frontend/dist/
+
+# Vite
+.vite/
+
+# npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
