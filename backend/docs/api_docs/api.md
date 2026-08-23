@@ -1,8 +1,8 @@
-# KaJob API Documentation - Updated
+# KaJob API Documentation
 
 ## Overview
 
-KaJob is a job marketplace platform that connects workers with clients for small tasks. This API provides endpoints for user management, identity verification, and job operations.
+KaJob is a job marketplace platform that connects workers with clients for small tasks. This API provides endpoints for user management, identity verification, job operations, and reviews.
 
 ## Base URL
 
@@ -1061,15 +1061,15 @@ Gets job details for a worker with **CONDITIONAL DISCLOSURE**.
 
 | **Before Assignment** | **After Assignment** |
 |----------------------|---------------------|
-| ✅ `general_location` | ✅ `general_location` |
-| ✅ `latitude`/`longitude` | ✅ `latitude`/`longitude` |
-| ❌ `exact_location` | ✅ `exact_location` |
-| ❌ `map_url` | ✅ `map_url` |
-| ❌ `directions_url` | ✅ `directions_url` |
-| ❌ `place_id` | ✅ `place_id` |
-| ❌ `client_name` | ✅ `client_name` |
-| ❌ `client_phone` | ✅ `client_phone` |
-| ❌ `can_view_full_details: false` | ✅ `can_view_full_details: true` |
+| `general_location` |  `general_location` |
+| `latitude`/`longitude` | `latitude`/`longitude` |
+| `exact_location` | `exact_location` |
+| `map_url` | `map_url` |
+| `directions_url` | `directions_url` |
+| `place_id` | `place_id` |
+| `client_name` | `client_name` |
+| `client_phone` | `client_phone` |
+| `can_view_full_details: false` | `can_view_full_details: true` |
 
 **Authentication:** Required (Worker, Verified)
 
@@ -2054,6 +2054,412 @@ Authorization: Bearer <access_token>
 
 ---
 
+# Module 5: Reviews
+
+The Reviews module allows clients to review workers after job completion. Reviews are **one-sided** (clients review workers) and **job-specific** (tied to a specific completed job).
+
+## 5.1 Create Review
+
+**`POST /api/reviews/create/`**
+
+Creates a review for a worker.
+
+** KEY FEATURES:**
+- One-sided: Only clients can review workers
+- Job-specific: Reviews are tied to a specific completed job
+- 0-5 rating: 0 = "Did Not Complete", 1-5 = Quality rating
+- No self-review: Clients cannot review themselves
+- One review per job per client
+
+**Authentication:** Required (Client)
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "job_id": 5,
+  "reviewee_id": 123,
+  "rating": 5,
+  "comment": "Excellent work! Fixed everything quickly and professionally.",
+  "job_completed": true
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `job_id` | integer | Yes | ID of the completed job |
+| `reviewee_id` | integer | Yes | ID of the worker being reviewed |
+| `rating` | integer | Yes | Rating 0-5 (0 = Did Not Complete) |
+| `comment` | string | No | Review comment |
+| `job_completed` | boolean | Yes | Did the worker actually complete the job? |
+
+**Rating Guide:**
+| Rating | Description |
+|--------|-------------|
+| `0` | Did Not Complete |
+| `1` | Poor |
+| `2` | Fair |
+| `3` | Good |
+| `4` | Very Good |
+| `5` | Excellent |
+
+**Validation Rules:**
+- Job must be **COMPLETED**
+- Only the **client** who posted the job can review
+- The **reviewee** must be the assigned worker
+- Client cannot review **themselves**
+- One review **per client per job**
+- If `rating = 0`, `job_completed` must be `false`
+- If `job_completed = false`, `rating` must be `0`
+
+**Success Response (201 Created):**
+```json
+{
+  "message": "Review submitted successfully!",
+  "review": {
+    "id": 1,
+    "job": 5,
+    "job_title": "Plumbing Repair",
+    "reviewer": 1,
+    "reviewer_name": "John Client",
+    "reviewee": 123,
+    "reviewee_name": "Jane Worker",
+    "rating": 5,
+    "rating_display": "5 - Excellent",
+    "comment": "Excellent work! Fixed everything quickly and professionally.",
+    "job_completed": true,
+    "created_at": "2026-08-22T10:30:00Z",
+    "updated_at": "2026-08-22T10:30:00Z"
+  }
+}
+```
+
+**Error Responses:**
+```json
+// 400 Bad Request - Job not completed
+{
+  "error": "Cannot review a job with status 'OPEN'. Only completed jobs can be reviewed."
+}
+```
+```json
+// 400 Bad Request - Not the client
+{
+  "error": "Only the client who posted this job can review it."
+}
+```
+```json
+// 400 Bad Request - Wrong worker
+{
+  "error": "The worker you are trying to review was not assigned to this job."
+}
+```
+```json
+// 400 Bad Request - Self-review
+{
+  "error": "You cannot review yourself."
+}
+```
+```json
+// 400 Bad Request - Already reviewed
+{
+  "error": "You have already reviewed this job."
+}
+```
+```json
+// 400 Bad Request - Rating mismatch
+{
+  "error": "If you give a 0 rating, please indicate that the job was not completed."
+}
+```
+```json
+// 404 Not Found
+{
+  "error": "Job not found."
+}
+```
+
+---
+
+## 5.2 Get Worker Reviews
+
+**`GET /api/reviews/worker/{worker_id}/`**
+
+Gets all reviews for a specific worker.
+
+**Authentication:** Required (Any authenticated user)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `worker_id` | integer | Worker's user ID |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 5,
+  "results": [
+    {
+      "id": 1,
+      "job_title": "Plumbing Repair",
+      "rating": 5,
+      "rating_display": "5 - Excellent",
+      "comment": "Excellent work! Fixed everything quickly.",
+      "job_completed": true,
+      "reviewer_name": "John Client",
+      "created_at": "2026-08-22T10:30:00Z"
+    },
+    {
+      "id": 2,
+      "job_title": "Electrical Wiring",
+      "rating": 4,
+      "rating_display": "4 - Very Good",
+      "comment": "Good work, but arrived a bit late.",
+      "job_completed": true,
+      "reviewer_name": "Mary Client",
+      "created_at": "2026-08-20T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 5.3 Get My Reviews (Worker)
+
+**`GET /api/reviews/my-reviews/`**
+
+Gets all reviews for the authenticated worker.
+
+**Authentication:** Required (Worker)
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 5,
+  "results": [
+    {
+      "id": 1,
+      "job_title": "Plumbing Repair",
+      "rating": 5,
+      "rating_display": "5 - Excellent",
+      "comment": "Excellent work!",
+      "job_completed": true,
+      "reviewer_name": "John Client",
+      "created_at": "2026-08-22T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 5.4 Get My Reviews Given (Client)
+
+**`GET /api/reviews/my-reviews-given/`**
+
+Gets all reviews given by the authenticated client.
+
+**Authentication:** Required (Client)
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 3,
+  "results": [
+    {
+      "id": 1,
+      "job_title": "Plumbing Repair",
+      "rating": 5,
+      "rating_display": "5 - Excellent",
+      "comment": "Excellent work!",
+      "job_completed": true,
+      "worker_name": "Jane Worker",
+      "created_at": "2026-08-22T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 5.5 Get Worker Rating Stats
+
+**`GET /api/reviews/stats/{worker_id}/`**
+
+Gets rating statistics for a worker.
+
+**Authentication:** Required (Any authenticated user)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `worker_id` | integer | Worker's user ID |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "average_rating": 4.5,
+  "total_reviews": 15,
+  "completed_jobs": 14,
+  "incomplete_jobs": 1,
+  "completion_rate": 93.3,
+  "rating_distribution": {
+    "0": 0,
+    "1": 0,
+    "2": 1,
+    "3": 2,
+    "4": 5,
+    "5": 7
+  }
+}
+```
+
+**Response Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `average_rating` | float | Overall average rating (0-5) |
+| `total_reviews` | integer | Total number of reviews |
+| `completed_jobs` | integer | Number of jobs marked as completed |
+| `incomplete_jobs` | integer | Number of jobs marked as incomplete |
+| `completion_rate` | float | Percentage of jobs completed |
+| `rating_distribution` | object | Count of each rating (0-5) |
+
+---
+
+## 5.6 Get My Rating Stats (Worker)
+
+**`GET /api/reviews/my-stats/`**
+
+Gets rating statistics for the authenticated worker.
+
+**Authentication:** Required (Worker)
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "average_rating": 4.5,
+  "total_reviews": 15,
+  "completed_jobs": 14,
+  "incomplete_jobs": 1,
+  "completion_rate": 93.3,
+  "rating_distribution": {
+    "0": 0,
+    "1": 0,
+    "2": 1,
+    "3": 2,
+    "4": 5,
+    "5": 7
+  }
+}
+```
+
+---
+
+## 5.7 Get Job Reviews
+
+**`GET /api/reviews/job/{job_id}/`**
+
+Gets all reviews for a specific job.
+
+**Authentication:** Required (Any authenticated user)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `job_id` | integer | Job ID |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 2,
+  "results": [
+    {
+      "id": 1,
+      "rating": 5,
+      "rating_display": "5 - Excellent",
+      "comment": "Excellent work!",
+      "job_completed": true,
+      "reviewer_name": "John Client",
+      "created_at": "2026-08-22T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 5.8 Get Unrated Jobs (Client)
+
+**`GET /api/reviews/unrated-jobs/`**
+
+Gets all completed jobs that the client hasn't reviewed yet.
+
+**Authentication:** Required (Client)
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 2,
+  "message": "You have unrated jobs. Please review them before posting new jobs.",
+  "results": [
+    {
+      "job_id": 5,
+      "job_title": "Plumbing Repair",
+      "worker_name": "Jane Worker",
+      "completed_at": "2026-08-22T10:00:00Z"
+    },
+    {
+      "job_id": 8,
+      "job_title": "Electrical Wiring",
+      "worker_name": "John Worker",
+      "completed_at": "2026-08-20T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
 # Rate Limiting
 
 | Endpoint | Rate Limit | Time Window |
@@ -2065,6 +2471,7 @@ Authorization: Bearer <access_token>
 | `/jobs/create/` | 10 requests | 1 minute |
 | `/jobs/{id}/apply/` | 10 requests | 1 minute |
 | `/matching/nearby/` | 30 requests | 1 minute |
+| `/reviews/create/` | 10 requests | 1 minute |
 
 **Rate Limit Response (429):**
 ```json
@@ -2082,8 +2489,8 @@ Authorization: Bearer <access_token>
 
 | **Field** | **Before Assignment** | **After Assignment** |
 |-----------|----------------------|---------------------|
-| `general_location` | ✅ Visible | ✅ Visible |
-| `latitude`/`longitude` | ✅ Visible | ✅ Visible |
+| `general_location` | Visible | Visible |
+| `latitude`/`longitude` | Visible | Visible |
 | `exact_location` | Hidden | Visible |
 | `map_url` | Hidden | Visible |
 | `directions_url` | Hidden | Visible |
@@ -2091,5 +2498,20 @@ Authorization: Bearer <access_token>
 | `client_name` | Hidden | Visible |
 | `client_phone` | Hidden | Visible |
 | `can_view_full_details` | `false` | `true` |
+
+---
+
+## Review System Summary
+
+| **Feature** | **Implementation** |
+|-------------|-------------------|
+| **Who can review?** | Only clients |
+| **Who gets reviewed?** | Only workers |
+| **Job-specific** | Reviews tied to specific jobs |
+| **Rating scale** | 0-5 (0 = Did Not Complete) |
+| **Self-review** | Blocked by validation |
+| **One review per job** | Unique constraint on (job, reviewer) |
+| **Completion tracking** | `job_completed` flag |
+| **Rating stats** | Average, distribution, completion rate |
 
 ---

@@ -339,6 +339,19 @@ class PermissionCodename:
     VIEW_DASHBOARD = 'can_view_dashboard'
     MANAGE_SYSTEM = 'can_manage_system'
 
+class ReviewStatus:
+    """Review status constants."""
+    PENDING = 'PENDING'
+    APPROVED = 'APPROVED'
+    REJECTED = 'REJECTED'
+    FLAGGED = 'FLAGGED'
+    
+    CHOICES = [
+        (PENDING, 'Pending Approval'),
+        (APPROVED, 'Approved'),
+        (REJECTED, 'Rejected'),
+        (FLAGGED, 'Flagged for Review'),
+    ]
 
 # ============================================
 # ALIAS FOR BACKWARD COMPATIBILITY
