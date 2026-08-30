@@ -7,8 +7,7 @@ import type {
   ApiFieldErrors,
 } from "@/shared/types";
 
-const API_URL =
-  "http://127.0.0.1:8000/api";
+const API_URL = "http://127.0.0.1:8000/api";
 
 /* =========================
    API ERROR
@@ -22,9 +21,7 @@ export class ApiError extends Error {
     status: number,
     fields: ApiFieldErrors
   ) {
-    const firstError = Object.entries(
-      fields
-    ).find(
+    const firstError = Object.entries(fields).find(
       ([key]) =>
         key !== "error" &&
         key !== "detail"
@@ -60,18 +57,16 @@ async function apiRequest<T>(
       {
         ...options,
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
           Accept: "application/json",
           ...(options.headers || {}),
         },
       }
     );
 
-    const data =
-      await response
-        .json()
-        .catch(() => ({}));
+    const data = await response
+      .json()
+      .catch(() => ({}));
 
     if (!response.ok) {
       throw new ApiError(
@@ -86,10 +81,7 @@ async function apiRequest<T>(
       throw error;
     }
 
-    console.error(
-      "NETWORK ERROR:",
-      error
-    );
+    console.error("NETWORK ERROR:", error);
 
     throw new Error(
       "Unable to connect to the server. Make sure Django is running."
@@ -172,9 +164,7 @@ export function getCurrentUser(): User | null {
 ========================= */
 
 export function getAccessToken(): string | null {
-  return localStorage.getItem(
-    "access_token"
-  );
+  return localStorage.getItem("access_token");
 }
 
 /* =========================
@@ -182,9 +172,7 @@ export function getAccessToken(): string | null {
 ========================= */
 
 export function getRefreshToken(): string | null {
-  return localStorage.getItem(
-    "refresh_token"
-  );
+  return localStorage.getItem("refresh_token");
 }
 
 /* =========================
@@ -193,9 +181,7 @@ export function getRefreshToken(): string | null {
 
 export function isAuthenticated(): boolean {
   return Boolean(
-    localStorage.getItem(
-      "access_token"
-    )
+    localStorage.getItem("access_token")
   );
 }
 
@@ -204,13 +190,7 @@ export function isAuthenticated(): boolean {
 ========================= */
 
 export function clearAuth(): void {
-  localStorage.removeItem(
-    "access_token"
-  );
-
-  localStorage.removeItem(
-    "refresh_token"
-  );
-
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
   localStorage.removeItem("user");
 }

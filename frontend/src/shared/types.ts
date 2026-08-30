@@ -1,8 +1,8 @@
 export enum SelectedPage {
   Home = "home",
-  FindWork = "find work",
-  PostJob = "post job",
-  Services = "services",
+  HowItWorks = "How It Works",
+  ContactUs = "Contact Us",
+  About = "About",
 }
 
 export interface BenefitType {
@@ -45,16 +45,20 @@ export interface User {
 
 export type RoleValue = "WORKER" | "CLIENT";
 
-export const ROLE_OPTIONS = [
+export const ROLE_OPTIONS: {
+  value: RoleValue;
+  label: string;
+  description: string;
+}[] = [
   {
-    value: "WORKER" as const,
-    label: "Find Work",
+    value: "WORKER",
+    label: "Worker",
     description:
       "Browse nearby piecework and apply to jobs.",
   },
   {
-    value: "CLIENT" as const,
-    label: "Post Jobs",
+    value: "CLIENT",
+    label: "Client",
     description:
       "Post tasks and hire workers nearby.",
   },
@@ -126,12 +130,11 @@ export class ApiError extends Error {
     status: number,
     fields: ApiFieldErrors
   ) {
-    const firstError = Object.entries(
-      fields
-    ).find(
-      ([key]) =>
+    const firstError = Object.entries(fields).find(
+      ([key, value]) =>
         key !== "error" &&
-        key !== "detail"
+        key !== "detail" &&
+        value !== undefined
     )?.[1];
 
     const message =
