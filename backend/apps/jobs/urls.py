@@ -1,72 +1,96 @@
 # apps/jobs/urls.py
 
 from django.urls import path
-from apps.jobs.views import (
-    # Job Views
+from apps.jobs.views.job_views import (
     CreateJobView,
     JobDetailView,
-    JobDetailForWorkerView,  # 🆕 Import the new worker view
     OpenJobsView,
     MyJobsView,
+    MyOpenJobsView,
+    MyActiveJobsView,
     SearchJobsView,
     FilterJobsView,
     UpdateJobView,
     DeleteJobView,
-    CompleteJobView,
     CancelJobView,
-    # Job Application Views
+    CompleteJobView,
+    JobDetailForWorkerView,
+)
+from apps.jobs.views.job_application_views import (
     ApplyForJobView,
     JobApplicationsView,
     PendingApplicationsView,
     UpdateApplicationStatusView,
-    # MyApplicationsView,  # ← Remove
-    # Job Assignment Views
+    MyApplicationsView,
+    MyJobApplicationsView,
+)
+from apps.jobs.views.job_assignment_views import (
     AssignWorkerView,
-    WorkerAssignmentsView,
-    # ActiveAssignmentsView,  # ← Remove
-    CompleteAssignmentView,
-    # CancelAssignmentView,  # ← Remove
+    WorkerMarkCompleteView,
+    ClientConfirmCompleteView,
 )
 
 app_name = 'jobs'
 
 urlpatterns = [
     # ============================================
-    # JOB ENDPOINTS
+    # JOB CRUD
     # ============================================
     
-    path('jobs/', OpenJobsView.as_view(), name='jobs-list'),
-    path('jobs/create/', CreateJobView.as_view(), name='jobs-create'),
-    path('jobs/<int:job_id>/', JobDetailView.as_view(), name='jobs-detail'),
+    path('', OpenJobsView.as_view(), name='open-jobs'),  # /api/jobs/
+    path('create/', CreateJobView.as_view(), name='create-job'),  # /api/jobs/create/
+    path('<int:job_id>/', JobDetailView.as_view(), name='job-detail'),  # /api/jobs/4/
+    path('<int:job_id>/update/', UpdateJobView.as_view(), name='update-job'),
+    path('<int:job_id>/delete/', DeleteJobView.as_view(), name='delete-job'),
+    path('<int:job_id>/cancel/', CancelJobView.as_view(), name='cancel-job'),
     
-    # 🆕 Worker job detail with conditional disclosure
-    path('jobs/<int:job_id>/worker/', JobDetailForWorkerView.as_view(), name='jobs-detail-worker'),
+    # ============================================
+    # APPLY FOR JOB
+    # ============================================
     
-    path('jobs/<int:job_id>/update/', UpdateJobView.as_view(), name='jobs-update'),
-    path('jobs/<int:job_id>/delete/', DeleteJobView.as_view(), name='jobs-delete'),
-    path('jobs/<int:job_id>/complete/', CompleteJobView.as_view(), name='jobs-complete'),
-    path('jobs/<int:job_id>/cancel/', CancelJobView.as_view(), name='jobs-cancel'),
-    path('jobs/search/', SearchJobsView.as_view(), name='jobs-search'),
-    path('jobs/filter/', FilterJobsView.as_view(), name='jobs-filter'),
+    path('<int:job_id>/apply/', ApplyForJobView.as_view(), name='apply-for-job'),
+    
+    # ============================================
+    # JOB APPLICATIONS (Client View)
+    # ============================================
+    
+    path('<int:job_id>/applications/', JobApplicationsView.as_view(), name='job-applications'),
+    path('<int:job_id>/applications/pending/', PendingApplicationsView.as_view(), name='pending-applications'),
+    path('applications/<int:application_id>/status/', UpdateApplicationStatusView.as_view(), name='update-application-status'),
+    
+    # ============================================
+    # MY JOBS & APPLICATIONS (Worker View)
+    # ============================================
+    
+    path('my-applications/', MyApplicationsView.as_view(), name='my-applications'),
+    path('my-job-applications/', MyJobApplicationsView.as_view(), name='my-job-applications'),
+    
+    # ============================================
+    # WORKER JOB DETAIL (Conditional Disclosure)
+    # ============================================
+    
+    path('<int:job_id>/worker/', JobDetailForWorkerView.as_view(), name='job-detail-for-worker'),
+    
+    # ============================================
+    # JOB ASSIGNMENTS
+    # ============================================
+    
+    path('<int:job_id>/assign/', AssignWorkerView.as_view(), name='assign-worker'),
+    path('<int:job_id>/mark-complete/', WorkerMarkCompleteView.as_view(), name='worker-mark-complete'),
+    path('<int:job_id>/confirm/', ClientConfirmCompleteView.as_view(), name='client-confirm-complete'),
+    
+    # ============================================
+    # MY JOBS
+    # ============================================
+    
     path('my-jobs/', MyJobsView.as_view(), name='my-jobs'),
+    path('my-open-jobs/', MyOpenJobsView.as_view(), name='my-open-jobs'),
+    path('my-active-jobs/', MyActiveJobsView.as_view(), name='my-active-jobs'),
     
     # ============================================
-    # JOB APPLICATION ENDPOINTS
+    # SEARCH & FILTER
     # ============================================
     
-    path('jobs/<int:job_id>/apply/', ApplyForJobView.as_view(), name='jobs-apply'),
-    path('jobs/<int:job_id>/applications/', JobApplicationsView.as_view(), name='jobs-applications'),
-    path('jobs/<int:job_id>/applications/pending/', PendingApplicationsView.as_view(), name='jobs-applications-pending'),
-    path('applications/<int:application_id>/status/', UpdateApplicationStatusView.as_view(), name='applications-status'),
-    # path('my-applications/', MyApplicationsView.as_view(), name='my-applications'),  # ← Commented out
-    
-    # ============================================
-    # JOB ASSIGNMENT ENDPOINTS
-    # ============================================
-    
-    path('jobs/<int:job_id>/assign/', AssignWorkerView.as_view(), name='jobs-assign'),
-    path('my-assignments/', WorkerAssignmentsView.as_view(), name='my-assignments'),
-    # path('my-assignments/active/', ActiveAssignmentsView.as_view(), name='my-assignments-active'),  # ← Commented out
-    path('assignments/<int:assignment_id>/complete/', CompleteAssignmentView.as_view(), name='assignments-complete'),
-    # path('assignments/<int:assignment_id>/cancel/', CancelAssignmentView.as_view(), name='assignments-cancel'),  # ← Commented out
+    path('search/', SearchJobsView.as_view(), name='search-jobs'),
+    path('filter/', FilterJobsView.as_view(), name='filter-jobs'),
 ]

@@ -319,3 +319,145 @@ class JobDetailForWorkerView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_403_FORBIDDEN
             )
+# apps/jobs/views/job_views.py
+
+# ... (all your existing imports and views) ...
+
+
+# ============================================================
+# 🆕 MY APPLICATIONS VIEW
+# ============================================================
+
+class MyApplicationsView(APIView):
+    """
+    GET /api/my-applications/
+    Get all applications made by the authenticated worker.
+    
+    This endpoint shows all jobs the worker has applied for,
+    along with the application status (PENDING, ACCEPTED, REJECTED).
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
+    
+    def get(self, request):
+        from apps.jobs.models import JobApplication
+        from apps.jobs.serializers import JobApplicationSerializer
+        
+        # Get all applications for this worker
+        applications = JobApplication.objects.filter(
+            worker_id=request.user.id
+        ).select_related('job', 'job__category', 'job__client')
+        
+        # Order by most recent first
+        applications = applications.order_by('-applied_at')
+        
+        serializer = JobApplicationSerializer(applications, many=True)
+        
+        return Response({
+            'count': len(serializer.data),
+            'results': serializer.data
+        }, status=status.HTTP_200_OK)
+
+# apps/jobs/views/job_views.py
+
+# ... (all your existing imports) ...
+
+
+# ============================================================
+# 🆕 APPLY FOR JOB VIEW
+# ============================================================
+
+class ApplyForJobView(APIView):
+    """
+    POST /api/jobs/{job_id}/apply/
+    Apply for a job as a worker.
+    
+    Requirements:
+    - Worker must be verified
+    - Worker must be within 1km of the job location
+    - Worker must not have already applied
+    - Worker must not be assigned to another job
+    - Job must be OPEN
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+    
+    def post(self, request, job_id):
+        from apps.jobs.models import Job, JobApplication
+        from apps.jobs.serializers import JobApplicationSerializer
+        from apps.common.constants import ApplicationStatus
+        from apps.accounts.models import Profile
+        from apps.matching.services.distance_service import DistanceService
+        
+        try:
+            job = Job.objects.get(id=job_id, deleted_at__isnull=True)
+        except Job.DoesNotExist:
+            return Response(
+                {'error': 'Job not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if job is open
+        if job.status != JobStatus.OPEN:
+            return Response(
+                {'error': 'This job is no longer available.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if worker already applied
+        existing_application = JobApplication.objects.filter(
+            job_id=job_id,
+            worker_id=request.user.id
+        ).exists()
+        
+        if existing_application:
+            return Response(
+                {'error': 'You have already applied for this job.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if worker is already assigned to another job
+        active_assignment = JobAssignment.objects.filter(
+            worker_id=request.user.id,
+            status=AssignmentStatus.ACTIVE
+        ).exists()
+        
+        if active_assignment:
+            return Response(
+                {'error': 'You are currently busy with another job.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if worker has location
+        if not hasattr(request.user, 'profile') or not request.user.profile.latitude:
+            return Response(
+                {'error': 'Please update your location first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if worker is within 1km of job
+        if job.latitude and job.longitude:
+            distance = DistanceService.calculate_distance(
+                float(request.user.profile.latitude),
+                float(request.user.profile.longitude),
+                float(job.latitude),
+                float(job.longitude)
+            )
+            
+            if distance is not None and distance > 1.0:
+                return Response(
+                    {'error': 'You must be within 1km of the job location to apply. Please move closer and try again.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Create application
+        application = JobApplication.objects.create(
+            job=job,
+            worker=request.user,
+            status=ApplicationStatus.PENDING
+        )
+        
+        logger.info(f"Worker {request.user.id} applied for job {job_id}")
+        
+        return Response({
+            'message': 'Application submitted successfully!',
+            'application': JobApplicationSerializer(application).data
+        }, status=status.HTTP_201_CREATED)

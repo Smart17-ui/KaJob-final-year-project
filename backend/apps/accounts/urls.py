@@ -1,4 +1,5 @@
 # apps/accounts/urls.py
+
 from django.urls import path
 from apps.accounts.views import (
     RegisterView,
@@ -11,6 +12,17 @@ from apps.accounts.views import (
     ResetPasswordView,
     VerifyEmailView,
     ResendVerificationView,
+    AddRoleView,
+    SwitchRoleView,
+    GetUserRolesView,
+    UserProfileView,
+    UserProfileUpdateView,
+    WorkerProfileView,
+    WorkerProfileUpdateView,
+    ClientProfileView,
+    ClientProfileUpdateView,
+    UpdateLocationView,
+    UpdatePhoneNumberView,
 )
 
 app_name = 'accounts'
@@ -40,4 +52,25 @@ urlpatterns = [
     
     path('auth/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
     path('auth/resend-verification/', ResendVerificationView.as_view(), name='resend-verification'),
+    
+    # ============================================
+    # ROLE MANAGEMENT
+    # ============================================
+    
+    path('auth/add-role/', AddRoleView.as_view(), name='add-role'),
+    path('auth/switch-role/', SwitchRoleView.as_view(), name='switch-role'),
+    path('auth/roles/', GetUserRolesView.as_view(), name='user-roles'),
+    
+    # ============================================
+    # PROFILES
+    # ============================================
+    
+    path('profile/', UserProfileView.as_view(), name='user-profile'),
+    path('profile/update/', UserProfileUpdateView.as_view(), name='user-profile-update'),
+    path('profile/location/', UpdateLocationView.as_view(), name='update-location'),
+    path('profile/phone/', UpdatePhoneNumberView.as_view(), name='update-phone'),
+    path('profile/worker/', WorkerProfileView.as_view(), name='worker-profile'),
+    path('profile/worker/update/', WorkerProfileUpdateView.as_view(), name='worker-profile-update'),
+    path('profile/client/', ClientProfileView.as_view(), name='client-profile'),
+    path('profile/client/update/', ClientProfileUpdateView.as_view(), name='client-profile-update'),
 ]

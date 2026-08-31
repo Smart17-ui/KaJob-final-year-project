@@ -1,7 +1,8 @@
 # apps/identity_verification/serializers/verification_serializer.py
+
 import re
 from rest_framework import serializers
-from apps.identity_verification.models import IdentityVerification
+from apps.identity_verification.models import IdentityVerification, VerificationDocument
 from apps.common.constants import DocumentType, VerificationStatus
 
 
@@ -14,6 +15,29 @@ class DocumentUploadSerializer(serializers.Serializer):
     file_name = serializers.CharField(max_length=255, required=True)
     file_size = serializers.IntegerField(required=False, allow_null=True)
     mime_type = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class DocumentSerializer(serializers.ModelSerializer):
+    """Serializer for verification documents."""
+    
+    document_type_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = VerificationDocument
+        fields = [
+            'id',
+            'document_type',
+            'document_type_display',
+            'file_path',
+            'file_name',
+            'file_size',
+            'mime_type',
+            'uploaded_at',
+        ]
+        read_only_fields = ['id', 'uploaded_at']
+    
+    def get_document_type_display(self, obj):
+        return obj.get_document_type_display()
 
 
 class SubmitVerificationSerializer(serializers.Serializer):
@@ -48,23 +72,17 @@ class SubmitVerificationSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("Document number is required.")
         
-        #Check if document number already exists
-        if self._document_number_exists(value):
-            raise serializers.ValidationError(
-                "This document number is already registered. Please use a different one."
-            )
-        
         # Get document type
         document_type = self.initial_data.get('document_type', '')
         
         # Validate based on document type
-        if document_type in ['NRC_FRONT', 'NRC_BACK']:
+        if document_type in ['NRC', 'NRC_FRONT', 'NRC_BACK']:
             if not self._is_valid_nrc(value):
                 raise serializers.ValidationError(
                     "Invalid NRC format. Expected format: 123456/78/1 "
                     "(6 digits / 2 digits / 1 digit)"
                 )
-        elif document_type == 'PASSPORT_PHOTO':
+        elif document_type in ['PASSPORT', 'PASSPORT_PHOTO']:
             if not self._is_valid_passport(value):
                 raise serializers.ValidationError(
                     "Invalid Passport format. Expected format: ZA123456 "
@@ -73,6 +91,12 @@ class SubmitVerificationSerializer(serializers.Serializer):
         elif document_type == 'SELFIE':
             # Selfie doesn't have a document number
             pass
+        
+        # Check if document number already exists
+        if self._document_number_exists(value):
+            raise serializers.ValidationError(
+                "This document number is already registered. Please use a different one."
+            )
         
         return value
     
@@ -85,7 +109,6 @@ class SubmitVerificationSerializer(serializers.Serializer):
         - slash
         - 1 digit
         """
-        # Format: 6 digits / 2 digits / 1 digit
         pattern = r'^\d{6}/\d{2}/\d{1}$'
         return bool(re.match(pattern, value))
     
@@ -95,7 +118,6 @@ class SubmitVerificationSerializer(serializers.Serializer):
         - 2 uppercase letters
         - 6 digits
         """
-        # Format: 2 letters followed by 6 digits
         pattern = r'^[A-Z]{2}\d{6}$'
         return bool(re.match(pattern, value))
     
@@ -117,17 +139,25 @@ class VerificationStatusSerializer(serializers.Serializer):
     """
     has_submitted = serializers.BooleanField()
     verification_id = serializers.IntegerField(required=False, allow_null=True)
-    status = serializers.ChoiceField(choices=VerificationStatus.CHOICES, required=False, allow_null=True)
+    verification_status = serializers.CharField(required=False, allow_null=True)
     status_display = serializers.SerializerMethodField()
+    phone_verified = serializers.BooleanField(default=False)
+    email_verified = serializers.BooleanField(default=False)
+    fully_verified = serializers.BooleanField(default=False)
+    phone_number = serializers.CharField(allow_blank=True)
+    email = serializers.EmailField()
+    document_type = serializers.CharField(allow_blank=True)
+    document_number = serializers.CharField(allow_blank=True)
     submitted_at = serializers.DateTimeField(required=False, allow_null=True)
     reviewed_at = serializers.DateTimeField(required=False, allow_null=True)
-    rejection_reason = serializers.CharField(required=False, allow_null=True)
-    document_types = serializers.ListField(child=serializers.CharField())
+    rejection_reason = serializers.CharField(allow_blank=True)
     message = serializers.CharField()
+    next_step = serializers.CharField()
     
     def get_status_display(self, obj):
-        if obj.get('status'):
-            return dict(VerificationStatus.CHOICES).get(obj['status'])
+        status = obj.get('verification_status')
+        if status:
+            return dict(VerificationStatus.CHOICES).get(status)
         return None
 
 
@@ -144,4 +174,7 @@ class VerificationHistorySerializer(serializers.Serializer):
     document_count = serializers.IntegerField()
     
     def get_status_display(self, obj):
-        return dict(VerificationStatus.CHOICES).get(obj['status'])
+        status = obj.get('status')
+        if status:
+            return dict(VerificationStatus.CHOICES).get(status)
+        return None

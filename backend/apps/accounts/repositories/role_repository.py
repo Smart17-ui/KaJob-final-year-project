@@ -1,3 +1,5 @@
+# apps/accounts/repositories/role_repository.py
+
 from typing import Optional, List
 from apps.accounts.models import Role
 from apps.common.repositories import BaseRepository
@@ -40,6 +42,10 @@ class RoleRepository(BaseRepository[Role]):
         """Get all roles"""
         return self.get_all()
     
+    def get_active_roles(self) -> List[Role]:
+        """Get all active roles"""
+        return self.filter(is_active=True)
+    
     def get_role_names(self) -> List[str]:
         """Get all role names"""
         return [role.name for role in self.get_all_roles()]
@@ -75,3 +81,28 @@ class RoleRepository(BaseRepository[Role]):
     def is_valid_role(self, role_name: str) -> bool:
         """Check if role is valid (ADMIN, WORKER, or CLIENT)"""
         return role_name in [RoleType.ADMIN, RoleType.WORKER, RoleType.CLIENT]
+    
+    # ============================================
+    # 🆕 ROLE STATISTICS
+    # ============================================
+    
+    def get_role_user_count(self, role_name: str) -> int:
+        """Get number of users with a specific role"""
+        role = self.get_by_name(role_name)
+        if not role:
+            return 0
+        return role.user_roles.count()
+    
+    def get_all_role_user_counts(self) -> dict:
+        """Get user counts for all roles"""
+        counts = {}
+        for role in self.get_all_roles():
+            counts[role.name] = role.user_roles.count()
+        return counts
+    
+    def get_roles_with_users(self) -> List[Role]:
+        """Get all roles that have at least one user"""
+        from django.db.models import Count
+        return self.annotate(
+            user_count=Count('user_roles')
+        ).filter(user_count__gt=0)

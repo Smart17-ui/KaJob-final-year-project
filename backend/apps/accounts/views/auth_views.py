@@ -1,3 +1,5 @@
+# apps/accounts/views/auth_views.py
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -14,14 +16,22 @@ from apps.accounts.serializers import (
     ResetPasswordSerializer,
     VerifyEmailSerializer,
     UserSerializer,
+    # 🆕 Import role serializers
+    AddRoleSerializer,
+    SwitchRoleSerializer,
+    RoleResponseSerializer,
 )
-from apps.common.permissions import IsActiveUser
+from apps.common.permissions import IsActiveUser, IsVerifiedUser
 from apps.common.exceptions import BusinessRuleViolation
 
 
 # Service instance
 auth_service = AuthService()
 
+
+# ============================================
+# EXISTING VIEWS (Keep as-is)
+# ============================================
 
 class RegisterView(APIView):
     """
@@ -133,7 +143,7 @@ class LogoutView(APIView):
 
 class MeView(APIView):
     """
-    Get current user information.
+    Get current user information with roles.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
     
@@ -255,3 +265,128 @@ class ResendVerificationView(APIView):
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
             }, status=e.status_code if hasattr(e, 'status_code') else status.HTTP_400_BAD_REQUEST)
+
+
+# ============================================
+# 🆕 ROLE MANAGEMENT VIEWS
+# ============================================
+
+class AddRoleView(APIView):
+    """
+    POST /api/auth/add-role/
+    Add a new role to an existing user.
+    
+    ✅ NO RE-REGISTRATION NEEDED!
+    ✅ Verification status carries over!
+    
+    Request Body:
+        {
+            "role": "WORKER"  # or "CLIENT" or "ADMIN"
+        }
+    
+    Response:
+        {
+            "message": "WORKER role added successfully!",
+            "user": {...},
+            "tokens": {...},
+            "is_verified": true,
+            "available_roles": ["WORKER", "CLIENT"]
+        }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+    
+    def post(self, request):
+        serializer = AddRoleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        role_name = serializer.validated_data['role']
+        
+        try:
+            result = auth_service.add_role_to_user(request.user, role_name)
+            
+            return Response({
+                'message': result['message'],
+                'user': UserSerializer(result['user']).data,
+                'tokens': result['tokens'],
+                'is_verified': result['is_verified'],
+                'available_roles': result['available_roles'],
+            }, status=status.HTTP_200_OK)
+            
+        except BusinessRuleViolation as e:
+            return Response({
+                'error': str(e.detail) if hasattr(e, 'detail') else str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SwitchRoleView(APIView):
+    """
+    POST /api/auth/switch-role/
+    Switch between roles.
+    
+    Request Body:
+        {
+            "role": "WORKER"  # or "CLIENT" or "ADMIN"
+        }
+    
+    Response:
+        {
+            "message": "Switched to WORKER role.",
+            "user": {...},
+            "tokens": {...},
+            "current_role": "WORKER",
+            "available_roles": ["WORKER", "CLIENT"]
+        }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+    
+    def post(self, request):
+        serializer = SwitchRoleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        role_name = serializer.validated_data['role']
+        
+        try:
+            result = auth_service.switch_role(request.user, role_name)
+            
+            return Response({
+                'message': f'Switched to {role_name} role.',
+                'user': UserSerializer(result['user']).data,
+                'tokens': result['tokens'],
+                'current_role': result['current_role'],
+                'available_roles': result['available_roles'],
+            }, status=status.HTTP_200_OK)
+            
+        except BusinessRuleViolation as e:
+            return Response({
+                'error': str(e.detail) if hasattr(e, 'detail') else str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GetUserRolesView(APIView):
+    """
+    GET /api/auth/roles/
+    Get all roles for the authenticated user.
+    
+    Response:
+        {
+            "roles": ["WORKER", "CLIENT"],
+            "current_role": "WORKER"
+        }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+    
+    def get(self, request):
+        roles = auth_service.get_user_roles(request.user)
+        
+        # Get current role from token or use first role
+        current_role = None
+        if hasattr(request, 'auth') and hasattr(request.auth, 'payload'):
+            current_role = request.auth.payload.get('current_role')
+        
+        if not current_role and roles:
+            current_role = roles[0]
+        
+        return Response({
+            'roles': roles,
+            'current_role': current_role,
+        }, status=status.HTTP_200_OK)

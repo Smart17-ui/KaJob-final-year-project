@@ -3,53 +3,56 @@
 from .job_views import (
     CreateJobView,
     JobDetailView,
-    JobDetailForWorkerView,  # 🆕 Add this import
     OpenJobsView,
     MyJobsView,
+    MyOpenJobsView,
+    MyActiveJobsView,
     SearchJobsView,
     FilterJobsView,
     UpdateJobView,
     DeleteJobView,
-    CompleteJobView,
     CancelJobView,
+    CompleteJobView,
+    JobDetailForWorkerView,
 )
 from .job_application_views import (
     ApplyForJobView,
     JobApplicationsView,
     PendingApplicationsView,
     UpdateApplicationStatusView,
-    # MyApplicationsView,  # ← Remove this if not defined
+    MyApplicationsView,
+    MyJobApplicationsView,
 )
 from .job_assignment_views import (
     AssignWorkerView,
-    WorkerAssignmentsView,
-    # ActiveAssignmentsView,  # ← Remove this if not defined
-    CompleteAssignmentView,
-    # CancelAssignmentView,  # ← Remove this if not defined
+    WorkerMarkCompleteView,
+    ClientConfirmCompleteView,
 )
 
 __all__ = [
     # Job Views
     'CreateJobView',
     'JobDetailView',
-    'JobDetailForWorkerView',  # 🆕 Add this to __all__
     'OpenJobsView',
     'MyJobsView',
+    'MyOpenJobsView',
+    'MyActiveJobsView',
     'SearchJobsView',
     'FilterJobsView',
     'UpdateJobView',
     'DeleteJobView',
-    'CompleteJobView',
     'CancelJobView',
-    
+    'CompleteJobView',
+    'JobDetailForWorkerView',
     # Job Application Views
     'ApplyForJobView',
     'JobApplicationsView',
     'PendingApplicationsView',
     'UpdateApplicationStatusView',
-    
-    # Job Assignment Views
+    'MyApplicationsView',
+    'MyJobApplicationsView',
+    # Assignment Views
     'AssignWorkerView',
-    'WorkerAssignmentsView',
-    'CompleteAssignmentView',
+    'WorkerMarkCompleteView',
+    'ClientConfirmCompleteView',
 ]

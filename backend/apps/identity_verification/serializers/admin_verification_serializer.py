@@ -1,42 +1,36 @@
-# apps/identity_verification/serializers/admin_verification_serializer.py
+# apps/identity_verification/serializers/admin_serializer.py
+
 from rest_framework import serializers
-from apps.identity_verification.models import IdentityVerification
-from apps.common.constants import VerificationStatus, DocumentType
+from apps.common.constants import VerificationStatus
 
 
 class AdminUserSerializer(serializers.Serializer):
-    """
-    Serializer for user info in admin verification views.
-    """
+    """Serializer for user in admin verification."""
+    
     id = serializers.IntegerField()
     full_name = serializers.CharField()
     email = serializers.EmailField()
     phone_number = serializers.CharField()
-    account_status = serializers.CharField(allow_null=True, required=False)
-    is_verified = serializers.BooleanField(required=False, default=False)  # ✅ Added default
+    account_status = serializers.CharField()
+    is_verified = serializers.BooleanField()
 
 
 class AdminDocumentSerializer(serializers.Serializer):
-    """
-    Serializer for documents in admin verification views.
-    """
+    """Serializer for documents in admin verification detail."""
+    
     id = serializers.IntegerField()
     document_type = serializers.CharField()
-    document_type_display = serializers.SerializerMethodField()
+    document_type_display = serializers.CharField()
     file_path = serializers.CharField()
     file_name = serializers.CharField()
     file_size = serializers.IntegerField(allow_null=True)
-    mime_type = serializers.CharField(allow_null=True)
+    mime_type = serializers.CharField(allow_blank=True)
     uploaded_at = serializers.DateTimeField()
-    
-    def get_document_type_display(self, obj):
-        return dict(DocumentType.CHOICES).get(obj['document_type'])
 
 
 class AdminVerificationListSerializer(serializers.Serializer):
-    """
-    Serializer for listing verifications in admin view.
-    """
+    """Serializer for admin verification list."""
+    
     id = serializers.IntegerField()
     user = AdminUserSerializer()
     document_type = serializers.CharField()
@@ -47,33 +41,38 @@ class AdminVerificationListSerializer(serializers.Serializer):
     document_count = serializers.IntegerField()
     
     def get_status_display(self, obj):
-        return dict(VerificationStatus.CHOICES).get(obj['status'])
+        status = obj.get('status')
+        if status:
+            return dict(VerificationStatus.CHOICES).get(status)
+        return None
 
 
 class AdminVerificationDetailSerializer(serializers.Serializer):
-    """
-    Serializer for verification detail in admin view.
-    """
+    """Serializer for admin verification detail."""
+    
     id = serializers.IntegerField()
     user = AdminUserSerializer()
     document_type = serializers.CharField()
+    document_type_display = serializers.CharField()
     document_number = serializers.CharField()
     status = serializers.CharField()
     status_display = serializers.SerializerMethodField()
     submitted_at = serializers.DateTimeField()
     reviewed_at = serializers.DateTimeField(allow_null=True)
-    rejection_reason = serializers.CharField(allow_null=True)
+    rejection_reason = serializers.CharField(allow_blank=True)
     documents = AdminDocumentSerializer(many=True)
-    verification_notes = serializers.CharField(allow_null=True)
+    verification_notes = serializers.CharField(allow_blank=True)
     
     def get_status_display(self, obj):
-        return dict(VerificationStatus.CHOICES).get(obj['status'])
+        status = obj.get('status')
+        if status:
+            return dict(VerificationStatus.CHOICES).get(status)
+        return None
 
 
 class AdminReviewSerializer(serializers.Serializer):
-    """
-    Serializer for admin review (approve/reject).
-    """
+    """Serializer for admin review action."""
+    
     action = serializers.ChoiceField(
         choices=['approve', 'reject'],
         required=True,
@@ -82,16 +81,16 @@ class AdminReviewSerializer(serializers.Serializer):
     reason = serializers.CharField(
         required=False,
         allow_blank=True,
-        help_text="Rejection reason (required for reject)"
+        help_text="Rejection reason (required if action is reject)"
     )
     notes = serializers.CharField(
         required=False,
         allow_blank=True,
-        help_text="Internal admin notes"
+        help_text="Additional notes for the review"
     )
     
     def validate(self, data):
-        """Validate that reason is provided when rejecting"""
+        """Validate that reason is provided when rejecting."""
         if data.get('action') == 'reject' and not data.get('reason'):
             raise serializers.ValidationError({
                 'reason': 'Rejection reason is required when rejecting a verification.'

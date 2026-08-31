@@ -221,7 +221,7 @@ class Job(BaseModel):
     dispute_resolved_at = models.DateTimeField(null=True, blank=True)
     
     # ============================================
-    # PROPERTIES
+    # META
     # ============================================
     
     class Meta:
@@ -237,6 +237,10 @@ class Job(BaseModel):
     
     def __str__(self):
         return f"{self.title} - {self.client.full_name}"
+    
+    # ============================================
+    # PROPERTIES
+    # ============================================
     
     @property
     def is_open(self):
@@ -281,6 +285,10 @@ class Job(BaseModel):
         """Fixed search radius of 1km for all jobs."""
         return 1.0
     
+    # ============================================
+    # STATUS CHECK METHODS
+    # ============================================
+    
     def can_apply(self):
         return self.status in [self.OPEN]
     
@@ -297,7 +305,7 @@ class Job(BaseModel):
         return self.status == self.AWAITING_CONFIRMATION
     
     # ============================================
-    # 🆕 HELPER METHODS FOR CONDITIONAL DISCLOSURE
+    # 🆕 CONDITIONAL DISCLOSURE METHODS
     # ============================================
     
     def is_accepted_by_worker(self, worker_id: int) -> bool:
@@ -441,6 +449,10 @@ class Job(BaseModel):
             'place_id': None,
         }
     
+    # ============================================
+    # 🆕 LOCATION & MATCHING METHODS
+    # ============================================
+    
     def is_within_radius(self, worker_id: int, radius_km: float = 1.0) -> bool:
         """
         Check if a worker is within the job's search radius.
@@ -491,3 +503,216 @@ class Job(BaseModel):
             
         except WorkerProfile.DoesNotExist:
             return False
+        except Exception as e:
+            return False
+    
+    def get_nearby_workers(self, radius_km: float = 5.0) -> list:
+        """
+        Get workers within a certain radius of this job.
+        
+        Args:
+            radius_km: Search radius in kilometers (default: 5km)
+        
+        Returns:
+            List of workers with their distance from this job
+        
+        Used by: Client to find nearby workers for this job
+        """
+        from django.contrib.auth import get_user_model
+        from apps.common.constants import UserAccountStatus
+        
+        User = get_user_model()
+        
+        if not self.latitude or not self.longitude:
+            return []
+        
+        nearby_workers = []
+        lat = float(self.latitude)
+        lng = float(self.longitude)
+        
+        # Get all active workers with location data
+        workers = User.objects.filter(
+            account_status=UserAccountStatus.ACTIVE,
+            worker_profile__isnull=False,
+            profile__latitude__isnull=False,
+            profile__longitude__isnull=False,
+        ).select_related('profile', 'worker_profile')
+        
+        for worker in workers:
+            if worker.profile.latitude and worker.profile.longitude:
+                distance = self._calculate_distance(
+                    lat, lng,
+                    float(worker.profile.latitude),
+                    float(worker.profile.longitude)
+                )
+                
+                if distance <= radius_km:
+                    nearby_workers.append({
+                        'id': worker.id,
+                        'name': worker.full_name,
+                        'distance_km': round(distance, 2),
+                        'distance_display': self._format_distance(distance),
+                        'rating': float(worker.worker_profile.rating) if worker.worker_profile else 0,
+                        'verified': worker.worker_profile.verified if worker.worker_profile else False,
+                    })
+        
+        # Sort by distance (closest first)
+        nearby_workers.sort(key=lambda x: x['distance_km'])
+        return nearby_workers
+    
+    def is_point_within_radius(self, latitude: float, longitude: float, radius_km: float = 1.0) -> bool:
+        """
+        Check if a point is within a radius of this job.
+        
+        Args:
+            latitude: Point latitude
+            longitude: Point longitude
+            radius_km: Radius in kilometers
+        
+        Returns:
+            True if point is within radius, False otherwise
+        """
+        if not self.latitude or not self.longitude:
+            return False
+        
+        distance = self._calculate_distance(
+            latitude, longitude,
+            float(self.latitude),
+            float(self.longitude)
+        )
+        
+        return distance <= radius_km
+    
+    def get_distance_from_point(self, latitude: float, longitude: float) -> float:
+        """
+        Get distance in kilometers from a point to this job.
+        
+        Args:
+            latitude: Point latitude
+            longitude: Point longitude
+        
+        Returns:
+            Distance in kilometers
+        """
+        if not self.latitude or not self.longitude:
+            return None
+        
+        return self._calculate_distance(
+            latitude, longitude,
+            float(self.latitude),
+            float(self.longitude)
+        )
+    
+    def get_distance_from_worker(self, worker_id: int) -> float:
+        """
+        Get distance in kilometers from a worker to this job.
+        
+        Args:
+            worker_id: Worker user ID
+        
+        Returns:
+            Distance in kilometers, or None if worker has no location
+        """
+        from apps.accounts.models import WorkerProfile
+        
+        try:
+            worker_profile = WorkerProfile.objects.get(user_id=worker_id)
+            location = worker_profile.current_location
+            
+            if not location:
+                return None
+            
+            lat = location.get('latitude')
+            lng = location.get('longitude')
+            
+            if lat is None or lng is None:
+                return None
+            
+            if not self.latitude or not self.longitude:
+                return None
+            
+            return self._calculate_distance(
+                float(lat), float(lng),
+                float(self.latitude), float(self.longitude)
+            )
+            
+        except WorkerProfile.DoesNotExist:
+            return None
+    
+    # ============================================
+    # 🆕 HELPER METHODS FOR MIGRATION
+    # ============================================
+    
+    def populate_map_urls(self):
+        """
+        Generate map and directions URLs from latitude/longitude.
+        Can be used in a data migration to populate existing jobs.
+        """
+        if self.latitude and self.longitude:
+            # Google Maps URL
+            self.map_url = f"https://www.google.com/maps?q={float(self.latitude)},{float(self.longitude)}"
+            
+            # Directions URL (if client has location)
+            if self.client and self.client.profile and self.client.profile.latitude:
+                self.directions_url = (
+                    f"https://www.google.com/maps/dir/"
+                    f"{float(self.client.profile.latitude)},{float(self.client.profile.longitude)}/"
+                    f"{float(self.latitude)},{float(self.longitude)}"
+                )
+            
+            self.save(update_fields=['map_url', 'directions_url'])
+            return True
+        return False
+    
+    # ============================================
+    # PRIVATE HELPER METHODS
+    # ============================================
+    
+    @staticmethod
+    def _calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+        """
+        Calculate distance in kilometers using Haversine formula.
+        
+        Args:
+            lat1, lng1: First point coordinates
+            lat2, lng2: Second point coordinates
+        
+        Returns:
+            Distance in kilometers
+        """
+        from math import radians, sin, cos, sqrt, atan2
+        
+        # Earth's radius in kilometers
+        R = 6371
+        
+        # Convert degrees to radians
+        lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
+        
+        # Differences
+        dlat = lat2 - lat1
+        dlng = lng2 - lng1
+        
+        # Haversine formula
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlng/2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1-a))
+        
+        return R * c
+    
+    @staticmethod
+    def _format_distance(distance_km: float) -> str:
+        """
+        Format distance in human-readable format.
+        
+        Args:
+            distance_km: Distance in kilometers
+        
+        Returns:
+            Human-readable distance string (e.g., "450m", "3.5km")
+        """
+        if distance_km < 1:
+            meters = int(distance_km * 1000)
+            return f"{meters}m"
+        elif distance_km < 10:
+            return f"{distance_km:.1f}km"
+        else:
+            return f"{int(distance_km)}km"

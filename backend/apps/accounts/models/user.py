@@ -1,4 +1,5 @@
 # apps/accounts/models/user.py
+
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.hashers import make_password, check_password
@@ -57,7 +58,7 @@ class User(BaseModel):
     
     # ✅ Required fields for Django auth
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number']  # ✅ ADDED PHONE NUMBER
+    REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number']
     
     # Personal Information
     first_name = models.CharField(max_length=100)
@@ -75,6 +76,25 @@ class User(BaseModel):
         default=UserAccountStatus.ACTIVE
     )
     is_verified = models.BooleanField(default=False)
+    
+    # ============================================
+    # 🆕 PHONE VERIFICATION FIELDS
+    # ============================================
+    
+    phone_verified = models.BooleanField(default=False)
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
+    phone_otp = models.CharField(max_length=6, blank=True, default='')
+    phone_otp_created_at = models.DateTimeField(null=True, blank=True)
+    phone_attempts = models.IntegerField(default=0)
+    
+    # ============================================
+    # 🆕 EMAIL VERIFICATION FIELDS
+    # ============================================
+    
+    email_verified = models.BooleanField(default=False)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    email_verification_token = models.CharField(max_length=255, blank=True, default='')
+    email_verification_sent_at = models.DateTimeField(null=True, blank=True)
     
     # Django Admin Required Fields
     is_staff = models.BooleanField(
@@ -99,6 +119,8 @@ class User(BaseModel):
             models.Index(fields=['email']),
             models.Index(fields=['phone_number']),
             models.Index(fields=['account_status', 'is_verified']),
+            models.Index(fields=['phone_verified']),  # 🆕
+            models.Index(fields=['email_verified']),  # 🆕
         ]
         verbose_name = 'User'
         verbose_name_plural = 'Users'
@@ -207,3 +229,43 @@ class User(BaseModel):
     def get_roles_names(self):
         """Get list of role names as strings"""
         return [role.name for role in self.roles]
+    
+    # ============================================
+    # 🆕 VERIFICATION HELPER METHODS
+    # ============================================
+    
+    def is_phone_verified(self):
+        """Check if phone is verified."""
+        return self.phone_verified
+    
+    def is_email_verified(self):
+        """Check if email is verified."""
+        return self.email_verified
+    
+    def is_fully_verified(self):
+        """Check if user is fully verified (phone + email + identity)."""
+        return self.is_verified and self.phone_verified and self.email_verified
+    
+    def get_verification_progress(self):
+        """Get verification progress percentage."""
+        steps = [
+            self.phone_verified,
+            self.email_verified,
+            self.is_verified,
+        ]
+        completed = sum(1 for step in steps if step)
+        return int((completed / len(steps)) * 100)
+    
+    def reset_verification(self):
+        """Reset all verification status."""
+        self.phone_verified = False
+        self.phone_verified_at = None
+        self.phone_otp = ''
+        self.phone_otp_created_at = None
+        self.phone_attempts = 0
+        self.email_verified = False
+        self.email_verified_at = None
+        self.email_verification_token = ''
+        self.email_verification_sent_at = None
+        self.is_verified = False
+        self.save()

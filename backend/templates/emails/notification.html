@@ -1,0 +1,13 @@
+{% extends "emails/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<p>Hello {{ full_name }},</p>
+<p>{{ message }}</p>
+<p>
+    <a href="{{ frontend_url }}" class="button">Go to KaJob</a>
+</p>
+<p>Thank you for using KaJob!</p>
+{% endblock %}

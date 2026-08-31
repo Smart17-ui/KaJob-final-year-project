@@ -1,0 +1,28 @@
+<!-- backend/templates/emails/welcome.html -->
+{% extends "emails/base.html" %}
+
+{% block title %}Welcome to KaJob!{% endblock %}
+
+{% block content %}
+<h2>Welcome to KaJob!</h2>
+
+<p>Hello {{ full_name }},</p>
+
+<p>Your account has been <strong>fully verified</strong> and is now ready to use!</p>
+
+<p>You can now:</p>
+<ul>
+    <li>Apply for jobs (if you're a worker)</li>
+    <li>Post jobs (if you're a client)</li>
+    <li>Connect with other users</li>
+    <li>Build your reputation</li>
+</ul>
+
+<p>
+    <a href="{{ frontend_url }}" class="button" style="background: #4F46E5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block;">
+        Go to Dashboard
+    </a>
+</p>
+
+<p>Welcome to the community!<br>KaJob Team</p>
+{% endblock %}

@@ -6,7 +6,7 @@ from django.db.models import Q, Prefetch
 from apps.jobs.repositories import JobRepository
 from apps.accounts.repositories import WorkerProfileRepository
 from apps.jobs.models import Job, JobAssignment, JobApplication
-from apps.accounts.models import WorkerProfile
+from apps.accounts.models import WorkerProfile, User
 from apps.common.constants import JobStatus, AvailabilityStatus, AssignmentStatus, ApplicationStatus
 from apps.matching.services.distance_service import DistanceService
 
@@ -35,24 +35,32 @@ class MatchingService:
     ) -> List[Dict[str, Any]]:
         """Find jobs within radius of worker location."""
         try:
-            worker_profile = WorkerProfile.objects.get(user_id=worker_id)
+            # Get worker profile with user and profile
+            worker_profile = WorkerProfile.objects.select_related('user', 'user__profile').get(user_id=worker_id)
         except WorkerProfile.DoesNotExist:
             logger.warning(f"Worker profile not found for user {worker_id}")
             return []
         
-        location = worker_profile.current_location
-        if not location:
-            logger.warning(f"Worker {worker_id} has no location set")
+        # Get location from the User's Profile
+        user = worker_profile.user
+        if not hasattr(user, 'profile') or not user.profile:
+            logger.warning(f"User {worker_id} has no profile")
             return []
         
-        lat = location.get('latitude')
-        lng = location.get('longitude')
+        lat = user.profile.latitude
+        lng = user.profile.longitude
         
         if lat is None or lng is None:
-            logger.warning(f"Worker {worker_id} has invalid location")
+            logger.warning(f"Worker {worker_id} has no location set in profile")
             return []
         
-        jobs = self.job_repo.get_jobs_with_location()
+        # Get jobs with location data - ✅ FIX: Use deleted_at__isnull instead of is_deleted
+        jobs = Job.objects.filter(
+            status=JobStatus.OPEN,
+            latitude__isnull=False,
+            longitude__isnull=False,
+            deleted_at__isnull=True  # ✅ Changed from is_deleted=False
+        ).select_related('category', 'client')
         
         nearby_jobs = []
         for job in jobs:
@@ -103,7 +111,7 @@ class MatchingService:
         ✅ Shows distance from job to applicant
         """
         try:
-            job = Job.objects.get(id=job_id, is_deleted=False)
+            job = Job.objects.get(id=job_id, deleted_at__isnull=True)  # ✅ Changed
         except Job.DoesNotExist:
             logger.warning(f"Job {job_id} not found")
             return []
@@ -117,7 +125,7 @@ class MatchingService:
         
         applications = JobApplication.objects.filter(
             job_id=job_id
-        ).select_related('worker', 'worker__workerprofile')
+        ).select_related('worker', 'worker__workerprofile', 'worker__profile')
         
         if not applications.exists():
             logger.info(f"No applicants for job {job_id}")
@@ -127,12 +135,13 @@ class MatchingService:
         for application in applications:
             worker = application.worker
             try:
-                worker_profile = WorkerProfile.objects.get(user=worker)
-                location = worker_profile.current_location
+                worker_profile = WorkerProfile.objects.select_related('user', 'user__profile').get(user=worker)
                 
-                if location:
-                    lat = location.get('latitude')
-                    lng = location.get('longitude')
+                # Get location from the User's Profile
+                user = worker_profile.user
+                if hasattr(user, 'profile') and user.profile:
+                    lat = user.profile.latitude
+                    lng = user.profile.longitude
                     
                     if lat and lng:
                         distance = DistanceService.calculate_distance(
@@ -176,7 +185,7 @@ class MatchingService:
         ✅ Can filter by application status
         """
         try:
-            job = Job.objects.get(id=job_id, is_deleted=False)
+            job = Job.objects.get(id=job_id, deleted_at__isnull=True)  # ✅ Changed
         except Job.DoesNotExist:
             logger.warning(f"Job {job_id} not found")
             return []
@@ -186,7 +195,7 @@ class MatchingService:
         
         applications = JobApplication.objects.filter(
             job_id=job_id
-        ).select_related('worker', 'worker__workerprofile')
+        ).select_related('worker', 'worker__workerprofile', 'worker__profile')
         
         if status:
             applications = applications.filter(status=status)
@@ -195,22 +204,26 @@ class MatchingService:
         for application in applications:
             worker = application.worker
             try:
-                worker_profile = WorkerProfile.objects.get(user=worker)
+                worker_profile = WorkerProfile.objects.select_related('user', 'user__profile').get(user=worker)
                 
                 distance_km = None
                 distance_display = None
-                if job.latitude and job.longitude and worker_profile.current_location:
-                    lat = worker_profile.current_location.get('latitude')
-                    lng = worker_profile.current_location.get('longitude')
-                    if lat and lng:
-                        distance_km = DistanceService.calculate_distance(
-                            float(job.latitude),
-                            float(job.longitude),
-                            float(lat),
-                            float(lng)
-                        )
-                        if distance_km is not None:
-                            distance_display = DistanceService.get_distance_display(distance_km)
+                
+                # Get location from the User's Profile
+                if job.latitude and job.longitude:
+                    user = worker_profile.user
+                    if hasattr(user, 'profile') and user.profile:
+                        lat = user.profile.latitude
+                        lng = user.profile.longitude
+                        if lat and lng:
+                            distance_km = DistanceService.calculate_distance(
+                                float(job.latitude),
+                                float(job.longitude),
+                                float(lat),
+                                float(lng)
+                            )
+                            if distance_km is not None:
+                                distance_display = DistanceService.get_distance_display(distance_km)
                 
                 result.append({
                     'application_id': application.id,

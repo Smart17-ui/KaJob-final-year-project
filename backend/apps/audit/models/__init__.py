@@ -1,7 +1,6 @@
-from .disciplinary_action import DisciplinaryAction
-from .audit_log import AuditLog
+# apps/audit/models/__init__.py
 
-__all__ = [
-    'DisciplinaryAction',
-    'AuditLog',
-]
+from .audit_log import AuditLog
+from .disciplinary_action import DisciplinaryAction
+
+__all__ = ['AuditLog', 'DisciplinaryAction']

@@ -65,13 +65,13 @@ ALLOWED_HOSTS = get_env('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lis
 # ============================================
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
 
     # Local apps
     'apps.accounts',
@@ -84,48 +84,39 @@ INSTALLED_APPS = [
     'apps.identity_verification',
     'apps.reviews',
     'apps.admin_panel',
+    'apps.analytics',
 
     # Third party apps
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-
-    
     'corsheaders',
-
+    'channels',
 ]
-
-# config/settings.py - Add these to your existing settings
 
 # ============================================
 # MIDDLEWARE CONFIGURATION
 # ============================================
 
 MIDDLEWARE = [
-    # Django default middleware (in correct order)
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     
-    # Custom CORS middleware (early)
     'infrastructure.middleware.cors_middleware.CORSMiddleware',
-    
-    
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
-    # Custom middleware (order matters!)
-    'infrastructure.middleware.request_id_middleware.RequestIDMiddleware',  # 1. Request ID
-    'infrastructure.middleware.logging_middleware.RequestLoggingMiddleware',  # 2. Request logging
-    'infrastructure.middleware.auth_middleware.JWTAuthenticationMiddleware',  # 3. JWT auth
-    'infrastructure.middleware.rate_limit_middleware.RateLimitMiddleware',  # 4. Rate limiting
-    'infrastructure.middleware.audit_middleware.AuditMiddleware',  # 5. Audit logging
-    'infrastructure.middleware.performance_middleware.PerformanceMiddleware',  # 6. Performance tracking
-    'infrastructure.middleware.security_middleware.SecurityHeadersMiddleware',  # 7. Security headers
+    'infrastructure.middleware.request_id_middleware.RequestIDMiddleware',
+    'infrastructure.middleware.logging_middleware.RequestLoggingMiddleware',
+    'infrastructure.middleware.auth_middleware.JWTAuthenticationMiddleware',
+    'infrastructure.middleware.rate_limit_middleware.RateLimitMiddleware',
+    'infrastructure.middleware.audit_middleware.AuditMiddleware',
+    'infrastructure.middleware.performance_middleware.PerformanceMiddleware',
+    'infrastructure.middleware.security_middleware.SecurityHeadersMiddleware',
 ]
-
 
 # ============================================
 # CORS SETTINGS
@@ -134,7 +125,6 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-
 ]
 CORS_ALLOWED_METHODS = [
     'DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT'
@@ -145,14 +135,14 @@ CORS_ALLOWED_HEADERS = [
     'x-csrftoken', 'x-request-id', 'x-requested-with'
 ]
 CORS_ALLOW_CREDENTIALS = True
-CORS_MAX_AGE = 86400  # 24 hours
+CORS_MAX_AGE = 86400
 
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -305,13 +295,37 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-"""
-=====================
-email configuration
+# ============================================
+# EMAIL CONFIGURATION
+# ============================================
 
-"""
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-FRONTEND_URL = get_env('FRONTEND_URL', default='http://localhost:3000')
+EMAIL_BACKEND = get_env(
+    'EMAIL_BACKEND', 
+    default='django.core.mail.backends.smtp.EmailBackend'
+)
+EMAIL_HOST = get_env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = get_env('EMAIL_PORT', default='587', cast=int)
+EMAIL_USE_TLS = get_env('EMAIL_USE_TLS', default='True', cast=bool)
+EMAIL_HOST_USER = get_env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = get_env('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = get_env('DEFAULT_FROM_EMAIL', default='noreply@kajob.com')
+
+FRONTEND_URL = get_env('FRONTEND_URL', default='http://localhost:5173')
+
+# ============================================
+# CHANNELS / WEBSOCKET CONFIGURATION
+# ============================================
+
+ASGI_APPLICATION = 'config.asgi.application'
+
+# ✅ In-memory channel layer (no Redis needed!)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+
+WEBSOCKET_URL = '/ws/'
 
 # ============================================
 # LOGGING
@@ -354,6 +368,11 @@ LOGGING = {
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
+        'channels': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
     },
 }
 
@@ -366,3 +385,7 @@ print(f"Database: {DATABASES['default']['NAME']} at {DATABASES['default']['HOST'
 print(f"User: {DATABASES['default']['USER']}")
 print(f"Debug Mode: {DEBUG}")
 print(f"JWT Access Token Lifetime: {SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']}")
+print(f"Email Backend: {EMAIL_BACKEND}")
+print(f"Frontend URL: {FRONTEND_URL}")
+print(f"ASGI Application: {ASGI_APPLICATION}")
+print(f"Channel Layer: {CHANNEL_LAYERS['default']['BACKEND']}")

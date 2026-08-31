@@ -90,11 +90,13 @@ class ApplicationStatus:
 class AssignmentStatus:
     """Job assignment statuses"""
     ACTIVE = 'ACTIVE'
+    IN_PROGRESS = 'IN_PROGRESS'  # ✅ Added
     COMPLETED = 'COMPLETED'
     CANCELLED = 'CANCELLED'
     
     CHOICES = [
         (ACTIVE, 'Active'),
+        (IN_PROGRESS, 'In Progress'),  # ✅ Added
         (COMPLETED, 'Completed'),
         (CANCELLED, 'Cancelled'),
     ]
@@ -339,6 +341,11 @@ class PermissionCodename:
     VIEW_DASHBOARD = 'can_view_dashboard'
     MANAGE_SYSTEM = 'can_manage_system'
 
+
+# ============================================
+# REVIEW STATUS
+# ============================================
+
 class ReviewStatus:
     """Review status constants."""
     PENDING = 'PENDING'
@@ -352,6 +359,7 @@ class ReviewStatus:
         (REJECTED, 'Rejected'),
         (FLAGGED, 'Flagged for Review'),
     ]
+
 
 # ============================================
 # ALIAS FOR BACKWARD COMPATIBILITY

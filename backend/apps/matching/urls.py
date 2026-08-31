@@ -1,12 +1,14 @@
 # apps/matching/urls.py
 
 from django.urls import path
-from apps.matching.views import (
+from apps.matching.views.matching_views import (
     NearbyJobsView,
     NearbyJobsCountView,
     NearbyApplicantsView,
     AllApplicantsView,
 )
+
+app_name = 'matching'
 
 urlpatterns = [
     # Worker endpoints
