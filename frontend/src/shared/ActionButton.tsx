@@ -20,7 +20,7 @@ const ActionButton = ({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      className="w-50 rounded-md bg-secondary-500 px-10 py-2 transition duration-300 hover:bg-primary-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-50 rounded-full bg-secondary-600 px-4 py-2 transition duration-300 hover:bg-green-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
     >
       {children}
     </button>

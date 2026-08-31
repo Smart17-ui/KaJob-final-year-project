@@ -73,26 +73,19 @@ const Navbar = ({
   const navbarBackground = isAuthPage
     ? "bg-transparent"
     : !isTopOfPage
-      ? "bg-primary-100 drop-shadow"
-      : "";
+    ? "bg-white drop-shadow"
+    : "";
 
   /* =========================
      LOGOUT
   ========================= */
 
   function handleLogout() {
-    // Remove tokens and user information
     clearAuth();
 
-    // Immediately update navbar
     setAuthenticated(false);
 
-    // Close mobile menu
     setIsMenuToggled(false);
-
-    // IMPORTANT:
-    // Do NOT navigate to /login.
-    // The user stays on the current page.
   }
 
   /* =========================
@@ -120,9 +113,9 @@ const Navbar = ({
       ========================= */}
 
       <div
-        className={`${navbarBackground} fixed top-0 z-30 h-[80px] w-full`}
+        className={`${navbarBackground} fixed top-0 z-30 h-[60px] w-full`}
       >
-        <div className="mx-auto flex h-full w-[92%] items-center justify-between">
+        <div className="mx-auto flex h-full w-[92%] items-center">
 
           {/* =========================
               LOGO
@@ -131,7 +124,7 @@ const Navbar = ({
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="h-[70px] w-fit flex-shrink-0"
+            className="h-[55px] w-fit flex-shrink-0"
             aria-label="Go to KaJob homepage"
           >
             <img
@@ -148,13 +141,13 @@ const Navbar = ({
           {!isAuthPage && (
             <>
               {isAboveMediumScreens ? (
-                <div className="flex items-center gap-14">
+                <div className="flex flex-1 items-center">
 
                   {/* =========================
                       NAVIGATION LINKS
                   ========================= */}
 
-                  <div className="-translate-x-20 flex items-center gap-8 text-sm">
+                  <div className="ml-64 flex items-center gap-8 text-sm">
 
                     <Link
                       page={SelectedPage.Home}
@@ -166,7 +159,7 @@ const Navbar = ({
 
                     <Link
                       page={
-                        SelectedPage.Services
+                        SelectedPage.HowItWorks
                       }
                       selectedPage={selectedPage}
                       setSelectedPage={
@@ -175,9 +168,7 @@ const Navbar = ({
                     />
 
                     <Link
-                      page={
-                        SelectedPage.FindWork
-                      }
+                      page={SelectedPage.About}
                       selectedPage={selectedPage}
                       setSelectedPage={
                         setSelectedPage
@@ -186,7 +177,7 @@ const Navbar = ({
 
                     <Link
                       page={
-                        SelectedPage.PostJob
+                        SelectedPage.ContactUs
                       }
                       selectedPage={selectedPage}
                       setSelectedPage={
@@ -199,7 +190,7 @@ const Navbar = ({
                       AUTH BUTTONS
                   ========================= */}
 
-                  <div className="flex items-center gap-6">
+                  <div className="ml-auto flex items-center gap-6">
 
                     {authenticated ? (
                       /* =========================
@@ -209,20 +200,20 @@ const Navbar = ({
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="cursor-pointer transition duration-300 hover:text-primary-500"
+                        className="cursor-pointer transition duration-300 hover:text-green-900"
                       >
                         Log Out
                       </button>
                     ) : (
                       /* =========================
                          LOGGED OUT
-                      ========================= */
+                      */
 
                       <>
                         <button
                           type="button"
                           onClick={handleLogin}
-                          className="cursor-pointer transition duration-300 hover:text-primary-500"
+                          className="cursor-pointer transition duration-300 hover:text-green-900"
                         >
                           Log In
                         </button>
@@ -231,6 +222,7 @@ const Navbar = ({
                           onClick={
                             handleRegister
                           }
+                  
                         >
                           Create Account
                         </ActionButton>
@@ -246,7 +238,7 @@ const Navbar = ({
                 <button
                   type="button"
                   aria-label="Open navigation menu"
-                  className="rounded-full bg-secondary-500 p-2"
+                  className="ml-auto rounded-full bg-secondary-600 p-2"
                   onClick={() =>
                     setIsMenuToggled(true)
                   }
@@ -299,7 +291,9 @@ const Navbar = ({
               />
 
               <Link
-                page={SelectedPage.Services}
+                page={
+                  SelectedPage.HowItWorks
+                }
                 selectedPage={selectedPage}
                 setSelectedPage={
                   setSelectedPage
@@ -307,7 +301,7 @@ const Navbar = ({
               />
 
               <Link
-                page={SelectedPage.FindWork}
+                page={SelectedPage.About}
                 selectedPage={selectedPage}
                 setSelectedPage={
                   setSelectedPage
@@ -315,7 +309,9 @@ const Navbar = ({
               />
 
               <Link
-                page={SelectedPage.PostJob}
+                page={
+                  SelectedPage.ContactUs
+                }
                 selectedPage={selectedPage}
                 setSelectedPage={
                   setSelectedPage
@@ -351,7 +347,7 @@ const Navbar = ({
                   <button
                     type="button"
                     onClick={handleRegister}
-                    className="text-left"
+                    className="text-left "
                   >
                     Create Account
                   </button>
