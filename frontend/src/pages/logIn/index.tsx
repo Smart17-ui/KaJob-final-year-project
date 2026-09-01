@@ -19,19 +19,21 @@ import {
 
 import { motion } from "framer-motion";
 
-import { loginUser } from "@/api/auth/auth";
+import {
+  loginUser,
+  ApiError,
+} from "@/api/auth/auth";
 
 import {
-  ApiError,
   ROLE_OPTIONS,
   type RoleValue,
 } from "@/shared/types";
 
 import { saveAuth } from "@/shared/auth";
 
-// =========================
-// FORM TYPES
-// =========================
+/* =========================
+   FORM TYPES
+========================= */
 
 interface FormState {
   email: string;
@@ -46,9 +48,9 @@ interface FormErrors {
   role?: string;
 }
 
-// =========================
-// INITIAL FORM STATE
-// =========================
+/* =========================
+   INITIAL FORM STATE
+========================= */
 
 const initialState: FormState = {
   email: "",
@@ -57,16 +59,16 @@ const initialState: FormState = {
   rememberMe: true,
 };
 
-// =========================
-// EMAIL VALIDATION
-// =========================
+/* =========================
+   EMAIL VALIDATION
+========================= */
 
 const EMAIL_RE =
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// =========================
-// LOGIN COMPONENT
-// =========================
+/* =========================
+   LOGIN COMPONENT
+========================= */
 
 export default function Login() {
   const navigate = useNavigate();
@@ -87,15 +89,17 @@ export default function Login() {
     useState(false);
 
   const [step, setStep] =
-    useState<"role" | "credentials">("role");
+    useState<"role" | "credentials">(
+      "role"
+    );
 
-  // =========================
-  // UPDATE FORM
-  // =========================
+  /* =========================
+     UPDATE FORM
+  ========================= */
 
   function update<K extends keyof FormState>(
     key: K,
-    value: FormState[K],
+    value: FormState[K]
   ) {
     setForm((current) => ({
       ...current,
@@ -110,18 +114,18 @@ export default function Login() {
     setFormError(null);
   }
 
-  // =========================
-  // SELECT ROLE
-  // =========================
+  /* =========================
+     SELECT ROLE
+  ========================= */
 
   function selectRole(role: RoleValue) {
     update("role", role);
     setStep("credentials");
   }
 
-  // =========================
-  // CHANGE ROLE
-  // =========================
+  /* =========================
+     CHANGE ROLE
+  ========================= */
 
   function changeRole() {
     setStep("role");
@@ -129,14 +133,15 @@ export default function Login() {
     setErrors({});
   }
 
-  // =========================
-  // VALIDATION
-  // =========================
+  /* =========================
+     VALIDATION
+  ========================= */
 
   function validate(): boolean {
     const nextErrors: FormErrors = {};
 
-    // Email
+    /* EMAIL */
+
     if (!form.email.trim()) {
       nextErrors.email =
         "Email is required.";
@@ -147,13 +152,15 @@ export default function Login() {
         "Enter a valid email address.";
     }
 
-    // Password
+    /* PASSWORD */
+
     if (!form.password) {
       nextErrors.password =
         "Password is required.";
     }
 
-    // Role
+    /* ROLE */
+
     if (!form.role) {
       nextErrors.role =
         "Choose your account type.";
@@ -166,12 +173,12 @@ export default function Login() {
     );
   }
 
-  // =========================
-  // SUBMIT
-  // =========================
+  /* =========================
+     SUBMIT LOGIN
+  ========================= */
 
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
@@ -181,7 +188,10 @@ export default function Login() {
 
     setFormError(null);
 
-    // Validate form
+    /* =========================
+       VALIDATE FORM
+    ========================= */
+
     if (!validate()) {
       return;
     }
@@ -189,9 +199,9 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      // =========================
-      // LOGIN REQUEST
-      // =========================
+      /* =========================
+         LOGIN REQUEST
+      ========================= */
 
       const data = await loginUser({
         email: form.email.trim(),
@@ -201,68 +211,97 @@ export default function Login() {
 
       console.log(
         "LOGIN SUCCESS:",
-        data.user,
+        data.user
       );
 
-      // =========================
-      // SAVE AUTHENTICATION
-      // =========================
+      console.log(
+        "SELECTED ROLE:",
+        data.selected_role
+      );
+
+      /* =========================
+         SAVE AUTHENTICATION
+      ========================= */
 
       saveAuth(
         data.tokens.access,
         data.tokens.refresh,
         data.user,
+        data.selected_role as RoleValue
       );
 
-      // =========================
-      // REDIRECT TO HOME PAGE
-      // =========================
+      /* =========================
+         ROLE-BASED REDIRECT
+      ========================= */
 
-      navigate("/", {
-        replace: true,
-      });
+      if (
+        data.selected_role === "CLIENT"
+      ) {
+        navigate("/client/dashboard", {
+          replace: true,
+        });
 
+        return;
+      }
+
+      if (
+        data.selected_role === "WORKER"
+      ) {
+        navigate("/worker/dashboard", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      /* =========================
+         UNKNOWN ROLE
+      ========================= */
+
+      setFormError(
+        "Your account role could not be determined."
+      );
     } catch (error) {
       console.error(
         "LOGIN ERROR:",
-        error,
+        error
       );
 
-      // =========================
-      // API ERROR
-      // =========================
+      /* =========================
+         API ERROR
+      ========================= */
 
       if (error instanceof ApiError) {
-
-        // -------------------------
-        // INVALID CREDENTIALS
-        // -------------------------
+        /* =========================
+           INVALID CREDENTIALS
+        ========================= */
 
         if (
           error.status === 400 ||
           error.status === 401
         ) {
           setFormError(
-            "Invalid email, password, or account type.",
+            "Invalid email, password, or account type."
           );
 
           return;
         }
 
-        // -------------------------
-        // BACKEND FIELD ERRORS
-        // -------------------------
+        /* =========================
+           BACKEND FIELD ERRORS
+        ========================= */
 
-        const backendErrors: FormErrors = {};
+        const backendErrors: FormErrors =
+          {};
 
         const emailError =
-          error.fields.email;
+          error.fields?.email;
 
         const passwordError =
-          error.fields.password;
+          error.fields?.password;
 
         const roleError =
-          error.fields.role;
+          error.fields?.role;
 
         if (emailError) {
           backendErrors.email =
@@ -289,28 +328,27 @@ export default function Login() {
 
         setFormError(
           error.message ||
-            "Unable to log in.",
+            "Unable to log in."
         );
 
         return;
       }
 
-      // =========================
-      // NETWORK ERROR
-      // =========================
+      /* =========================
+         NETWORK ERROR
+      ========================= */
 
       setFormError(
-        "Unable to connect to the server. Please try again.",
+        "Unable to connect to the server. Please try again."
       );
-
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  // =========================
-  // UI
-  // =========================
+  /* =========================
+     UI
+  ========================= */
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 px-4 py-12">
@@ -377,13 +415,11 @@ export default function Login() {
 
                 <p className="mt-2 text-base text-slate-600">
                   Sign in to your{" "}
-
                   <span className="font-semibold text-emerald-700">
                     {form.role === "WORKER"
                       ? "Worker"
                       : "Client"}
                   </span>{" "}
-
                   account.
                 </p>
               </>
@@ -410,11 +446,9 @@ export default function Login() {
             >
 
               <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-200">
-
                 <span className="text-xs font-bold text-red-700">
                   !
                 </span>
-
               </div>
 
               <span>
@@ -445,31 +479,25 @@ export default function Login() {
 
                 {ROLE_OPTIONS.map(
                   (option, index) => (
-
                     <motion.button
                       key={option.value}
                       type="button"
-
                       initial={{
                         opacity: 0,
                         y: 8,
                       }}
-
                       animate={{
                         opacity: 1,
                         y: 0,
                       }}
-
                       transition={{
                         delay: index * 0.1,
                       }}
-
                       onClick={() =>
                         selectRole(
-                          option.value,
+                          option.value
                         )
                       }
-
                       className="group rounded-2xl border-2 border-slate-200 bg-white p-5 text-left transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/30 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                     >
 
@@ -479,19 +507,15 @@ export default function Login() {
 
                         {option.value ===
                         "WORKER" ? (
-
                           <WrenchScrewdriverIcon
                             className="h-5 w-5 text-slate-600 group-hover:text-emerald-700"
                             aria-hidden="true"
                           />
-
                         ) : (
-
                           <BriefcaseIcon
                             className="h-5 w-5 text-slate-600 group-hover:text-emerald-700"
                             aria-hidden="true"
                           />
-
                         )}
 
                       </div>
@@ -509,7 +533,7 @@ export default function Login() {
                       </p>
 
                     </motion.button>
-                  ),
+                  )
                 )}
 
               </div>
@@ -565,7 +589,8 @@ export default function Login() {
 
                 <div className="flex items-center gap-3">
 
-                  {form.role === "WORKER" ? (
+                  {form.role ===
+                  "WORKER" ? (
                     <WrenchScrewdriverIcon className="h-5 w-5 text-emerald-700" />
                   ) : (
                     <BriefcaseIcon className="h-5 w-5 text-emerald-700" />
@@ -578,7 +603,8 @@ export default function Login() {
                     </p>
 
                     <p className="text-sm font-semibold text-emerald-900">
-                      {form.role === "WORKER"
+                      {form.role ===
+                      "WORKER"
                         ? "Worker"
                         : "Client"}
                     </p>
@@ -633,12 +659,12 @@ export default function Login() {
                     onChange={(event) =>
                       update(
                         "email",
-                        event.target.value,
+                        event.target.value
                       )
                     }
                     className="w-full border-none bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
                     aria-invalid={Boolean(
-                      errors.email,
+                      errors.email
                     )}
                   />
 
@@ -681,7 +707,7 @@ export default function Login() {
                     type="button"
                     onClick={() =>
                       setFormError(
-                        "Password reset is not available yet.",
+                        "Password reset is not available yet."
                       )
                     }
                     className="text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
@@ -718,12 +744,12 @@ export default function Login() {
                     onChange={(event) =>
                       update(
                         "password",
-                        event.target.value,
+                        event.target.value
                       )
                     }
                     className="w-full border-none bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
                     aria-invalid={Boolean(
-                      errors.password,
+                      errors.password
                     )}
                   />
 
@@ -731,7 +757,7 @@ export default function Login() {
                     type="button"
                     onClick={() =>
                       setShowPassword(
-                        (value) => !value,
+                        (value) => !value
                       )
                     }
                     aria-label={
@@ -741,13 +767,11 @@ export default function Login() {
                     }
                     className="flex-shrink-0 text-slate-400 transition-colors hover:text-slate-600"
                   >
-
                     {showPassword ? (
                       <EyeSlashIcon className="h-5 w-5" />
                     ) : (
                       <EyeIcon className="h-5 w-5" />
                     )}
-
                   </button>
 
                 </div>
@@ -782,7 +806,7 @@ export default function Login() {
                   onChange={(event) =>
                     update(
                       "rememberMe",
-                      event.target.checked,
+                      event.target.checked
                     )
                   }
                   className="h-4 w-4 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
@@ -864,6 +888,7 @@ export default function Login() {
             >
               Create account
             </Link>
+
           </motion.p>
 
         </div>
@@ -888,6 +913,7 @@ export default function Login() {
         </motion.p>
 
       </motion.div>
+
     </div>
   );
 }

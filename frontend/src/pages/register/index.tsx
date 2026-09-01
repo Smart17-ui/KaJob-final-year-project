@@ -21,14 +21,19 @@ import {
 
 import { motion } from "framer-motion";
 
-import {
-  ApiError,
-  ROLE_OPTIONS,
-  type RoleValue,
-  type RegisterPayload,
+import type {
+  RoleValue,
+  RegisterPayload,
 } from "@/shared/types";
 
-import { registerUser } from "@/api/auth/auth";
+import {
+  ROLE_OPTIONS,
+} from "@/shared/types";
+
+import {
+  ApiError,
+  registerUser,
+} from "@/api/auth/auth";
 
 /* =========================
    FORM TYPES
@@ -64,7 +69,8 @@ const initialState: FormState = {
    EMAIL VALIDATION
 ========================= */
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE =
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* =========================
    REGISTER COMPONENT
@@ -218,9 +224,7 @@ export default function Register() {
 
     setErrors(next);
 
-    return (
-      Object.keys(next).length === 0
-    );
+    return Object.keys(next).length === 0;
   }
 
   /* =========================
@@ -267,11 +271,6 @@ export default function Register() {
         password:
           form.password,
 
-        /*
-         * IMPORTANT:
-         * Your Django serializer expects
-         * password_confirm.
-         */
         password_confirm:
           form.password_confirm,
 
@@ -298,6 +297,7 @@ export default function Register() {
 
       navigate("/login", {
         replace: true,
+
         state: {
           registrationSuccess:
             "Your account has been created successfully. Please log in.",
@@ -640,7 +640,9 @@ export default function Register() {
                       name="first_name"
                       autoComplete="given-name"
                       placeholder="First name"
-                      value={form.first_name}
+                      value={
+                        form.first_name
+                      }
                       onChange={(event) =>
                         update(
                           "first_name",
@@ -686,7 +688,9 @@ export default function Register() {
                       name="last_name"
                       autoComplete="family-name"
                       placeholder="Last name"
-                      value={form.last_name}
+                      value={
+                        form.last_name
+                      }
                       onChange={(event) =>
                         update(
                           "last_name",
@@ -782,7 +786,9 @@ export default function Register() {
                     type="tel"
                     autoComplete="tel"
                     placeholder="e.g. 0977 000 000"
-                    value={form.phone_number}
+                    value={
+                      form.phone_number
+                    }
                     onChange={(event) =>
                       update(
                         "phone_number",
@@ -837,7 +843,9 @@ export default function Register() {
                       }
                       autoComplete="new-password"
                       placeholder="Password"
-                      value={form.password}
+                      value={
+                        form.password
+                      }
                       onChange={(event) =>
                         update(
                           "password",
@@ -975,18 +983,14 @@ export default function Register() {
                   />
 
                   <span>
-
                     I agree to KaJob's{" "}
-
                     <Link
                       to="/terms"
                       className="font-semibold text-emerald-700 hover:text-emerald-800"
                     >
                       Terms of Service
                     </Link>{" "}
-
                     and{" "}
-
                     <Link
                       to="/privacy"
                       className="font-semibold text-emerald-700 hover:text-emerald-800"
@@ -994,7 +998,6 @@ export default function Register() {
                       Privacy Policy
                     </Link>
                     .
-
                   </span>
 
                 </label>
@@ -1063,7 +1066,6 @@ export default function Register() {
             >
               Log in
             </Link>
-
           </motion.p>
 
         </div>

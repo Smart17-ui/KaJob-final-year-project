@@ -372,6 +372,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
 
         {/* =========================
             KAJOB GREEN BANNER
+            ENTRANCE ANIMATION ONLY ONCE
         ========================= */}
 
         <motion.div
@@ -398,7 +399,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
             scale: 1.01,
           }}
           viewport={{
-            once: false,
+            once: true,
             amount: 0.2,
           }}
           transition={{
@@ -434,7 +435,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   x: 0,
                 }}
                 viewport={{
-                  once: false,
+                  once: true,
                 }}
                 transition={{
                   duration: 0.5,
@@ -458,7 +459,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   x: 0,
                 }}
                 viewport={{
-                  once: false,
+                  once: true,
                 }}
                 transition={{
                   duration: 0.5,
@@ -490,7 +491,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   x: 0,
                 }}
                 viewport={{
-                  once: false,
+                  once: true,
                 }}
                 transition={{
                   duration: 0.5,
@@ -523,7 +524,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   y: 0,
                 }}
                 viewport={{
-                  once: false,
+                  once: true,
                 }}
                 transition={{
                   duration: 0.5,
@@ -560,7 +561,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   opacity: 1,
                 }}
                 viewport={{
-                  once: false,
+                  once: true,
                 }}
                 transition={{
                   duration: 0.5,

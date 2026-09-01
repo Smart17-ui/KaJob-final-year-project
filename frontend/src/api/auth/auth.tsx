@@ -7,7 +7,14 @@ import type {
   ApiFieldErrors,
 } from "@/shared/types";
 
-const API_URL = "http://127.0.0.1:8000/api";
+import { getAccessToken } from "@/shared/auth";
+
+/* =========================
+   API URL
+========================= */
+
+const API_URL =
+  "http://127.0.0.1:8000/api";
 
 /* =========================
    API ERROR
@@ -21,11 +28,13 @@ export class ApiError extends Error {
     status: number,
     fields: ApiFieldErrors
   ) {
-    const firstError = Object.entries(fields).find(
-      ([key]) =>
-        key !== "error" &&
-        key !== "detail"
-    )?.[1];
+    const firstError =
+      Object.entries(fields).find(
+        ([key, value]) =>
+          key !== "error" &&
+          key !== "detail" &&
+          value !== undefined
+      )?.[1];
 
     const message =
       fields.error ||
@@ -52,21 +61,37 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   try {
+    const accessToken =
+      getAccessToken();
+
     const response = await fetch(
       `${API_URL}${endpoint}`,
       {
         ...options,
+
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+          "Content-Type":
+            "application/json",
+
+          Accept:
+            "application/json",
+
+          ...(accessToken
+            ? {
+                Authorization:
+                  `Bearer ${accessToken}`,
+              }
+            : {}),
+
           ...(options.headers || {}),
         },
       }
     );
 
-    const data = await response
-      .json()
-      .catch(() => ({}));
+    const data =
+      await response
+        .json()
+        .catch(() => ({}));
 
     if (!response.ok) {
       throw new ApiError(
@@ -81,7 +106,10 @@ async function apiRequest<T>(
       throw error;
     }
 
-    console.error("NETWORK ERROR:", error);
+    console.error(
+      "NETWORK ERROR:",
+      error
+    );
 
     throw new Error(
       "Unable to connect to the server. Make sure Django is running."
@@ -155,6 +183,7 @@ export function getCurrentUser(): User | null {
     return JSON.parse(user) as User;
   } catch {
     localStorage.removeItem("user");
+
     return null;
   }
 }
@@ -163,25 +192,34 @@ export function getCurrentUser(): User | null {
    ACCESS TOKEN
 ========================= */
 
-export function getAccessToken(): string | null {
-  return localStorage.getItem("access_token");
+export function getAccessTokenFromStorage():
+  string | null {
+  return localStorage.getItem(
+    "access_token"
+  );
 }
 
 /* =========================
    REFRESH TOKEN
 ========================= */
 
-export function getRefreshToken(): string | null {
-  return localStorage.getItem("refresh_token");
+export function getRefreshToken():
+  string | null {
+  return localStorage.getItem(
+    "refresh_token"
+  );
 }
 
 /* =========================
    AUTHENTICATION CHECK
 ========================= */
 
-export function isAuthenticated(): boolean {
+export function isAuthenticated():
+  boolean {
   return Boolean(
-    localStorage.getItem("access_token")
+    localStorage.getItem(
+      "access_token"
+    )
   );
 }
 
@@ -190,7 +228,17 @@ export function isAuthenticated(): boolean {
 ========================= */
 
 export function clearAuth(): void {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
+  localStorage.removeItem(
+    "access_token"
+  );
+
+  localStorage.removeItem(
+    "refresh_token"
+  );
+
   localStorage.removeItem("user");
+
+  localStorage.removeItem(
+    "selected_role"
+  );
 }
