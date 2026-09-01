@@ -4,13 +4,11 @@ import {
   useLocation,
 } from "react-router-dom";
 
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
 import Sidebar from "../Sidebar/Sidebar";
 import TopBar from "../TopBar/TopBar";
+import DashboardTabs from "../DashboardTabs/DashboardTabs";
 import DashboardOverview from "../DashboardOverview/DashboardOverview";
 
 import {
@@ -27,8 +25,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [sidebarOpen, setSidebarOpen] =
-    useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   /* =========================
      CURRENT USER
@@ -40,8 +37,7 @@ const DashboardLayout = () => {
      SELECTED ROLE
   ========================= */
 
-  const selectedRole =
-    getSelectedRole();
+  const selectedRole = getSelectedRole();
 
   /* =========================
      DETERMINE CURRENT ROLE
@@ -57,9 +53,6 @@ const DashboardLayout = () => {
 
   /* =========================
      AUTH CHECK
-     
-     If the user is NOT logged in,
-     send them to the LANDING PAGE.
   ========================= */
 
   useEffect(() => {
@@ -86,28 +79,17 @@ const DashboardLayout = () => {
   ========================= */
 
   async function handleLogout() {
-    const refreshToken =
-      getRefreshToken();
+    const refreshToken = getRefreshToken();
 
     try {
       if (refreshToken) {
         await logoutUser(refreshToken);
       }
     } catch (error) {
-      console.error(
-        "LOGOUT ERROR:",
-        error
-      );
+      console.error("LOGOUT ERROR:", error);
     } finally {
-      /*
-       * Remove all authentication
-       * information.
-       */
       clearAuth();
 
-      /*
-       * Send user to landing page.
-       */
       navigate("/", {
         replace: true,
       });
@@ -123,31 +105,14 @@ const DashboardLayout = () => {
       return;
     }
 
-    /*
-     * USER HAS BOTH ROLES
-     *
-     * Switch between CLIENT
-     * and WORKER.
-     */
-
-    if (
-      user.is_client &&
-      user.is_worker
-    ) {
+    if (user.is_client && user.is_worker) {
       const nextRole =
         role === "CLIENT"
           ? "WORKER"
           : "CLIENT";
 
-      /*
-       * Save the selected role.
-       */
       setSelectedRole(nextRole);
 
-      /*
-       * Navigate to the
-       * corresponding dashboard.
-       */
       navigate(
         nextRole === "CLIENT"
           ? "/client/dashboard"
@@ -160,51 +125,21 @@ const DashboardLayout = () => {
       return;
     }
 
-    /*
-     * USER ONLY HAS CLIENT ROLE
-     *
-     * The button will say:
-     * "Add Worker Role"
-     */
-
     if (
       role === "CLIENT" &&
       user.is_client &&
       !user.is_worker
     ) {
-      console.log(
-        "Add Worker Role"
-      );
-
-      /*
-       * Later you can connect
-       * your Add Worker Role API here.
-       */
-
+      console.log("Add Worker Role");
       return;
     }
-
-    /*
-     * USER ONLY HAS WORKER ROLE
-     *
-     * The button will say:
-     * "Add Client Role"
-     */
 
     if (
       role === "WORKER" &&
       user.is_worker &&
       !user.is_client
     ) {
-      console.log(
-        "Add Client Role"
-      );
-
-      /*
-       * Later you can connect
-       * your Add Client Role API here.
-       */
-
+      console.log("Add Client Role");
       return;
     }
   }
@@ -266,10 +201,6 @@ const DashboardLayout = () => {
   const dashboardPath =
     `/${role.toLowerCase()}/dashboard`;
 
-  /* =========================
-     CHECK DASHBOARD HOME
-  ========================= */
-
   const isDashboardHome =
     location.pathname === dashboardPath;
 
@@ -279,42 +210,21 @@ const DashboardLayout = () => {
 
   let roleActionText = "";
 
-  /*
-   * USER HAS BOTH ROLES
-   */
-
-  if (
-    user.is_client &&
-    user.is_worker
-  ) {
+  if (user.is_client && user.is_worker) {
     roleActionText =
       role === "CLIENT"
         ? "Switch to Worker"
         : "Switch to Client";
-  }
-
-  /*
-   * USER ONLY HAS CLIENT ROLE
-   */
-
-  else if (
+  } else if (
     user.is_client &&
     !user.is_worker
   ) {
-    roleActionText =
-      "Add Worker Role";
-  }
-
-  /*
-   * USER ONLY HAS WORKER ROLE
-   */
-
-  else if (
+    roleActionText = "Add Worker Role";
+  } else if (
     user.is_worker &&
     !user.is_client
   ) {
-    roleActionText =
-      "Add Client Role";
+    roleActionText = "Add Client Role";
   }
 
   /* =========================
@@ -322,93 +232,109 @@ const DashboardLayout = () => {
   ========================= */
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
+    <div className="min-h-screen bg-slate-50">
 
-      {/* =====================================
+      {/* ==================================================
           SIDEBAR
-      ===================================== */}
+      ================================================== */}
 
       <Sidebar
         role={role}
         isOpen={sidebarOpen}
-        onClose={() =>
-          setSidebarOpen(false)
-        }
+        onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
         onSwitchRole={handleSwitchRole}
         roleActionText={roleActionText}
       />
 
-      {/* =====================================
-          MAIN APPLICATION
-      ===================================== */}
+      {/* ==================================================
+          MAIN AREA
+      ================================================== */}
 
-      <div
-        className="
-          flex
-          min-w-0
-          flex-1
-          flex-col
-          overflow-hidden
-          md:ml-[248px]
-        "
-      >
+      <div className="lg:pl-64">
 
-        {/* =====================================
-            TOP BAR
-        ===================================== */}
-
-        <TopBar
-          userName={`${user.first_name ?? ""} ${
-            user.last_name ?? ""
-          }`.trim()}
-          userRole={role}
-          onMenuOpen={() =>
-            setSidebarOpen(true)
-          }
-          onNotificationsClick={
-            handleNotifications
-          }
-          onProfileClick={
-            handleProfile
-          }
-          onSettingsClick={
-            handleSettings
-          }
-          onLogout={handleLogout}
-        />
-
-        {/* =====================================
-            PAGE CONTENT
-        ===================================== */}
+        {/* ==================================================
+            FIXED HEADER
+            TOPBAR + TABS
+        ================================================== */}
 
         <div
           className="
-            min-h-0
-            flex-1
-            overflow-y-auto
-            overflow-x-hidden
+            fixed
+            left-0
+            right-0
+            top-0
+            z-40
+            lg:left-64
           "
         >
-          <div
-            className="
-              min-h-full
-              p-4
-              sm:p-6
-              lg:p-8
-            "
-          >
 
-            {isDashboardHome ? (
-              <DashboardOverview />
-            ) : (
-              <Outlet />
-            )}
+          {/* =========================
+              TOP BAR
+          ========================= */}
 
-          </div>
+          <TopBar
+            userName={`${user.first_name ?? ""} ${
+              user.last_name ?? ""
+            }`.trim()}
+            userRole={role}
+            onMenuOpen={() =>
+              setSidebarOpen(true)
+            }
+            onNotificationsClick={
+              handleNotifications
+            }
+            onProfileClick={
+              handleProfile
+            }
+            onSettingsClick={
+              handleSettings
+            }
+            onSwitchRole={
+              user.is_client &&
+              user.is_worker
+                ? handleSwitchRole
+                : undefined
+            }
+            onLogout={handleLogout}
+          />
+
+          {/* =========================
+              DASHBOARD TABS
+          ========================= */}
+
+          <DashboardTabs
+            role={role}
+          />
+
         </div>
 
+        {/* ==================================================
+            PAGE CONTENT
+        ================================================== */}
+
+        <main
+          className="
+            min-w-0
+            p-4
+            pt-36
+            sm:p-6
+            sm:pt-36
+            lg:p-8
+            lg:pt-36
+          "
+        >
+
+          {isDashboardHome ? (
+            <DashboardOverview />
+          ) : (
+            <Outlet />
+          )}
+
+        </main>
+
       </div>
+
     </div>
   );
 };
