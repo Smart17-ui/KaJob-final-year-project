@@ -6,17 +6,10 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowRightOnRectangleIcon,
   XMarkIcon,
-  ArrowsRightLeftIcon,
-  UserPlusIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 
-import {
-  NavLink,
-  useNavigate,
-} from "react-router-dom";
-
-import { getCurrentUser } from "@/shared/auth";
-import Logo from "@/assets/Logo.png";
+import { NavLink, useNavigate } from "react-router-dom";
 
 type SidebarProps = {
   role?: "CLIENT" | "WORKER";
@@ -24,39 +17,16 @@ type SidebarProps = {
   onClose?: () => void;
   onLogout?: () => void;
   onSwitchRole?: () => void;
-  roleActionText?: string;
 };
 
 const Sidebar = ({
   role = "CLIENT",
-  isOpen = true,
+  isOpen = false,
   onClose,
   onLogout,
   onSwitchRole,
-  roleActionText,
 }: SidebarProps) => {
   const navigate = useNavigate();
-
-  /* =========================
-     CURRENT USER
-  ========================= */
-
-  const user = getCurrentUser();
-
-  /* =========================
-     USER ROLES
-  ========================= */
-
-  const hasClientRole = Boolean(
-    user?.is_client
-  );
-
-  const hasWorkerRole = Boolean(
-    user?.is_worker
-  );
-
-  const hasBothRoles =
-    hasClientRole && hasWorkerRole;
 
   /* =========================
      DASHBOARD BASE PATH
@@ -76,26 +46,31 @@ const Sidebar = ({
       name: "Overview",
       path: dashboardPath,
       icon: HomeIcon,
+      description: "Dashboard home",
     },
     {
       name: "My Jobs",
       path: `${dashboardPath}/jobs`,
       icon: BriefcaseIcon,
+      description: "Manage postings",
     },
     {
       name: "Post a Job",
       path: `${dashboardPath}/post-job`,
       icon: PlusCircleIcon,
+      description: "Create new job",
     },
     {
       name: "Applications",
       path: `${dashboardPath}/applications`,
       icon: DocumentTextIcon,
+      description: "Review submissions",
     },
     {
       name: "Messages",
       path: `${dashboardPath}/messages`,
       icon: ChatBubbleLeftRightIcon,
+      description: "Chat with workers",
     },
   ];
 
@@ -108,26 +83,31 @@ const Sidebar = ({
       name: "Overview",
       path: dashboardPath,
       icon: HomeIcon,
+      description: "Dashboard home",
     },
     {
       name: "Find Jobs",
       path: `${dashboardPath}/jobs`,
       icon: BriefcaseIcon,
+      description: "Browse opportunities",
     },
     {
       name: "My Applications",
       path: `${dashboardPath}/applications`,
       icon: DocumentTextIcon,
+      description: "Your submissions",
     },
     {
       name: "My Work",
-      path: `${dashboardPath}/work`,
+      path: `${dashboardPath}/my-jobs`,
       icon: BriefcaseIcon,
+      description: "Active assignments",
     },
     {
       name: "Messages",
       path: `${dashboardPath}/messages`,
       icon: ChatBubbleLeftRightIcon,
+      description: "Client conversations",
     },
   ];
 
@@ -135,95 +115,7 @@ const Sidebar = ({
      SELECT NAVIGATION
   ========================= */
 
-  const navigation =
-    role === "CLIENT"
-      ? clientLinks
-      : workerLinks;
-
-  /* =========================
-     ROLE BUTTON TEXT
-  ========================= */
-
-  const defaultRoleButtonText =
-    hasBothRoles
-      ? role === "CLIENT"
-        ? "Switch to Worker"
-        : "Switch to Client"
-      : role === "CLIENT"
-      ? "Add Worker Role"
-      : "Add Client Role";
-
-  const buttonText =
-    roleActionText ||
-    defaultRoleButtonText;
-
-  /* =========================
-     ROLE BUTTON ICON
-  ========================= */
-
-  const RoleButtonIcon =
-    hasBothRoles
-      ? ArrowsRightLeftIcon
-      : UserPlusIcon;
-
-  /* =========================
-     ROLE ACTION
-  ========================= */
-
-  function handleRoleAction() {
-    /*
-     * USER HAS BOTH ROLES
-     *
-     * Switch between dashboards.
-     */
-
-    if (hasBothRoles) {
-      onSwitchRole?.();
-      onClose?.();
-
-      return;
-    }
-
-    /*
-     * USER ONLY HAS CLIENT ROLE
-     *
-     * Add Worker Role.
-     */
-
-    if (
-      role === "CLIENT" &&
-      hasClientRole &&
-      !hasWorkerRole
-    ) {
-      navigate(
-        "/client/dashboard/settings"
-      );
-
-      onClose?.();
-
-      return;
-    }
-
-    /*
-     * USER ONLY HAS WORKER ROLE
-     *
-     * Add Client Role.
-     */
-
-    if (
-      role === "WORKER" &&
-      hasWorkerRole &&
-      !hasClientRole
-    ) {
-      navigate(
-        "/worker/dashboard/settings"
-      );
-
-      onClose?.();
-
-      return;
-    }
-  }
+  const navigation = role === "CLIENT" ? clientLinks : workerLinks;
 
   /* =========================
      LOGOUT
@@ -239,23 +131,30 @@ const Sidebar = ({
     onClose?.();
   }
 
+  /* =========================
+     RENDER
+  ========================= */
+
   return (
     <>
-      {/* =========================
-          MOBILE OVERLAY
-      ========================= */}
-
+      {/* OVERLAY - Mobile & Tablet */}
       {isOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-slate-900/40 md:hidden"
+          className="
+            fixed
+            inset-0
+            z-40
+            bg-slate-950/20
+            backdrop-blur-sm
+            transition-opacity duration-300
+            lg:hidden
+          "
+          aria-hidden="true"
         />
       )}
 
-      {/* =========================
-          SIDEBAR
-      ========================= */}
-
+      {/* SIDEBAR DRAWER */}
       <aside
         className={`
           fixed
@@ -266,94 +165,77 @@ const Sidebar = ({
           h-screen
           w-64
           flex-col
-          border-r
-          border-slate-200
           bg-white
-          transition-transform
-          duration-300
-          md:translate-x-0
-          ${
-            isOpen
-              ? "translate-x-0"
-              : "-translate-x-full"
-          }
+          shadow-lg
+          transition-all duration-300 ease-in-out
+          ${isOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0
+          lg:shadow-none
         `}
       >
-
-        {/* =========================
-            LOGO
-        ========================= */}
-
+        {/* HEADER - Close Button */}
         <div
           className="
             flex
-            h-20
+            h-16
             flex-shrink-0
             items-center
             justify-between
             border-b
             border-slate-100
-            px-6
+            px-5
           "
         >
-          <NavLink
-            to={dashboardPath}
-            onClick={onClose}
-            className="flex items-center"
-          >
-            <img
-              src={Logo}
-              alt="KaJob"
-              className="
-                h-10
-                w-auto
-                object-contain
-              "
-            />
-          </NavLink>
+          {/* Logo/Branding Space */}
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600">
+              <span className="text-xs font-bold text-white">KJ</span>
+            </div>
+            <span className="hidden text-sm font-semibold text-slate-900 sm:block">
+              KaJob
+            </span>
+          </div>
 
-          {/* MOBILE CLOSE */}
-
+          {/* Close Button - Mobile Only */}
           <button
             type="button"
             onClick={onClose}
             className="
+              flex items-center justify-center
+              h-9 w-9
               rounded-lg
-              p-2
               text-slate-500
-              transition-colors
+              transition-all duration-150
               hover:bg-slate-100
               hover:text-slate-700
-              md:hidden
+              active:scale-95
+              focus:outline-none focus:ring-2 focus:ring-emerald-500
+              lg:hidden
             "
-            aria-label="Close menu"
+            aria-label="Close navigation menu"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
-        {/* =========================
-            MAIN NAVIGATION
-        ========================= */}
+        {/* WORKSPACE SECTION */}
+        <div className="border-b border-slate-100 px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Workspace
+          </p>
+          <p className="mt-2 text-sm font-semibold text-slate-900">
+            {role === "CLIENT" ? "Client" : "Worker"}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {role === "CLIENT"
+              ? "Post and manage jobs"
+              : "Find and apply to jobs"}
+          </p>
+        </div>
 
-        <nav
-          className="
-            flex-1
-            px-4
-            pt-6
-          "
-        >
-          <p
-            className="
-              mb-3
-              px-3
-              text-xs
-              font-semibold
-              uppercase
-              tracking-wider
-              text-slate-400
-            "
-          >
+        {/* MAIN NAVIGATION */}
+        <nav className="flex-1 overflow-y-auto px-4 py-5">
+          <p className="mb-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
             Menu
           </p>
 
@@ -365,49 +247,57 @@ const Sidebar = ({
                 <NavLink
                   key={item.name}
                   to={item.path}
-                  end={
-                    item.path ===
-                    dashboardPath
-                  }
+                  end={item.path === dashboardPath}
                   onClick={onClose}
                   className={({ isActive }) =>
                     `
-                    group
-                    flex
-                    items-center
-                    gap-3
-                    rounded-lg
-                    px-3
-                    py-3
-                    text-sm
-                    font-medium
-                    transition-all
-                    ${
-                      isActive
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    }
+                      group relative flex
+                      items-center gap-3
+                      rounded-lg
+                      px-3 py-2.5
+                      text-sm font-medium
+                      transition-all duration-150
+                      outline-none
+                      focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+                      ${
+                        isActive
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }
                     `
                   }
+                  title={item.description}
                 >
                   {({ isActive }) => (
                     <>
+                      {/* Active Indicator */}
+                      {isActive && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-r-lg bg-gradient-to-b from-emerald-400 to-emerald-600" />
+                      )}
+
+                      {/* Icon */}
                       <Icon
                         className={`
-                          h-5
-                          w-5
+                          h-5 w-5
                           flex-shrink-0
+                          transition-colors duration-150
                           ${
                             isActive
                               ? "text-emerald-600"
-                              : "text-slate-400 group-hover:text-slate-600"
+                              : "text-slate-400 group-hover:text-emerald-500"
                           }
                         `}
                       />
 
-                      <span>
-                        {item.name}
-                      </span>
+                      {/* Label */}
+                      <span className="flex-1">{item.name}</span>
+
+                      {/* Badge Indicator (Optional - for new items) */}
+                      {item.path.includes("applications") && (
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
+                          3
+                        </span>
+                      )}
                     </>
                   )}
                 </NavLink>
@@ -416,113 +306,58 @@ const Sidebar = ({
           </div>
         </nav>
 
-        {/* =========================
-            BOTTOM SECTION
-        ========================= */}
-
-        <div
-          className="
-            flex-shrink-0
-            border-t
-            border-slate-100
-            p-4
-          "
-        >
-
-          {/* =========================
-              SWITCH / ADD ROLE
-          ========================= */}
-
-          <button
-            type="button"
-            onClick={handleRoleAction}
-            className="
-              group
-              mb-2
-              flex
-              w-full
-              items-center
-              gap-3
-              rounded-xl
-              border
-              border-emerald-100
-              bg-emerald-50
-              px-3
-              py-3
-              text-sm
-              font-semibold
-              text-emerald-700
-              transition-all
-              hover:border-emerald-200
-              hover:bg-emerald-100
-            "
-          >
-            <div
+        {/* BOTTOM SECTION - Actions */}
+        <div className="flex-shrink-0 border-t border-slate-100 bg-gradient-to-t from-slate-50 to-transparent p-4">
+          {/* Switch Role Button */}
+          {onSwitchRole && (
+            <button
+              type="button"
+              onClick={() => {
+                onSwitchRole();
+                onClose?.();
+              }}
               className="
-                flex
-                h-8
-                w-8
-                flex-shrink-0
-                items-center
-                justify-center
+                group mb-3 flex w-full
+                items-center gap-3
                 rounded-lg
-                bg-white
-                shadow-sm
+                border border-emerald-200
+                bg-emerald-50 px-3 py-2.5
+                text-sm font-medium
+                text-emerald-700
+                transition-all duration-150
+                hover:border-emerald-300
+                hover:bg-emerald-100
+                active:scale-95
+                focus:outline-none focus:ring-2 focus:ring-emerald-500
               "
             >
-              <RoleButtonIcon
-                className="
-                  h-5
-                  w-5
-                  text-emerald-600
-                "
-              />
-            </div>
+              <SparklesIcon className="h-5 w-5 text-emerald-600" />
+              <span>Switch Role</span>
+            </button>
+          )}
 
-            <span>
-              {buttonText}
-            </span>
-          </button>
-
-          {/* =========================
-              LOGOUT
-          ========================= */}
-
+          {/* Logout Button */}
           <button
             type="button"
             onClick={handleLogout}
             className="
-              group
-              flex
-              w-full
-              items-center
-              gap-3
+              group flex w-full
+              items-center gap-3
               rounded-lg
-              px-3
-              py-3
-              text-sm
-              font-medium
+              px-3 py-2.5
+              text-sm font-medium
               text-slate-600
-              transition-colors
+              transition-all duration-150
               hover:bg-red-50
               hover:text-red-600
+              active:scale-95
+              focus:outline-none focus:ring-2 focus:ring-red-500
             "
           >
-            <ArrowRightOnRectangleIcon
-              className="
-                h-5
-                w-5
-                text-slate-400
-                group-hover:text-red-500
-              "
-            />
-
-            <span>
-              Logout
-            </span>
+            <ArrowRightOnRectangleIcon className="h-5 w-5 text-slate-400 transition-colors group-hover:text-red-500" />
+            <span>Sign out</span>
           </button>
         </div>
-
       </aside>
     </>
   );

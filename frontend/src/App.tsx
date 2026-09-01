@@ -29,6 +29,8 @@ import MyJobs from "@/pages/dashboard/client/MyJobs";
 import PostJob from "@/pages/dashboard/client/PostJob";
 import Applications from "@/pages/dashboard/client/Applications";
 import Messages from "@/pages/dashboard/client/Messages";
+import Analytics from "@/pages/dashboard/client/Analytics";
+import ClientNotifications from "@/pages/dashboard/client/Notifications";
 import Profile from "@/pages/dashboard/client/Profile";
 import Settings from "@/pages/dashboard/client/Settings";
 
@@ -38,15 +40,16 @@ import Settings from "@/pages/dashboard/client/Settings";
 
 import WorkerDashboard from "@/pages/dashboard/worker/WorkerDashboard";
 import FindJobs from "@/pages/dashboard/worker/FindJobs";
+import JobDetails from "@/pages/dashboard/worker/JobDetails";
 import MyApplications from "@/pages/dashboard/worker/MyApplications";
 import MyWork from "@/pages/dashboard/worker/MyWork";
 import WorkerMessages from "@/pages/dashboard/worker/Messages";
+import Performance from "@/pages/dashboard/worker/Performance";
+import WorkerNotifications from "@/pages/dashboard/worker/Notifications";
 import WorkerProfile from "@/pages/dashboard/worker/Profile";
 import WorkerSettings from "@/pages/dashboard/worker/Settings";
 
-import {
-  SelectedPage,
-} from "@/shared/types";
+import { SelectedPage } from "@/shared/types";
 
 import {
   isAuthenticated,
@@ -307,9 +310,6 @@ function App() {
 
             /dashboard
 
-            Logged out:
-              → /
-
             Logged in:
               → appropriate dashboard
         ================================================== */}
@@ -354,7 +354,9 @@ function App() {
           }
         >
 
-          {/* CLIENT OVERVIEW */}
+          {/* =========================
+              CLIENT OVERVIEW
+          ========================= */}
 
           <Route
             index
@@ -363,7 +365,9 @@ function App() {
             }
           />
 
-          {/* MY JOBS */}
+          {/* =========================
+              MY JOBS
+          ========================= */}
 
           <Route
             path="jobs"
@@ -372,7 +376,9 @@ function App() {
             }
           />
 
-          {/* POST JOB */}
+          {/* =========================
+              POST JOB
+          ========================= */}
 
           <Route
             path="post-job"
@@ -381,7 +387,9 @@ function App() {
             }
           />
 
-          {/* APPLICATIONS */}
+          {/* =========================
+              APPLICATIONS
+          ========================= */}
 
           <Route
             path="applications"
@@ -390,7 +398,9 @@ function App() {
             }
           />
 
-          {/* MESSAGES */}
+          {/* =========================
+              MESSAGES
+          ========================= */}
 
           <Route
             path="messages"
@@ -399,7 +409,31 @@ function App() {
             }
           />
 
-          {/* PROFILE */}
+          {/* =========================
+              ANALYTICS
+          ========================= */}
+
+          <Route
+            path="analytics"
+            element={
+              <Analytics />
+            }
+          />
+
+          {/* =========================
+              NOTIFICATIONS
+          ========================= */}
+
+          <Route
+            path="notifications"
+            element={
+              <ClientNotifications />
+            }
+          />
+
+          {/* =========================
+              PROFILE
+          ========================= */}
 
           <Route
             path="profile"
@@ -408,7 +442,9 @@ function App() {
             }
           />
 
-          {/* SETTINGS */}
+          {/* =========================
+              SETTINGS
+          ========================= */}
 
           <Route
             path="settings"
@@ -430,7 +466,9 @@ function App() {
           }
         >
 
-          {/* WORKER OVERVIEW */}
+          {/* =========================
+              WORKER OVERVIEW
+          ========================= */}
 
           <Route
             index
@@ -439,7 +477,9 @@ function App() {
             }
           />
 
-          {/* FIND JOBS */}
+          {/* =========================
+              FIND JOBS
+          ========================= */}
 
           <Route
             path="jobs"
@@ -448,7 +488,31 @@ function App() {
             }
           />
 
-          {/* MY APPLICATIONS */}
+          {/* =========================
+              JOB DETAILS
+          ========================= */}
+
+          <Route
+            path="jobs/:jobId"
+            element={
+              <JobDetails />
+            }
+          />
+
+          {/* =========================
+              MY JOBS
+          ========================= */}
+
+          <Route
+            path="my-jobs"
+            element={
+              <MyWork />
+            }
+          />
+
+          {/* =========================
+              APPLICATIONS
+          ========================= */}
 
           <Route
             path="applications"
@@ -457,16 +521,9 @@ function App() {
             }
           />
 
-          {/* MY WORK */}
-
-          <Route
-            path="work"
-            element={
-              <MyWork />
-            }
-          />
-
-          {/* MESSAGES */}
+          {/* =========================
+              MESSAGES
+          ========================= */}
 
           <Route
             path="messages"
@@ -475,7 +532,31 @@ function App() {
             }
           />
 
-          {/* PROFILE */}
+          {/* =========================
+              PERFORMANCE
+          ========================= */}
+
+          <Route
+            path="performance"
+            element={
+              <Performance />
+            }
+          />
+
+          {/* =========================
+              NOTIFICATIONS
+          ========================= */}
+
+          <Route
+            path="notifications"
+            element={
+              <WorkerNotifications />
+            }
+          />
+
+          {/* =========================
+              PROFILE
+          ========================= */}
 
           <Route
             path="profile"
@@ -484,7 +565,9 @@ function App() {
             }
           />
 
-          {/* SETTINGS */}
+          {/* =========================
+              SETTINGS
+          ========================= */}
 
           <Route
             path="settings"
