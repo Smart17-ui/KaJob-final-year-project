@@ -266,3 +266,68 @@ class EmailService:
             template_name='report_resolved',
             context=context,
         )
+
+    
+# apps/notifications/services/email_service.py
+
+class EmailService:
+    # ... existing methods ...
+    
+    @staticmethod
+    def send_nearby_jobs_email(worker, jobs, radius_km):
+        """
+        Send email notification to worker about nearby jobs.
+        """
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        
+        # Format jobs for email
+        job_list = ""
+        for item in jobs[:5]:  # Show top 5 jobs
+            job = item['job']
+            job_list += f"""
+            • {job.title}
+              💰 K{job.budget} | 📍 {item['distance_display']} away
+              {frontend_url}/jobs/{job.id}
+            
+            """
+        
+        if len(jobs) > 5:
+            job_list += f"\n... and {len(jobs) - 5} more jobs"
+        
+        context = {
+            'worker': worker,
+            'full_name': worker.full_name,
+            'job_count': len(jobs),
+            'job_list': job_list,
+            'radius_km': radius_km,
+            'frontend_url': frontend_url,
+            'jobs_url': f"{frontend_url}/nearby-jobs",
+        }
+        
+        subject = f"🔔 {len(jobs)} new jobs found near you!"
+        
+        try:
+            return EmailService.send_email(
+                to_email=worker.email,
+                subject=subject,
+                template_name='nearby_jobs',
+                context=context,
+            )
+        except Exception as e:
+            # Fallback to plain text
+            message = f"""
+Hello {worker.full_name},
+
+We found {len(jobs)} jobs within {radius_km}km of your location!
+
+{job_list}
+
+View all nearby jobs: {frontend_url}/nearby-jobs
+
+KaJob Team
+"""
+            return EmailService.send_plain_email(
+                to_email=worker.email,
+                subject=subject,
+                message=message.strip()
+            )

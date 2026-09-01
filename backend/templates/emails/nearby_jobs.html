@@ -1,0 +1,24 @@
+<!-- backend/templates/emails/nearby_jobs.html -->
+{% extends "emails/base.html" %}
+
+{% block title %}Nearby Jobs Found!{% endblock %}
+
+{% block content %}
+<h2>🔔 {{ job_count }} Jobs Found Near You!</h2>
+
+<p>Hello {{ full_name }},</p>
+
+<p>We found <strong>{{ job_count }} jobs</strong> within {{ radius_km }}km of your location!</p>
+
+<div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    {{ job_list|safe }}
+</div>
+
+<p>
+    <a href="{{ jobs_url }}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+        View All Nearby Jobs
+    </a>
+</p>
+
+<p>Apply now before they're gone!<br>KaJob Team</p>
+{% endblock %}

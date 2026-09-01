@@ -1,8 +1,10 @@
-# KaJob API Documentation
+# 📚 KaJob API Documentation - Complete Updated Version
+
+---
 
 ## Overview
 
-KaJob is a job marketplace platform that connects workers with clients for small tasks. This API provides endpoints for user management, identity verification, job operations, and reviews.
+KaJob is a job marketplace platform that connects workers with clients for small tasks. This API provides endpoints for user management, identity verification, job operations, location-based matching, and reviews.
 
 ## Base URL
 
@@ -13,7 +15,6 @@ http://localhost:8000/api
 ## Response Format
 
 ### Success Response
-
 ```json
 {
   "message": "Success message",
@@ -23,7 +24,6 @@ http://localhost:8000/api
 ```
 
 ### Error Response
-
 ```json
 {
   "error": "Error message"
@@ -31,7 +31,6 @@ http://localhost:8000/api
 ```
 
 ### Validation Error Response
-
 ```json
 {
   "field_name": [
@@ -73,7 +72,7 @@ Authorization: Bearer <access_token>
 
 ## 1.1 Register User
 
-**`POST /auth/register/`**
+**`POST /api/auth/register/`**
 
 Creates a new user account with role-based registration. Supports the Role Player Pattern where one user can have multiple roles.
 
@@ -157,7 +156,7 @@ Creates a new user account with role-based registration. Supports the Role Playe
 
 ## 1.2 Login User
 
-**`POST /auth/login/`**
+**`POST /api/auth/login/`**
 
 Authenticates a user and returns JWT tokens with role context.
 
@@ -233,7 +232,7 @@ Authenticates a user and returns JWT tokens with role context.
 
 ## 1.3 Add Role to Existing User
 
-**`POST /auth/add-role/`**
+**`POST /api/auth/add-role/`**
 
 Adds a new role to an existing user. **NO RE-REGISTRATION NEEDED!**
 
@@ -293,7 +292,7 @@ Authorization: Bearer <access_token>
 
 ## 1.4 Switch Role
 
-**`POST /auth/switch-role/`**
+**`POST /api/auth/switch-role/`**
 
 Switches between roles for users with multiple roles.
 
@@ -345,7 +344,7 @@ Authorization: Bearer <access_token>
 
 ## 1.5 Get User Roles
 
-**`GET /auth/roles/`**
+**`GET /api/auth/roles/`**
 
 Gets all roles for the authenticated user.
 
@@ -368,7 +367,7 @@ Authorization: Bearer <access_token>
 
 ## 1.6 Refresh Token
 
-**`POST /auth/refresh/`**
+**`POST /api/auth/refresh/`**
 
 Gets a new access token using a refresh token.
 
@@ -396,7 +395,7 @@ Gets a new access token using a refresh token.
 
 ## 1.7 Logout
 
-**`POST /auth/logout/`**
+**`POST /api/auth/logout/`**
 
 Blacklists the refresh token.
 
@@ -425,7 +424,7 @@ Authorization: Bearer <access_token>
 
 ## 1.8 Get Current User
 
-**`GET /auth/me/`**
+**`GET /api/auth/me/`**
 
 Returns the authenticated user's profile with roles.
 
@@ -462,7 +461,7 @@ Authorization: Bearer <access_token>
 
 ## 1.9 Change Password
 
-**`POST /auth/change-password/`**
+**`POST /api/auth/change-password/`**
 
 Changes the authenticated user's password.
 
@@ -492,7 +491,7 @@ Changes the authenticated user's password.
 
 ## 1.10 Forgot Password
 
-**`POST /auth/forgot-password/`**
+**`POST /api/auth/forgot-password/`**
 
 Sends a password reset link to the user's email.
 
@@ -516,7 +515,7 @@ Sends a password reset link to the user's email.
 
 ## 1.11 Reset Password
 
-**`POST /auth/reset-password/`**
+**`POST /api/auth/reset-password/`**
 
 Resets the user's password using a token.
 
@@ -541,7 +540,7 @@ Resets the user's password using a token.
 
 ## 1.12 Verify Email
 
-**`POST /auth/verify-email/`**
+**`POST /api/auth/verify-email/`**
 
 Verifies the user's email address.
 
@@ -565,7 +564,7 @@ Verifies the user's email address.
 
 ## 1.13 Resend Verification Email
 
-**`POST /auth/resend-verification/`**
+**`POST /api/auth/resend-verification/`**
 
 Resends the verification email.
 
@@ -587,7 +586,7 @@ Authorization: Bearer <access_token>
 
 ## 1.14 Update Profile
 
-**`PUT /auth/profile/update/`**
+**`PUT /api/profile/update/`**
 
 Updates the user's profile information.
 
@@ -604,7 +603,9 @@ Authorization: Bearer <access_token>
   "bio": "Experienced plumber with 5 years experience",
   "address": "15 Kamwala Road, Lusaka",
   "province": "Lusaka",
-  "district": "Lusaka"
+  "district": "Lusaka",
+  "latitude": -15.3875,
+  "longitude": 28.3412
 }
 ```
 
@@ -637,7 +638,7 @@ Authorization: Bearer <access_token>
 
 ## 1.15 Update Phone Number
 
-**`PUT /auth/profile/phone/`**
+**`PUT /api/profile/phone/`**
 
 Updates the user's phone number. Resets verification status.
 
@@ -684,9 +685,9 @@ Authorization: Bearer <access_token>
 
 ## 1.16 Update Location
 
-**`PUT /auth/profile/location/`**
+**`PUT /api/profile/location/`**
 
-Updates the user's current location.
+Updates the user's current location. This is called by the frontend every time the user moves significantly (every 10 seconds when location changes > 50m).
 
 **Authentication:** Required
 
@@ -715,13 +716,19 @@ Authorization: Bearer <access_token>
 }
 ```
 
+**Smart Location Saving:**
+- Location is only updated when:
+  1. User moves more than **50 meters**, OR
+  2. More than **30 seconds** have passed since last save
+- This reduces database writes by ~50-70%
+
 ---
 
 # Module 2: Identity Verification
 
 ## 2.1 Send Phone OTP
 
-**`POST /verification/phone/send-otp/`**
+**`POST /api/verification/phone/send-otp/`**
 
 Sends a 6-digit OTP to the user's phone number via email (SMS fallback).
 
@@ -771,7 +778,7 @@ Authorization: Bearer <access_token>
 
 ## 2.2 Verify Phone OTP
 
-**`POST /verification/phone/verify-otp/`**
+**`POST /api/verification/phone/verify-otp/`**
 
 Verifies the phone number using OTP.
 
@@ -826,7 +833,7 @@ Authorization: Bearer <access_token>
 
 ## 2.3 Send Email Verification
 
-**`POST /verification/email/send/`**
+**`POST /api/verification/email/send/`**
 
 Sends email verification link to the user.
 
@@ -860,7 +867,7 @@ Authorization: Bearer <access_token>
 
 ## 2.4 Verify Email
 
-**`GET /verification/email/verify/`**
+**`GET /api/verification/email/verify/`**
 
 Verifies the email using a token.
 
@@ -900,7 +907,7 @@ Verifies the email using a token.
 
 ## 2.5 Submit Documents
 
-**`POST /verification/documents/submit/`**
+**`POST /api/verification/documents/submit/`**
 
 Submits identity verification documents for admin review.
 
@@ -915,7 +922,7 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "document_type": "NRC",
+  "document_type": "NRC_FRONT",
   "document_number": "123456/78/1",
   "documents": [
     {
@@ -945,14 +952,14 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `document_type` | string | Yes | `NRC`, `PASSPORT`, `DRIVERS_LICENSE` |
+| `document_type` | string | Yes | `NRC_FRONT`, `NRC_BACK`, `PASSPORT_PHOTO`, `SELFIE` |
 | `document_number` | string | Yes | Document identification number |
 | `documents` | array | Yes | List of document uploads |
 
 **Document Number Validation:**
 | Document Type | Format | Example |
 |---------------|--------|---------|
-| `NRC` | `\d{6}/\d{2}/\d{1}` | `123456/78/1` |
+| `NRC_FRONT` / `NRC_BACK` | `\d{6}/\d{2}/\d{1}` | `123456/78/1` |
 
 **Success Response (200 OK):**
 ```json
@@ -987,7 +994,7 @@ Content-Type: application/json
 
 ## 2.6 Get Verification Status
 
-**`GET /verification/status/`**
+**`GET /api/verification/status/`**
 
 Gets the current verification status.
 
@@ -1003,14 +1010,14 @@ Authorization: Bearer <access_token>
 {
   "has_submitted": true,
   "verification_id": 1,
-  "verification_status": "DOCUMENTS_PENDING",
-  "status_display": "Documents Pending Review",
+  "verification_status": "UNDER_REVIEW",
+  "status_display": "Under Review",
   "phone_verified": true,
   "email_verified": true,
   "fully_verified": false,
   "phone_number": "+260971234567",
   "email": "john@example.com",
-  "document_type": "NRC",
+  "document_type": "NRC_FRONT",
   "document_number": "123456/78/1",
   "submitted_at": "2026-08-07T10:00:00Z",
   "reviewed_at": null,
@@ -1023,14 +1030,94 @@ Authorization: Bearer <access_token>
 **Verification Statuses:**
 | Status | Description |
 |--------|-------------|
-| `NOT_STARTED` | Verification not started |
-| `PHONE_PENDING` | Phone OTP sent, waiting for verification |
-| `PHONE_VERIFIED` | Phone verified |
-| `EMAIL_PENDING` | Email verification sent |
-| `EMAIL_VERIFIED` | Email verified |
-| `DOCUMENTS_PENDING` | Documents submitted, awaiting admin review |
-| `DOCUMENTS_REJECTED` | Documents rejected |
+| `NOT_SUBMITTED` | Verification not started |
+| `PENDING` | Phone/email verification pending |
+| `UNDER_REVIEW` | Documents submitted, awaiting admin review |
 | `VERIFIED` | Fully verified ✅ |
+| `REJECTED` | Documents rejected |
+| `EXPIRED` | Verification expired |
+
+---
+
+## 2.7 Admin: List Pending Verifications
+
+**`GET /api/admin/verifications/pending/`**
+
+Lists all pending verifications for admin review.
+
+**Authentication:** Required (Admin)
+
+**Request Headers:**
+```http
+Authorization: Bearer <admin_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 1,
+  "results": [
+    {
+      "id": 1,
+      "user": {
+        "id": 2,
+        "full_name": "John Banda",
+        "email": "john@example.com",
+        "phone_number": "+260971234567",
+        "account_status": "ACTIVE",
+        "is_verified": false
+      },
+      "document_type": "NRC_FRONT",
+      "document_number": "123456/78/1",
+      "status": "UNDER_REVIEW",
+      "submitted_at": "2026-08-07T10:00:00Z",
+      "document_count": 3
+    }
+  ]
+}
+```
+
+---
+
+## 2.8 Admin: Approve/Reject Verification
+
+**`POST /api/admin/verifications/{id}/review/`**
+
+Approves or rejects a verification request.
+
+**Authentication:** Required (Admin)
+
+**Request Headers:**
+```http
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+```
+
+**Request Body (Approve):**
+```json
+{
+  "action": "approve",
+  "notes": "All documents look valid. Approved."
+}
+```
+
+**Request Body (Reject):**
+```json
+{
+  "action": "reject",
+  "reason": "Document number does not match the uploaded document.",
+  "notes": "NRC number doesn't match document."
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "Verification for John Banda has been approved.",
+  "verification_id": 1,
+  "status": "VERIFIED"
+}
+```
 
 ---
 
@@ -1038,7 +1125,7 @@ Authorization: Bearer <access_token>
 
 ## 3.1 Create Job
 
-**`POST /jobs/create/`**
+**`POST /api/jobs/create/`**
 
 Creates a new job posting. Auto-generates map URLs from GPS coordinates.
 
@@ -1078,7 +1165,7 @@ Content-Type: application/json
 | `budget` | decimal | Yes | Job budget (> 0) |
 | `category_id` | integer | Yes | Job category ID |
 | **Location Fields** | | | |
-| `general_location` | string | No | Area/neighborhood |
+| `general_location` | string | No | Area/neighborhood (auto-filled from GPS) |
 | `latitude` | decimal | No | Auto-detected from GPS |
 | `longitude` | decimal | No | Auto-detected from GPS |
 | **Timing Fields** | | | |
@@ -1143,7 +1230,7 @@ Content-Type: application/json
 
 ## 3.2 List Open Jobs
 
-**`GET /jobs/`**
+**`GET /api/jobs/`**
 
 Lists all open jobs available for workers.
 
@@ -1191,7 +1278,7 @@ Authorization: Bearer <access_token>
 
 ## 3.3 Get Job Details (Client/Admin)
 
-**`GET /jobs/{id}/`**
+**`GET /api/jobs/{id}/`**
 
 Gets detailed job information with full access.
 
@@ -1244,7 +1331,7 @@ Gets detailed job information with full access.
 
 ## 3.4 Get Job Details (Worker - Conditional Disclosure)
 
-**`GET /jobs/{id}/worker/`**
+**`GET /api/jobs/{id}/worker/`**
 
 Gets job details for a worker with **CONDITIONAL DISCLOSURE**.
 
@@ -1257,6 +1344,7 @@ Gets job details for a worker with **CONDITIONAL DISCLOSURE**.
 | `exact_location` ❌ | `exact_location` ✅ |
 | `map_url` ❌ | `map_url` ✅ |
 | `directions_url` ❌ | `directions_url` ✅ |
+| `place_id` ❌ | `place_id` ✅ |
 | `client_name` ❌ | `client_name` ✅ |
 | `client_phone` ❌ | `client_phone` ✅ |
 | `can_view_full_details: false` | `can_view_full_details: true` |
@@ -1371,7 +1459,7 @@ Authorization: Bearer <access_token>
 
 ## 3.5 Apply for Job
 
-**`POST /jobs/{id}/apply/`**
+**`POST /api/jobs/{id}/apply/`**
 
 Applies for a job. Worker must be within 1km of the job location.
 
@@ -1434,7 +1522,7 @@ Applies for a job. Worker must be within 1km of the job location.
 
 ## 3.6 Assign Worker
 
-**`POST /jobs/{id}/assign/`**
+**`POST /api/jobs/{id}/assign/`**
 
 Assigns a worker to a job. **This grants the worker full access to location details.**
 
@@ -1478,15 +1566,404 @@ Assigns a worker to a job. **This grants the worker full access to location deta
 
 ---
 
+## 3.7 Worker Mark Complete
+
+**`POST /api/jobs/{id}/mark-complete/`**
+
+Worker marks the job as complete (pending client confirmation).
+
+**Authentication:** Required (Worker, Verified)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | integer | Job ID |
+
+**Request Body:** (empty)
+```json
+{}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "Job marked as complete. Client has 10 minutes to confirm.",
+  "job": {
+    "id": 1,
+    "status": "AWAITING_CONFIRMATION",
+    "status_display": "Awaiting Confirmation"
+  }
+}
+```
+
+---
+
+## 3.8 Client Confirm Complete
+
+**`POST /api/jobs/{id}/confirm/`**
+
+Client confirms the job is complete.
+
+**Authentication:** Required (Client, Verified)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | integer | Job ID |
+
+**Request Body:** (empty)
+```json
+{}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "Job confirmed successfully!",
+  "job": {
+    "id": 1,
+    "status": "COMPLETED",
+    "status_display": "Completed",
+    "completed_at": "2026-08-07T12:00:00Z"
+  }
+}
+```
+
+---
+
+## 3.9 My Jobs
+
+**`GET /api/my-jobs/`**
+
+Gets jobs posted by or assigned to the authenticated user.
+
+**Authentication:** Required (Any authenticated user)
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 3,
+  "results": [
+    {
+      "id": 1,
+      "title": "Plumbing Repair Needed",
+      "budget": "500.00",
+      "client_name": "Smart Mbuzi",
+      "category_name": "Plumbing",
+      "general_location": "Kamwala, Lusaka",
+      "status": "OPEN",
+      "status_display": "Open",
+      "posted_at": "2026-08-07T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 3.10 My Applications
+
+**`GET /api/my-applications/`**
+
+Gets all applications made by the authenticated worker.
+
+**Authentication:** Required (Worker)
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 3,
+  "results": [
+    {
+      "id": 1,
+      "job_title": "Plumbing Repair Needed",
+      "worker_name": "John Banda",
+      "status": "PENDING",
+      "status_display": "Pending",
+      "applied_at": "2026-08-07T10:05:00Z"
+    }
+  ]
+}
+```
+
+---
+
 # Module 4: Matching (Location-Based)
 
-The Matching module handles location-based filtering with configurable radius.
+## 4.1 Find Nearby Jobs
 
-## 4.1 Find Nearby Jobs (WebSocket)
+**`GET /api/matching/nearby/`**
+
+Finds jobs within 1km of the worker's location.
+
+**Authentication:** Required (Worker, Verified)
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `radius` | float | 1.0 | Search radius in kilometers (min: 0.5, max: 10.0) |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 3,
+  "radius_km": 1.0,
+  "results": [
+    {
+      "job": {
+        "id": 5,
+        "title": "Plumbing Repair",
+        "description": "Fix leaking pipe in kitchen",
+        "budget": "500.00",
+        "general_location": "Kamwala, Lusaka",
+        "category_name": "Plumbing",
+        "status": "OPEN",
+        "urgency": "URGENT",
+        "urgency_display": "Urgent (Within 3 days)",
+        "job_date": "2026-08-20",
+        "is_flexible": false,
+        "duration_hours": "2.5",
+        "posted_at": "2026-08-19T10:00:00Z",
+        "is_urgent": true
+      },
+      "distance_km": 0.45,
+      "distance_display": "450m"
+    }
+  ]
+}
+```
+
+**Smart Location Saving:**
+- Location is only saved when:
+  1. User moves more than **50 meters**, OR
+  2. More than **30 seconds** have passed since last save
+- This reduces database writes by ~50-70%
+
+---
+
+## 4.2 Find Nearby Jobs Count
+
+**`GET /api/matching/nearby/count/`**
+
+Gets the count of jobs within the worker's radius.
+
+**Authentication:** Required (Worker, Verified)
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `radius` | float | 1.0 | Search radius in kilometers |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 3,
+  "radius_km": 1.0
+}
+```
+
+---
+
+## 4.3 Get Nearby Applicants
+
+**`GET /api/matching/jobs/{id}/applicants/nearby/`**
+
+Gets applicants who are within 1km of the job location.
+
+**Authentication:** Required (Client who owns the job)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | integer | Job ID |
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `radius` | float | 1.0 | Search radius in kilometers |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 2,
+  "radius_km": 1.0,
+  "job_id": 5,
+  "results": [
+    {
+      "application_id": 15,
+      "application_status": "PENDING",
+      "applied_at": "2026-08-21T10:00:00Z",
+      "worker": {
+        "id": 123,
+        "full_name": "John Doe",
+        "email": "john@example.com",
+        "phone_number": "+260971234568",
+        "bio": "Experienced plumber with 5 years experience",
+        "average_rating": 4.5,
+        "jobs_completed": 12,
+        "skills": ["Plumbing", "Electrical"],
+        "availability_status": "AVAILABLE"
+      },
+      "distance_km": 0.45,
+      "distance_display": "450m"
+    }
+  ]
+}
+```
+
+---
+
+## 4.4 Get All Applicants
+
+**`GET /api/matching/jobs/{id}/applicants/`**
+
+Gets ALL applicants for a job (without distance filtering).
+
+**Authentication:** Required (Client who owns the job)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | integer | Job ID |
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `status` | string | Filter by application status: `PENDING`, `ACCEPTED`, `REJECTED`, `WITHDRAWN` |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 5,
+  "job_id": 5,
+  "filters": {
+    "status": null
+  },
+  "results": [
+    {
+      "application_id": 15,
+      "application_status": "PENDING",
+      "applied_at": "2026-08-21T10:00:00Z",
+      "distance_km": 0.45,
+      "distance_display": "450m",
+      "worker": {
+        "id": 123,
+        "full_name": "John Doe",
+        "email": "john@example.com",
+        "phone_number": "+260971234568",
+        "bio": "Experienced plumber",
+        "average_rating": 4.5,
+        "jobs_completed": 12,
+        "skills": ["Plumbing", "Electrical"],
+        "availability_status": "AVAILABLE"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## 4.5 Reverse Geocode
+
+**`GET /api/matching/geocode/reverse/`**
+
+Converts GPS coordinates to a human-readable address.
+
+**Authentication:** Required (Any authenticated user)
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `lat` | float | Yes | Latitude |
+| `lng` | float | Yes | Longitude |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "display_name": "Kamwala, Lusaka, Zambia",
+  "full_address": "Kamwala, Lusaka, Zambia",
+  "road": "Kamwala Road",
+  "suburb": "Kamwala",
+  "city": "Lusaka",
+  "state": "Lusaka Province",
+  "country": "Zambia",
+  "postcode": "10101"
+}
+```
+
+---
+
+## 4.6 Search Location
+
+**`GET /api/matching/geocode/search/`**
+
+Searches for a location by name.
+
+**Authentication:** Required (Any authenticated user)
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `q` | string | Yes | Search query (e.g., "Kamwala, Lusaka") |
+| `limit` | integer | No | Max results (default: 5, max: 20) |
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 3,
+  "results": [
+    {
+      "display_name": "Kamwala, Lusaka, Zambia",
+      "latitude": -15.3875,
+      "longitude": 28.3412,
+      "place_id": 123456,
+      "class": "suburb",
+      "type": "residential"
+    }
+  ]
+}
+```
+
+---
+
+# Module 5: WebSocket
+
+## 5.1 WebSocket Connection
 
 **`ws://localhost:8000/ws/notifications/?token=<access_token>`**
 
-Real-time location-based job matching via WebSocket.
+Real-time notifications and location updates via WebSocket.
 
 **Connection:**
 ```javascript
@@ -1494,7 +1971,10 @@ const token = 'YOUR_ACCESS_TOKEN';
 const ws = new WebSocket(`ws://localhost:8000/ws/notifications/?token=${token}`);
 ```
 
-**Send Location (Every 10 seconds):**
+---
+
+## 5.2 Send Location (Every 10 seconds)
+
 ```javascript
 ws.send(JSON.stringify({
     type: 'location_update',
@@ -1504,7 +1984,10 @@ ws.send(JSON.stringify({
 }));
 ```
 
-**Receive Nearby Jobs (Auto-pushed):**
+---
+
+## 5.3 Receive Nearby Jobs (Auto-pushed)
+
 ```json
 {
   "type": "nearby_jobs_updated",
@@ -1530,7 +2013,10 @@ ws.send(JSON.stringify({
 }
 ```
 
-**Set Search Radius:**
+---
+
+## 5.4 Set Search Radius
+
 ```javascript
 ws.send(JSON.stringify({
     type: 'set_search_radius',
@@ -1538,7 +2024,10 @@ ws.send(JSON.stringify({
 }));
 ```
 
-**Manual Refresh:**
+---
+
+## 5.5 Manual Refresh
+
 ```javascript
 ws.send(JSON.stringify({
     type: 'refresh_nearby_jobs',
@@ -1548,9 +2037,7 @@ ws.send(JSON.stringify({
 
 ---
 
-## 4.2 Get Nearby Workers (WebSocket)
-
-**For Clients - Find nearby workers in real-time.**
+## 5.6 Get Nearby Workers (Client)
 
 ```javascript
 ws.send(JSON.stringify({
@@ -1582,30 +2069,11 @@ ws.send(JSON.stringify({
 
 ---
 
-## 4.3 Worker Location Broadcast (WebSocket)
+# Module 6: Reviews
 
-**When a worker's location changes, nearby clients receive updates:**
+## 6.1 Create Review
 
-```json
-{
-  "type": "nearby_worker_update",
-  "worker_id": 123,
-  "worker_name": "John Doe",
-  "latitude": -15.3850,
-  "longitude": 28.3390,
-  "distance_km": 0.45,
-  "distance_display": "450m",
-  "timestamp": "2026-08-29T10:00:00Z"
-}
-```
-
----
-
-# Module 5: Reviews
-
-## 5.1 Create Review
-
-**`POST /reviews/create/`**
+**`POST /api/reviews/create/`**
 
 Creates a review for a worker. Only clients can review workers.
 
@@ -1669,9 +2137,9 @@ Content-Type: application/json
 
 ---
 
-## 5.2 Get Worker Reviews
+## 6.2 Get Worker Reviews
 
-**`GET /reviews/worker/{worker_id}/`**
+**`GET /api/reviews/worker/{worker_id}/`**
 
 Gets all reviews for a specific worker.
 
@@ -1703,9 +2171,67 @@ Gets all reviews for a specific worker.
 
 ---
 
-## 5.3 Get Worker Rating Stats
+## 6.3 Get My Reviews (Worker)
 
-**`GET /reviews/stats/{worker_id}/`**
+**`GET /api/reviews/my-reviews/`**
+
+Gets all reviews for the authenticated worker.
+
+**Authentication:** Required (Worker)
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 5,
+  "results": [
+    {
+      "id": 1,
+      "job_title": "Plumbing Repair",
+      "rating": 5,
+      "rating_display": "5 - Excellent",
+      "comment": "Excellent work!",
+      "job_completed": true,
+      "reviewer_name": "John Client",
+      "created_at": "2026-08-22T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 6.4 Get My Reviews Given (Client)
+
+**`GET /api/reviews/my-reviews-given/`**
+
+Gets all reviews given by the authenticated client.
+
+**Authentication:** Required (Client)
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 3,
+  "results": [
+    {
+      "id": 1,
+      "job_title": "Plumbing Repair",
+      "rating": 5,
+      "rating_display": "5 - Excellent",
+      "comment": "Excellent work!",
+      "job_completed": true,
+      "worker_name": "Jane Worker",
+      "created_at": "2026-08-22T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 6.5 Get Worker Rating Stats
+
+**`GET /api/reviews/stats/{worker_id}/`**
 
 Gets rating statistics for a worker.
 
@@ -1736,13 +2262,13 @@ Gets rating statistics for a worker.
 
 | Endpoint | Rate Limit | Time Window |
 |----------|------------|-------------|
-| `/auth/register/` | 5 requests | 1 hour |
-| `/auth/login/` | 10 requests | 1 minute |
-| `/auth/refresh/` | 20 requests | 1 minute |
-| `/auth/forgot-password/` | 3 requests | 1 hour |
-| `/jobs/create/` | 10 requests | 1 minute |
-| `/jobs/{id}/apply/` | 10 requests | 1 minute |
-| `/reviews/create/` | 10 requests | 1 minute |
+| `/api/auth/register/` | 5 requests | 1 hour |
+| `/api/auth/login/` | 10 requests | 1 minute |
+| `/api/auth/refresh/` | 20 requests | 1 minute |
+| `/api/auth/forgot-password/` | 3 requests | 1 hour |
+| `/api/jobs/create/` | 10 requests | 1 minute |
+| `/api/jobs/{id}/apply/` | 10 requests | 1 minute |
+| `/api/reviews/create/` | 10 requests | 1 minute |
 
 **Rate Limit Response (429):**
 ```json
@@ -1790,21 +2316,6 @@ Gets rating statistics for a worker.
 
 ---
 
-# Review System Summary
-
-| Feature | Implementation |
-|---------|----------------|
-| Who can review? | Only clients |
-| Who gets reviewed? | Only workers |
-| Job-specific | Reviews tied to specific jobs |
-| Rating scale | 0-5 (0 = Did Not Complete) |
-| Self-review | Blocked by validation |
-| One review per job | Unique constraint on (job, reviewer) |
-| Completion tracking | `job_completed` flag |
-| Rating stats | Average, distribution, completion rate |
-
----
-
 # Smart Location Saving (WebSocket)
 
 | Threshold | Value |
@@ -1817,3 +2328,69 @@ Location is only saved when:
 2. More than 30 seconds have passed since last save
 
 This reduces database writes by ~50-70%.
+
+---
+
+# Complete API Reference Table
+
+| Module | Endpoint | Method | Role | Description |
+|--------|----------|--------|------|-------------|
+| **Accounts** | `/api/auth/register/` | POST | Any | Register user |
+| | `/api/auth/login/` | POST | Any | Login user |
+| | `/api/auth/add-role/` | POST | Any | Add role to user |
+| | `/api/auth/switch-role/` | POST | Any | Switch role |
+| | `/api/auth/roles/` | GET | Any | Get user roles |
+| | `/api/auth/refresh/` | POST | Any | Refresh token |
+| | `/api/auth/logout/` | POST | Any | Logout |
+| | `/api/auth/me/` | GET | Any | Get current user |
+| | `/api/auth/change-password/` | POST | Any | Change password |
+| | `/api/auth/forgot-password/` | POST | Any | Forgot password |
+| | `/api/auth/reset-password/` | POST | Any | Reset password |
+| | `/api/auth/verify-email/` | POST | Any | Verify email |
+| | `/api/auth/resend-verification/` | POST | Any | Resend verification |
+| | `/api/profile/` | GET | Any | Get profile |
+| | `/api/profile/update/` | PUT | Any | Update profile |
+| | `/api/profile/location/` | PUT | Any | Update location |
+| | `/api/profile/phone/` | PUT | Any | Update phone |
+| **Verification** | `/api/verification/phone/send-otp/` | POST | Any | Send phone OTP |
+| | `/api/verification/phone/verify-otp/` | POST | Any | Verify phone OTP |
+| | `/api/verification/email/send/` | POST | Any | Send email verification |
+| | `/api/verification/email/verify/` | GET | Any | Verify email |
+| | `/api/verification/documents/submit/` | POST | Any | Submit documents |
+| | `/api/verification/status/` | GET | Any | Get verification status |
+| | `/api/admin/verifications/pending/` | GET | Admin | List pending |
+| | `/api/admin/verifications/{id}/review/` | POST | Admin | Approve/reject |
+| **Jobs** | `/api/jobs/` | GET | Worker | List open jobs |
+| | `/api/jobs/create/` | POST | Client | Create job |
+| | `/api/jobs/{id}/` | GET | Client | Get job details |
+| | `/api/jobs/{id}/update/` | PUT | Client | Update job |
+| | `/api/jobs/{id}/delete/` | DELETE | Client | Delete job |
+| | `/api/jobs/{id}/cancel/` | POST | Client | Cancel job |
+| | `/api/jobs/{id}/worker/` | GET | Worker | Worker job details |
+| | `/api/jobs/{id}/apply/` | POST | Worker | Apply for job |
+| | `/api/jobs/{id}/assign/` | POST | Client | Assign worker |
+| | `/api/jobs/{id}/mark-complete/` | POST | Worker | Mark complete |
+| | `/api/jobs/{id}/confirm/` | POST | Client | Confirm complete |
+| | `/api/my-applications/` | GET | Worker | My applications |
+| | `/api/my-jobs/` | GET | Both | My jobs |
+| | `/api/my-open-jobs/` | GET | Client | My open jobs |
+| | `/api/my-active-jobs/` | GET | Worker | My active jobs |
+| | `/api/jobs/{id}/applications/` | GET | Client | Job applications |
+| | `/api/jobs/{id}/applications/pending/` | GET | Client | Pending applications |
+| | `/api/applications/{id}/status/` | PATCH | Client | Update application |
+| | `/api/jobs/search/` | GET | Worker | Search jobs |
+| | `/api/jobs/filter/` | GET | Worker | Filter jobs |
+| **Matching** | `/api/matching/nearby/` | GET | Worker | Nearby jobs |
+| | `/api/matching/nearby/count/` | GET | Worker | Nearby jobs count |
+| | `/api/matching/jobs/{id}/applicants/nearby/` | GET | Client | Nearby applicants |
+| | `/api/matching/jobs/{id}/applicants/` | GET | Client | All applicants |
+| | `/api/matching/geocode/reverse/` | GET | Both | Reverse geocode |
+| | `/api/matching/geocode/search/` | GET | Both | Search location |
+| **Reviews** | `/api/reviews/create/` | POST | Client | Create review |
+| | `/api/reviews/worker/{id}/` | GET | Both | Worker reviews |
+| | `/api/reviews/my-reviews/` | GET | Worker | My reviews |
+| | `/api/reviews/my-reviews-given/` | GET | Client | Reviews given |
+| | `/api/reviews/stats/{id}/` | GET | Both | Rating stats |
+
+---
+
