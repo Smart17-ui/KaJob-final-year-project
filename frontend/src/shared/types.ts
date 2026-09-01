@@ -5,18 +5,6 @@ export enum SelectedPage {
   About = "About",
 }
 
-export interface BenefitType {
-  icon: JSX.Element;
-  title: string;
-  description: string;
-}
-
-export interface ClassType {
-  name: string;
-  description?: string;
-  image: string;
-}
-
 /* =========================
    USER
 ========================= */
@@ -43,7 +31,9 @@ export interface User {
    ROLES
 ========================= */
 
-export type RoleValue = "WORKER" | "CLIENT";
+export type RoleValue =
+  | "WORKER"
+  | "CLIENT";
 
 export const ROLE_OPTIONS: {
   value: RoleValue;
@@ -100,11 +90,14 @@ export interface LoginPayload {
 export interface LoginResponse {
   message: string;
   user: User;
+
   tokens: {
     access: string;
     refresh: string;
   };
-  selected_role: string;
+
+  selected_role: RoleValue;
+
   available_roles: string[];
 }
 
@@ -120,35 +113,4 @@ export interface ApiFieldErrors {
 
   error?: string;
   detail?: string;
-}
-
-export class ApiError extends Error {
-  status: number;
-  fields: ApiFieldErrors;
-
-  constructor(
-    status: number,
-    fields: ApiFieldErrors
-  ) {
-    const firstError = Object.entries(fields).find(
-      ([key, value]) =>
-        key !== "error" &&
-        key !== "detail" &&
-        value !== undefined
-    )?.[1];
-
-    const message =
-      fields.error ||
-      fields.detail ||
-      (Array.isArray(firstError)
-        ? firstError[0]
-        : firstError) ||
-      "Something went wrong.";
-
-    super(String(message));
-
-    this.name = "ApiError";
-    this.status = status;
-    this.fields = fields;
-  }
 }

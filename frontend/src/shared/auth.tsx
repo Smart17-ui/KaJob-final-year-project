@@ -1,4 +1,4 @@
-import type { User } from "@/shared/types";
+import type { User, RoleValue } from "@/shared/types";
 
 /* =========================
    SAVE AUTHENTICATION
@@ -7,7 +7,8 @@ import type { User } from "@/shared/types";
 export function saveAuth(
   access: string,
   refresh: string,
-  user: User
+  user: User,
+  selectedRole: RoleValue
 ): void {
   localStorage.setItem(
     "access_token",
@@ -22,6 +23,11 @@ export function saveAuth(
   localStorage.setItem(
     "user",
     JSON.stringify(user)
+  );
+
+  localStorage.setItem(
+    "selected_role",
+    selectedRole
   );
 }
 
@@ -50,7 +56,8 @@ export function getRefreshToken(): string | null {
 ========================= */
 
 export function getCurrentUser(): User | null {
-  const user = localStorage.getItem("user");
+  const user =
+    localStorage.getItem("user");
 
   if (!user) {
     return null;
@@ -65,12 +72,45 @@ export function getCurrentUser(): User | null {
 }
 
 /* =========================
+   GET SELECTED ROLE
+========================= */
+
+export function getSelectedRole(): RoleValue | null {
+  const role =
+    localStorage.getItem("selected_role");
+
+  if (
+    role === "WORKER" ||
+    role === "CLIENT"
+  ) {
+    return role;
+  }
+
+  return null;
+}
+
+/* =========================
+   SET SELECTED ROLE
+========================= */
+
+export function setSelectedRole(
+  role: RoleValue
+): void {
+  localStorage.setItem(
+    "selected_role",
+    role
+  );
+}
+
+/* =========================
    CHECK LOGIN STATUS
 ========================= */
 
 export function isAuthenticated(): boolean {
   return Boolean(
-    localStorage.getItem("access_token")
+    localStorage.getItem(
+      "access_token"
+    )
   );
 }
 
@@ -87,5 +127,11 @@ export function clearAuth(): void {
     "refresh_token"
   );
 
-  localStorage.removeItem("user");
+  localStorage.removeItem(
+    "user"
+  );
+
+  localStorage.removeItem(
+    "selected_role"
+  );
 }
