@@ -1,617 +1,556 @@
 import {
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   BriefcaseIcon,
-  CheckCircleIcon,
+  MapPinIcon,
+  MagnifyingGlassIcon,
   ClockIcon,
-  BellIcon,
+  ArrowRightIcon,
+  PlusIcon,
+  DocumentTextIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 
-import { getSelectedRole } from "@/shared/auth";
+import { useNavigate } from "react-router-dom";
+import { getCurrentUser, getSelectedRole } from "@/shared/auth";
 
-/* =========================
-   METRIC CARD COMPONENT
-========================= */
+const DashboardOverview = () => {
+  const navigate = useNavigate();
 
-interface MetricCardProps {
-  label: string;
-  value: string | number;
-  change: number;
-  subtext: string;
+  const user = getCurrentUser();
+  const role = getSelectedRole();
+
+  const firstName = user?.first_name || "there";
+
+  const isWorker = role === "WORKER";
+  const isClient = role === "CLIENT";
+
+  return (
+    <div className="min-h-full bg-slate-50">
+      <div className="mx-auto max-w-7xl">
+
+        {/* =====================================
+            WORKSPACE HEADER
+        ===================================== */}
+
+        <div className="border-b border-slate-200 bg-white px-4 py-6 sm:px-6 lg:px-8">
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
+                <span>KaJob</span>
+
+                <span>/</span>
+
+                <span className="font-medium text-slate-700">
+                  My Workspace
+                </span>
+              </div>
+
+              <h1 className="text-2xl font-semibold text-slate-900">
+                Welcome back, {firstName}
+              </h1>
+
+              <p className="mt-1 text-sm text-slate-500">
+                {isWorker
+                  ? "Find nearby jobs and manage your work."
+                  : "Manage your jobs and find the right workers."}
+              </p>
+            </div>
+
+            {isClient && (
+              <button
+                onClick={() =>
+                  navigate("/client/dashboard/post-job")
+                }
+                className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  rounded-md
+                  bg-emerald-600
+                  px-4
+                  py-2
+                  text-sm
+                  font-semibold
+                  text-white
+                  transition
+                  hover:bg-emerald-700
+                "
+              >
+                <PlusIcon className="h-4 w-4" />
+
+                Post a Job
+              </button>
+            )}
+
+          </div>
+
+        </div>
+
+        {/* =====================================
+            SEARCH
+        ===================================== */}
+
+        <div className="border-b border-slate-200 bg-white px-4 py-5 sm:px-6 lg:px-8">
+
+          <div className="relative max-w-2xl">
+
+            <MagnifyingGlassIcon
+              className="
+                absolute
+                left-3
+                top-1/2
+                h-5
+                w-5
+                -translate-y-1/2
+                text-slate-400
+              "
+            />
+
+            <input
+              type="text"
+              placeholder={
+                isWorker
+                  ? "Search for jobs..."
+                  : "Search your jobs..."
+              }
+              className="
+                w-full
+                rounded-md
+                border
+                border-slate-300
+                bg-white
+                py-2.5
+                pl-10
+                pr-4
+                text-sm
+                text-slate-900
+                outline-none
+                transition
+                placeholder:text-slate-400
+                focus:border-emerald-500
+                focus:ring-2
+                focus:ring-emerald-100
+              "
+            />
+
+          </div>
+
+        </div>
+
+        {/* =====================================
+            MAIN CONTENT
+        ===================================== */}
+
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
+
+          {/* =====================================
+              WORKER VIEW
+          ===================================== */}
+
+          {isWorker && (
+            <>
+              <div className="mb-6 flex items-center justify-between">
+
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">
+                    Nearby Jobs
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Jobs available around your current location.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() =>
+                    navigate("/worker/dashboard/jobs")
+                  }
+                  className="
+                    hidden
+                    items-center
+                    gap-1
+                    text-sm
+                    font-semibold
+                    text-emerald-600
+                    hover:text-emerald-700
+                    sm:flex
+                  "
+                >
+                  View all
+
+                  <ArrowRightIcon className="h-4 w-4" />
+                </button>
+
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+                <JobPreviewCard
+                  title="Plumbing Repair"
+                  category="Plumbing"
+                  location="Kamwala, Lusaka"
+                  distance="450m"
+                  budget="K500"
+                  urgency="Urgent"
+                  onClick={() =>
+                    navigate("/worker/dashboard/jobs")
+                  }
+                />
+
+                <JobPreviewCard
+                  title="Electrical Installation"
+                  category="Electrical"
+                  location="Chilenje, Lusaka"
+                  distance="700m"
+                  budget="K1,200"
+                  urgency="Normal"
+                  onClick={() =>
+                    navigate("/worker/dashboard/jobs")
+                  }
+                />
+
+                <JobPreviewCard
+                  title="House Cleaning"
+                  category="Cleaning"
+                  location="Libala, Lusaka"
+                  distance="900m"
+                  budget="K350"
+                  urgency="Normal"
+                  onClick={() =>
+                    navigate("/worker/dashboard/jobs")
+                  }
+                />
+
+              </div>
+
+              {/* LOCATION STATUS */}
+
+              <div className="mt-8 rounded-lg border border-slate-200 bg-white p-5">
+
+                <div className="flex items-start gap-4">
+
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                    <MapPinIcon className="h-5 w-5 text-emerald-600" />
+                  </div>
+
+                  <div className="flex-1">
+
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Location-based matching
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Your location helps KaJob find jobs within
+                      your selected search radius.
+                    </p>
+
+                  </div>
+
+                  <span className="hidden rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 sm:block">
+                    Location enabled
+                  </span>
+
+                </div>
+
+              </div>
+            </>
+          )}
+
+          {/* =====================================
+              CLIENT VIEW
+          ===================================== */}
+
+          {isClient && (
+            <>
+              <div className="mb-6">
+
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Your Workspace
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Manage your jobs, applications and workers.
+                </p>
+
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+                <WorkspaceCard
+                  icon={BriefcaseIcon}
+                  title="My Jobs"
+                  description="View and manage the jobs you have posted."
+                  onClick={() =>
+                    navigate("/client/dashboard/jobs")
+                  }
+                />
+
+                <WorkspaceCard
+                  icon={DocumentTextIcon}
+                  title="Applications"
+                  description="Review workers who have applied to your jobs."
+                  onClick={() =>
+                    navigate("/client/dashboard/applications")
+                  }
+                />
+
+                <WorkspaceCard
+                  icon={ChatBubbleLeftRightIcon}
+                  title="Messages"
+                  description="Communicate with workers and manage conversations."
+                  onClick={() =>
+                    navigate("/client/dashboard/messages")
+                  }
+                />
+
+              </div>
+
+              <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
+
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Get started
+                </h3>
+
+                <p className="mt-1 max-w-2xl text-sm text-slate-500">
+                  Post a job and let KaJob help you find suitable
+                  workers based on location, skills and availability.
+                </p>
+
+                <button
+                  onClick={() =>
+                    navigate("/client/dashboard/post-job")
+                  }
+                  className="
+                    mt-5
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-md
+                    bg-emerald-600
+                    px-4
+                    py-2
+                    text-sm
+                    font-semibold
+                    text-white
+                    transition
+                    hover:bg-emerald-700
+                  "
+                >
+                  <PlusIcon className="h-4 w-4" />
+
+                  Post your first job
+                </button>
+
+              </div>
+
+            </>
+          )}
+
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+
+/* =====================================
+   WORKER JOB CARD
+===================================== */
+
+interface JobPreviewCardProps {
+  title: string;
+  category: string;
+  location: string;
+  distance: string;
+  budget: string;
+  urgency: string;
+  onClick: () => void;
+}
+
+const JobPreviewCard = ({
+  title,
+  category,
+  location,
+  distance,
+  budget,
+  urgency,
+  onClick,
+}: JobPreviewCardProps) => {
+  return (
+    <div
+      className="
+        group
+        cursor-pointer
+        rounded-lg
+        border
+        border-slate-200
+        bg-white
+        p-5
+        transition-all
+        hover:-translate-y-0.5
+        hover:border-slate-300
+        hover:shadow-md
+      "
+      onClick={onClick}
+    >
+
+      <div className="flex items-start justify-between">
+
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
+          <BriefcaseIcon className="h-5 w-5 text-emerald-600" />
+        </div>
+
+        <span
+          className={`
+            rounded-full
+            px-2.5
+            py-1
+            text-xs
+            font-medium
+            ${
+              urgency === "Urgent"
+                ? "bg-red-50 text-red-700"
+                : "bg-slate-100 text-slate-600"
+            }
+          `}
+        >
+          {urgency}
+        </span>
+
+      </div>
+
+      <div className="mt-5">
+
+        <p className="text-xs font-medium text-emerald-600">
+          {category}
+        </p>
+
+        <h3 className="mt-1 text-base font-semibold text-slate-900">
+          {title}
+        </h3>
+
+        <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+
+          <MapPinIcon className="h-4 w-4" />
+
+          {location}
+
+        </div>
+
+      </div>
+
+      <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+
+        <div>
+
+          <p className="text-xs text-slate-400">
+            Distance
+          </p>
+
+          <p className="text-sm font-semibold text-slate-700">
+            {distance}
+          </p>
+
+        </div>
+
+        <div>
+
+          <p className="text-xs text-slate-400">
+            Budget
+          </p>
+
+          <p className="text-sm font-semibold text-slate-900">
+            {budget}
+          </p>
+
+        </div>
+
+        <ArrowRightIcon
+          className="
+            h-5
+            w-5
+            text-slate-400
+            transition
+            group-hover:translate-x-1
+            group-hover:text-emerald-600
+          "
+        />
+
+      </div>
+
+    </div>
+  );
+};
+
+
+/* =====================================
+   WORKSPACE CARD
+===================================== */
+
+interface WorkspaceCardProps {
   icon: React.ComponentType<
     React.SVGProps<SVGSVGElement>
   >;
-}
-
-const MetricCard = ({
-  label,
-  value,
-  change,
-  subtext,
-  icon: Icon,
-}: MetricCardProps) => {
-  const isPositive = change >= 0;
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-slate-500">
-            {label}
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-slate-900">
-            {value}
-          </p>
-
-          <div className="mt-3 flex items-center gap-2">
-            <div
-              className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
-                isPositive
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "bg-red-50 text-red-700"
-              }`}
-            >
-              {isPositive ? (
-                <ArrowTrendingUpIcon className="h-3 w-3" />
-              ) : (
-                <ArrowTrendingDownIcon className="h-3 w-3" />
-              )}
-
-              <span>
-                {isPositive ? "+" : ""}
-                {change}%
-              </span>
-            </div>
-
-            <span className="text-xs text-slate-500">
-              {subtext}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50">
-          <Icon className="h-6 w-6 text-emerald-600" />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* =========================
-   ACTIVITY ITEM COMPONENT
-========================= */
-
-interface ActivityItemProps {
   title: string;
   description: string;
-  timestamp: string;
-  type:
-    | "job"
-    | "message"
-    | "application"
-    | "payment";
+  onClick: () => void;
 }
 
-const ActivityItem = ({
+const WorkspaceCard = ({
+  icon: Icon,
   title,
   description,
-  timestamp,
-  type,
-}: ActivityItemProps) => {
-  const getIcon = () => {
-    switch (type) {
-      case "job":
-        return (
-          <BriefcaseIcon className="h-5 w-5 text-emerald-600" />
-        );
-
-      case "message":
-        return (
-          <BellIcon className="h-5 w-5 text-blue-600" />
-        );
-
-      case "application":
-        return (
-          <CheckCircleIcon className="h-5 w-5 text-purple-600" />
-        );
-
-      case "payment":
-        return (
-          <BriefcaseIcon className="h-5 w-5 text-amber-600" />
-        );
-
-      default:
-        return null;
-    }
-  };
-
+  onClick,
+}: WorkspaceCardProps) => {
   return (
-    <div className="flex gap-4 border-b border-slate-100 pb-4 last:border-0">
-      <div className="mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100">
-        {getIcon()}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-900">
-          {title}
-        </p>
-
-        <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-          {description}
-        </p>
-
-        <p className="mt-2 text-xs font-medium text-slate-400">
-          {timestamp}
-        </p>
-      </div>
-    </div>
-  );
-};
-
-/* =========================
-   SIMPLE BAR CHART
-========================= */
-
-interface BarChartProps {
-  data: Array<{
-    day: string;
-    value: number;
-  }>;
-  maxValue?: number;
-}
-
-const SimpleBarChart = ({
-  data,
-  maxValue = 800,
-}: BarChartProps) => {
-  return (
-    <div className="flex items-end justify-around gap-2">
-      {data.map((item, idx) => {
-        const heightPercent =
-          (item.value / maxValue) * 100;
-
-        return (
-          <div
-            key={idx}
-            className="flex flex-col items-center gap-2"
-          >
-            <div
-              className="w-8 rounded-t-lg bg-gradient-to-t from-emerald-500 to-emerald-400 transition-all hover:shadow-lg"
-              style={{
-                height: `${heightPercent * 2}px`,
-                minHeight: "8px",
-              }}
-            />
-
-            <span className="text-xs font-medium text-slate-500">
-              {item.day}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-/* =========================
-   MINI TREND CHART
-========================= */
-
-interface TrendChartProps {
-  data: number[];
-  color?: string;
-}
-
-const TrendChart = ({
-  data,
-  color = "#10b981",
-}: TrendChartProps) => {
-  if (data.length < 2) {
-    return null;
-  }
-
-  const maxValue = Math.max(...data);
-  const minValue = Math.min(...data);
-  const range = maxValue - minValue || 1;
-
-  const points = data
-    .map((value, idx) => {
-      const x =
-        (idx / (data.length - 1)) * 100;
-
-      const y =
-        100 -
-        ((value - minValue) / range) * 100;
-
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg
-      viewBox="0 0 100 40"
-      className="h-12 w-full"
-      preserveAspectRatio="none"
+    <button
+      onClick={onClick}
+      className="
+        group
+        rounded-lg
+        border
+        border-slate-200
+        bg-white
+        p-6
+        text-left
+        transition-all
+        hover:-translate-y-0.5
+        hover:border-slate-300
+        hover:shadow-md
+      "
     >
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="1.5"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-};
 
-/* =========================
-   MAIN COMPONENT
-========================= */
+      <div className="flex items-center justify-between">
 
-const DashboardOverview = () => {
-  const role = getSelectedRole();
-
-  /* =========================
-     MOCK DATA - CLIENT
-  ========================= */
-
-  const clientMetrics = [
-    {
-      label: "Active Jobs",
-      value: 12,
-      change: 8,
-      subtext: "vs last month",
-      icon: BriefcaseIcon,
-    },
-    {
-      label: "Total Applications",
-      value: 47,
-      change: 12,
-      subtext: "vs last month",
-      icon: CheckCircleIcon,
-    },
-    {
-      label: "Completion Rate",
-      value: "94%",
-      change: 5,
-      subtext: "vs last month",
-      icon: ClockIcon,
-    },
-  ];
-
-  /* =========================
-     MOCK DATA - WORKER
-  ========================= */
-
-  const workerMetrics = [
-    {
-      label: "Available Jobs",
-      value: 28,
-      change: 15,
-      subtext: "vs last month",
-      icon: BriefcaseIcon,
-    },
-    {
-      label: "Pending Applications",
-      value: 9,
-      change: -3,
-      subtext: "vs last month",
-      icon: CheckCircleIcon,
-    },
-    {
-      label: "Average Rating",
-      value: "4.8",
-      change: 2,
-      subtext: "vs last month",
-      icon: ClockIcon,
-    },
-  ];
-
-  const metrics =
-    role === "CLIENT"
-      ? clientMetrics
-      : workerMetrics;
-
-  /* =========================
-     MOCK ACTIVITY DATA
-  ========================= */
-
-  const activities = [
-    {
-      title: "New Application",
-      description:
-        "Sarah Johnson applied for plumbing installation",
-      timestamp: "2 hours ago",
-      type: "application" as const,
-    },
-    {
-      title: "Job Completed",
-      description:
-        "Garden landscaping project marked as complete",
-      timestamp: "5 hours ago",
-      type: "job" as const,
-    },
-    {
-      title: "Message Received",
-      description:
-        "John sent a message about electrical work",
-      timestamp: "Yesterday",
-      type: "message" as const,
-    },
-    {
-      title: "Payment Received",
-      description:
-        "K800 received for completed cleaning job",
-      timestamp: "2 days ago",
-      type: "payment" as const,
-    },
-  ];
-
-  /* =========================
-     MOCK CHART DATA
-  ========================= */
-
-  const chartData = [
-    { day: "Mon", value: 245 },
-    { day: "Tue", value: 520 },
-    { day: "Wed", value: 480 },
-    { day: "Thu", value: 650 },
-    { day: "Fri", value: 420 },
-    { day: "Sat", value: 380 },
-    { day: "Sun", value: 200 },
-  ];
-
-  const trendData = [
-    10,
-    15,
-    12,
-    20,
-    18,
-    25,
-    22,
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-8">
-      <div className="mx-auto max-w-7xl">
-
-        {/* =========================
-            HEADER
-        ========================= */}
-
-        <div className="mb-8">
-          <p className="text-slate-600">
-            {role === "CLIENT"
-              ? "Here's an overview of your posted jobs and applications"
-              : "Here's an overview of available jobs and your progress"}
-          </p>
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
+          <Icon className="h-5 w-5 text-emerald-600" />
         </div>
 
-        {/* =========================
-            METRICS GRID
-        ========================= */}
-
-        <div className="mb-8 grid gap-6 md:grid-cols-3">
-          {metrics.map((metric, idx) => (
-            <MetricCard
-              key={idx}
-              label={metric.label}
-              value={metric.value}
-              change={metric.change}
-              subtext={metric.subtext}
-              icon={metric.icon}
-            />
-          ))}
-        </div>
-
-        {/* =========================
-            CHARTS & ACTIVITY ROW
-        ========================= */}
-
-        <div className="grid gap-6 lg:grid-cols-3">
-
-          {/* =========================
-              ACTIVITY CHART
-          ========================= */}
-
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-            <div className="mb-6 flex items-center justify-between">
-
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  {role === "CLIENT"
-                    ? "Applications Trend"
-                    : "Job Activity"}
-                </h2>
-
-                <p className="text-sm text-slate-500">
-                  Last 7 days
-                </p>
-              </div>
-
-              <div className="text-right">
-                <p className="text-2xl font-bold text-slate-900">
-                  {chartData.reduce(
-                    (sum, item) =>
-                      sum + item.value,
-                    0
-                  )}
-                </p>
-
-                <p className="text-xs font-semibold text-emerald-600">
-                  ↑ 12% vs last week
-                </p>
-              </div>
-
-            </div>
-
-            <div className="mb-6 h-40">
-              <SimpleBarChart
-                data={chartData}
-                maxValue={700}
-              />
-            </div>
-          </div>
-
-          {/* =========================
-              LATEST ACTIVITY
-          ========================= */}
-
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-
-            <div className="mb-6 flex items-center justify-between">
-
-              <h2 className="text-lg font-bold text-slate-900">
-                Latest Updates
-              </h2>
-
-              <BellIcon className="h-5 w-5 text-slate-400" />
-
-            </div>
-
-            <div className="space-y-4">
-              {activities.map(
-                (activity, idx) => (
-                  <ActivityItem
-                    key={idx}
-                    title={activity.title}
-                    description={
-                      activity.description
-                    }
-                    timestamp={
-                      activity.timestamp
-                    }
-                    type={activity.type}
-                  />
-                )
-              )}
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* =========================
-            BOTTOM SECTION
-        ========================= */}
-
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm">
-
-          <div className="border-b border-slate-100 px-6 py-6">
-
-            <h2 className="text-lg font-bold text-slate-900">
-              {role === "CLIENT"
-                ? "Recent Applications"
-                : "Recent Jobs"}
-            </h2>
-
-          </div>
-
-          <div className="overflow-x-auto">
-
-            <table className="w-full">
-
-              <thead>
-                <tr className="border-b border-slate-100">
-
-                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {role === "CLIENT"
-                      ? "Job"
-                      : "Title"}
-                  </th>
-
-                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Status
-                  </th>
-
-                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Date
-                  </th>
-
-                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Amount
-                  </th>
-
-                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Action
-                  </th>
-
-                </tr>
-              </thead>
-
-              <tbody>
-                {[1, 2, 3, 4].map(
-                  (item) => (
-                    <tr
-                      key={item}
-                      className="border-b border-slate-100 transition-colors hover:bg-slate-50"
-                    >
-
-                      <td className="px-6 py-4">
-
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">
-                            Electrical
-                            Installation
-                          </p>
-
-                          <p className="text-xs text-slate-500">
-                            #KJ-
-                            {Math.floor(
-                              Math.random() *
-                                10000
-                            )}
-                          </p>
-                        </div>
-
-                      </td>
-
-                      <td className="px-6 py-4">
-
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                          Active
-                        </span>
-
-                      </td>
-
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        2026-08-28
-                      </td>
-
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                        K2,500
-                      </td>
-
-                      <td className="px-6 py-4">
-
-                        <button className="text-sm font-semibold text-emerald-600 hover:text-emerald-700">
-                          View
-                        </button>
-
-                      </td>
-
-                    </tr>
-                  )
-                )}
-              </tbody>
-
-            </table>
-
-          </div>
-
-          <div className="border-t border-slate-100 px-6 py-4">
-
-            <button className="text-sm font-semibold text-emerald-600 hover:text-emerald-700">
-              View All →
-            </button>
-
-          </div>
-
-        </div>
+        <ArrowRightIcon
+          className="
+            h-5
+            w-5
+            text-slate-400
+            transition
+            group-hover:translate-x-1
+            group-hover:text-emerald-600
+          "
+        />
 
       </div>
-    </div>
+
+      <h3 className="mt-5 text-base font-semibold text-slate-900">
+        {title}
+      </h3>
+
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        {description}
+      </p>
+
+    </button>
   );
 };
 
