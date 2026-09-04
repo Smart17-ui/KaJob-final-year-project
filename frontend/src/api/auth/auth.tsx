@@ -3,7 +3,6 @@ import type {
   LoginResponse,
   RegisterPayload,
   RegisterResponse,
-  User,
   ApiFieldErrors,
 } from "@/shared/types";
 
@@ -23,10 +22,12 @@ const API_URL =
 export class ApiError extends Error {
   status: number;
   fields: ApiFieldErrors;
+  retryAfter: number | null;
 
   constructor(
     status: number,
-    fields: ApiFieldErrors
+    fields: ApiFieldErrors = {},
+    retryAfter: number | null = null
   ) {
     const firstError =
       Object.entries(fields).find(
@@ -49,6 +50,7 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
     this.fields = fields;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -78,8 +80,7 @@ async function apiRequest<T>(
 
           ...(accessToken
             ? {
-                Authorization:
-                  `Bearer ${accessToken}`,
+                Authorization: `Bearer ${accessToken}`,
               }
             : {}),
 
@@ -88,23 +89,91 @@ async function apiRequest<T>(
       }
     );
 
-    const data =
-      await response
-        .json()
-        .catch(() => ({}));
+    /* =========================
+       READ RESPONSE
+    ========================= */
 
-    if (!response.ok) {
+    const data = await response
+      .json()
+      .catch(() => ({}));
+
+    /* =========================
+       SUCCESS
+    ========================= */
+
+    if (response.ok) {
+      return data as T;
+    }
+
+    /* =========================
+       RETRY AFTER
+       Used mainly for 429
+    ========================= */
+
+    const retryAfterHeader =
+      response.headers.get(
+        "Retry-After"
+      );
+
+    let retryAfter:
+      | number
+      | null = null;
+
+    if (retryAfterHeader) {
+      const parsed =
+        Number(retryAfterHeader);
+
+      if (
+        Number.isFinite(parsed) &&
+        parsed >= 0
+      ) {
+        retryAfter = parsed;
+      }
+    }
+
+    /* =========================
+       RATE LIMITING
+       429 Too Many Requests
+    ========================= */
+
+    if (response.status === 429) {
       throw new ApiError(
-        response.status,
-        data
+        429,
+        {
+          ...data,
+
+          error:
+            data?.error ||
+            data?.detail ||
+            "Too many login attempts.",
+        },
+        retryAfter
       );
     }
 
-    return data as T;
+    /* =========================
+       OTHER API ERRORS
+    ========================= */
+
+    throw new ApiError(
+      response.status,
+      data,
+      retryAfter
+    );
+
   } catch (error) {
+
+    /* =========================
+       PRESERVE API ERRORS
+    ========================= */
+
     if (error instanceof ApiError) {
       throw error;
     }
+
+    /* =========================
+       NETWORK ERROR
+    ========================= */
 
     console.error(
       "NETWORK ERROR:",
@@ -128,7 +197,9 @@ export async function registerUser(
     "/auth/register/",
     {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(
+        payload
+      ),
     }
   );
 }
@@ -144,7 +215,9 @@ export async function loginUser(
     "/auth/login/",
     {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(
+        payload
+      ),
     }
   );
 }
@@ -168,77 +241,73 @@ export async function logoutUser(
 }
 
 /* =========================
-   CURRENT USER
+   CHANGE PASSWORD
 ========================= */
 
-export function getCurrentUser(): User | null {
-  const user =
-    localStorage.getItem("user");
-
-  if (!user) {
-    return null;
+export async function changePassword(
+  payload: {
+    old_password: string;
+    new_password: string;
   }
+): Promise<{
+  message: string;
+}> {
+  return apiRequest<{
+    message: string;
+  }>(
+    "/auth/change-password/",
+    {
+      method: "POST",
+      body: JSON.stringify(
+        payload
+      ),
+    }
+  );
+}
 
-  try {
-    return JSON.parse(user) as User;
-  } catch {
-    localStorage.removeItem("user");
+/* =========================
+   FORGOT PASSWORD
+========================= */
 
-    return null;
+export async function forgotPassword(
+  email: string
+): Promise<{
+  message: string;
+}> {
+  return apiRequest<{
+    message: string;
+  }>(
+    "/auth/forgot-password/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+      }),
+    }
+  );
+}
+
+/* =========================
+   RESET PASSWORD
+========================= */
+
+export async function resetPassword(
+  payload: {
+    token: string;
+    new_password: string;
   }
-}
-
-/* =========================
-   ACCESS TOKEN
-========================= */
-
-export function getAccessTokenFromStorage():
-  string | null {
-  return localStorage.getItem(
-    "access_token"
-  );
-}
-
-/* =========================
-   REFRESH TOKEN
-========================= */
-
-export function getRefreshToken():
-  string | null {
-  return localStorage.getItem(
-    "refresh_token"
-  );
-}
-
-/* =========================
-   AUTHENTICATION CHECK
-========================= */
-
-export function isAuthenticated():
-  boolean {
-  return Boolean(
-    localStorage.getItem(
-      "access_token"
-    )
-  );
-}
-
-/* =========================
-   CLEAR LOCAL AUTH
-========================= */
-
-export function clearAuth(): void {
-  localStorage.removeItem(
-    "access_token"
-  );
-
-  localStorage.removeItem(
-    "refresh_token"
-  );
-
-  localStorage.removeItem("user");
-
-  localStorage.removeItem(
-    "selected_role"
+): Promise<{
+  message: string;
+}> {
+  return apiRequest<{
+    message: string;
+  }>(
+    "/auth/reset-password/",
+    {
+      method: "POST",
+      body: JSON.stringify(
+        payload
+      ),
+    }
   );
 }
