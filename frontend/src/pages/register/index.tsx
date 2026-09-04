@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import {
+  ArrowLeftIcon,
   UserIcon,
   EnvelopeIcon,
   PhoneIcon,
@@ -150,21 +151,15 @@ export default function Register() {
   function validate(): boolean {
     const next: Record<string, string> = {};
 
-    /* First name */
-
     if (!form.first_name.trim()) {
       next.first_name =
         "First name is required.";
     }
 
-    /* Last name */
-
     if (!form.last_name.trim()) {
       next.last_name =
         "Last name is required.";
     }
-
-    /* Email */
 
     if (!form.email.trim()) {
       next.email =
@@ -176,14 +171,10 @@ export default function Register() {
         "Enter a valid email address.";
     }
 
-    /* Phone */
-
     if (!form.phone_number.trim()) {
       next.phone_number =
         "Phone number is required.";
     }
-
-    /* Password */
 
     if (!form.password) {
       next.password =
@@ -194,8 +185,6 @@ export default function Register() {
       next.password =
         "Password must contain at least 8 characters.";
     }
-
-    /* Confirm password */
 
     if (!form.password_confirm) {
       next.password_confirm =
@@ -208,14 +197,10 @@ export default function Register() {
         "Passwords do not match.";
     }
 
-    /* Role */
-
     if (!form.role) {
       next.role =
         "Choose whether you want to work or hire.";
     }
-
-    /* Terms */
 
     if (!form.acceptTerms) {
       next.acceptTerms =
@@ -228,7 +213,7 @@ export default function Register() {
   }
 
   /* =========================
-     SUBMIT
+     SUBMIT FORM
   ========================= */
 
   async function handleSubmit(
@@ -251,10 +236,6 @@ export default function Register() {
     setIsSubmitting(true);
 
     try {
-      /* =========================
-         REGISTRATION PAYLOAD
-      ========================= */
-
       const payload: RegisterPayload = {
         first_name:
           form.first_name.trim(),
@@ -291,27 +272,19 @@ export default function Register() {
         data
       );
 
-      /* =========================
-         GO TO LOGIN
-      ========================= */
-
       navigate("/login", {
         replace: true,
-
         state: {
           registrationSuccess:
             "Your account has been created successfully. Please log in.",
         },
       });
+
     } catch (error) {
       console.error(
         "REGISTRATION ERROR:",
         error
       );
-
-      /* =========================
-         API ERROR
-      ========================= */
 
       if (error instanceof ApiError) {
         const fieldErrors: Record<
@@ -352,24 +325,34 @@ export default function Register() {
         return;
       }
 
-      /* =========================
-         NETWORK ERROR
-      ========================= */
-
       setFormError(
         "Unable to connect to the server. Make sure Django is running."
       );
+
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  /* =========================
-     UI
-  ========================= */
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 px-4 py-12">
+
+      {/* =========================
+          FIXED BACK TO HOME BUTTON
+      ========================= */}
+
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        aria-label="Back to home"
+        className="fixed left-6 top-6 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition-all duration-200 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+      >
+        <ArrowLeftIcon className="h-6 w-6" />
+      </button>
+
+      {/* =========================
+          REGISTER CONTAINER
+      ========================= */}
 
       <motion.div
         initial={{
@@ -387,11 +370,11 @@ export default function Register() {
         className="w-full max-w-lg"
       >
 
-        {/* CARD */}
-
         <div className="rounded-3xl border border-emerald-100/50 bg-white p-8 shadow-lg shadow-emerald-900/5 sm:p-10">
 
-          {/* LOGO */}
+          {/* =========================
+              LOGO
+          ========================= */}
 
           <div className="mb-8">
             <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1">
@@ -405,7 +388,9 @@ export default function Register() {
             </div>
           </div>
 
-          {/* HEADER */}
+          {/* =========================
+              HEADING
+          ========================= */}
 
           <div className="mb-8">
 
@@ -421,7 +406,9 @@ export default function Register() {
 
           </div>
 
-          {/* GENERAL ERROR */}
+          {/* =========================
+              GENERAL ERROR
+          ========================= */}
 
           {formError && (
             <motion.div
@@ -450,7 +437,9 @@ export default function Register() {
             </motion.div>
           )}
 
-          {/* ROLE SELECTION */}
+          {/* =========================
+              STEP 1 — ROLE
+          ========================= */}
 
           {step === "role" && (
             <motion.div
@@ -492,8 +481,6 @@ export default function Register() {
                       className="group rounded-2xl border-2 border-slate-200 bg-white p-5 text-left transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/30 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                     >
 
-                      {/* ICON */}
-
                       <div className="inline-flex rounded-lg bg-slate-100 p-2 transition-colors group-hover:bg-emerald-100">
 
                         {option.value ===
@@ -511,13 +498,9 @@ export default function Register() {
 
                       </div>
 
-                      {/* TITLE */}
-
                       <p className="mt-3 text-sm font-semibold leading-snug text-slate-900 group-hover:text-emerald-800">
                         {option.label}
                       </p>
-
-                      {/* DESCRIPTION */}
 
                       <p className="mt-1 text-xs leading-relaxed text-slate-500">
                         {option.description}
@@ -528,8 +511,6 @@ export default function Register() {
                 )}
 
               </div>
-
-              {/* ROLE ERROR */}
 
               {errors.role && (
                 <motion.p
@@ -550,7 +531,9 @@ export default function Register() {
             </motion.div>
           )}
 
-          {/* REGISTRATION FORM */}
+          {/* =========================
+              STEP 2 — DETAILS
+          ========================= */}
 
           {step === "details" && (
             <motion.form
@@ -610,7 +593,9 @@ export default function Register() {
 
               </div>
 
-              {/* FIRST + LAST NAME */}
+              {/* =========================
+                  FIRST + LAST NAME
+              ========================= */}
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
@@ -712,7 +697,9 @@ export default function Register() {
 
               </div>
 
-              {/* EMAIL */}
+              {/* =========================
+                  EMAIL
+              ========================= */}
 
               <div>
 
@@ -759,7 +746,9 @@ export default function Register() {
 
               </div>
 
-              {/* PHONE */}
+              {/* =========================
+                  PHONE NUMBER
+              ========================= */}
 
               <div>
 
@@ -808,7 +797,9 @@ export default function Register() {
 
               </div>
 
-              {/* PASSWORDS */}
+              {/* =========================
+                  PASSWORDS
+              ========================= */}
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
@@ -869,11 +860,13 @@ export default function Register() {
                       }
                       className="flex-shrink-0 text-slate-400 hover:text-slate-600"
                     >
+
                       {showPassword ? (
                         <EyeSlashIcon className="h-5 w-5" />
                       ) : (
                         <EyeIcon className="h-5 w-5" />
                       )}
+
                     </button>
 
                   </div>
@@ -943,11 +936,13 @@ export default function Register() {
                       }
                       className="flex-shrink-0 text-slate-400 hover:text-slate-600"
                     >
+
                       {showConfirm ? (
                         <EyeSlashIcon className="h-5 w-5" />
                       ) : (
                         <EyeIcon className="h-5 w-5" />
                       )}
+
                     </button>
 
                   </div>
@@ -962,7 +957,9 @@ export default function Register() {
 
               </div>
 
-              {/* TERMS */}
+              {/* =========================
+                  TERMS
+              ========================= */}
 
               <div>
 
@@ -983,14 +980,18 @@ export default function Register() {
                   />
 
                   <span>
+
                     I agree to KaJob's{" "}
+
                     <Link
                       to="/terms"
                       className="font-semibold text-emerald-700 hover:text-emerald-800"
                     >
                       Terms of Service
                     </Link>{" "}
+
                     and{" "}
+
                     <Link
                       to="/privacy"
                       className="font-semibold text-emerald-700 hover:text-emerald-800"
@@ -998,6 +999,7 @@ export default function Register() {
                       Privacy Policy
                     </Link>
                     .
+
                   </span>
 
                 </label>
@@ -1010,7 +1012,9 @@ export default function Register() {
 
               </div>
 
-              {/* SUBMIT */}
+              {/* =========================
+                  SUBMIT
+              ========================= */}
 
               <div className="flex justify-center pt-3">
 
@@ -1029,7 +1033,9 @@ export default function Register() {
             </motion.form>
           )}
 
-          {/* DIVIDER */}
+          {/* =========================
+              DIVIDER
+          ========================= */}
 
           <motion.div
             initial={{
@@ -1044,7 +1050,9 @@ export default function Register() {
             className="my-8 border-t border-slate-200"
           />
 
-          {/* LOGIN LINK */}
+          {/* =========================
+              LOGIN LINK
+          ========================= */}
 
           <motion.p
             initial={{
@@ -1058,6 +1066,7 @@ export default function Register() {
             }}
             className="text-center text-sm text-slate-600"
           >
+
             Already have an account?{" "}
 
             <Link
@@ -1066,11 +1075,14 @@ export default function Register() {
             >
               Log in
             </Link>
+
           </motion.p>
 
         </div>
 
-        {/* TRUST SIGNAL */}
+        {/* =========================
+            FOOTER TEXT
+        ========================= */}
 
         <motion.p
           initial={{

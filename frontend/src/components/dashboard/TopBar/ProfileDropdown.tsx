@@ -1,8 +1,9 @@
-import { useState } from "react";
+ import { useState } from "react";
 import {
   ChevronDownIcon,
   UserCircleIcon,
   Cog6ToothIcon,
+  ShieldCheckIcon,
   ArrowsRightLeftIcon,
   CheckIcon,
   ArrowRightOnRectangleIcon,
@@ -13,6 +14,7 @@ type ProfileDropdownProps = {
   userRole?: "CLIENT" | "WORKER";
 
   onProfileClick?: () => void;
+  onVerifyClick?: () => void;
   onSettingsClick?: () => void;
   onSwitchRole?: () => void;
   onLogout?: () => void;
@@ -22,6 +24,7 @@ const ProfileDropdown = ({
   userName = "User",
   userRole = "CLIENT",
   onProfileClick,
+  onVerifyClick,
   onSettingsClick,
   onSwitchRole,
   onLogout,
@@ -71,6 +74,7 @@ const ProfileDropdown = ({
           <span className="max-w-32 truncate text-sm font-medium text-slate-700">
             {userName}
           </span>
+
           <ChevronDownIcon
             className={`
               h-4 w-4 transition-transform duration-200
@@ -100,6 +104,7 @@ const ProfileDropdown = ({
             <p className="truncate text-sm font-semibold text-slate-900">
               {userName}
             </p>
+
             <p className="mt-1 text-xs text-slate-500">
               {currentRole} account
             </p>
@@ -107,6 +112,7 @@ const ProfileDropdown = ({
 
           {/* Menu Items */}
           <div className="py-1">
+
             {/* Profile */}
             <button
               type="button"
@@ -126,7 +132,35 @@ const ProfileDropdown = ({
               "
             >
               <UserCircleIcon className="h-4 w-4 text-slate-400 transition-colors group-hover:text-emerald-600" />
-              <span className="font-medium">Profile</span>
+
+              <span className="font-medium">
+                Profile
+              </span>
+            </button>
+
+            {/* Verify Details */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowProfileMenu(false);
+                onVerifyClick?.();
+              }}
+              className="
+                group flex w-full
+                items-center gap-3
+                px-4 py-2.5
+                text-left text-sm
+                text-slate-600
+                transition-colors duration-150
+                hover:bg-slate-50
+                active:bg-slate-100
+              "
+            >
+              <ShieldCheckIcon className="h-4 w-4 text-slate-400 transition-colors group-hover:text-emerald-600" />
+
+              <span className="font-medium">
+                Verify Details
+              </span>
             </button>
 
             {/* Settings */}
@@ -148,7 +182,10 @@ const ProfileDropdown = ({
               "
             >
               <Cog6ToothIcon className="h-4 w-4 text-slate-400 transition-colors group-hover:text-emerald-600" />
-              <span className="font-medium">Settings</span>
+
+              <span className="font-medium">
+                Settings
+              </span>
             </button>
 
             {/* Divider */}
@@ -170,9 +207,11 @@ const ProfileDropdown = ({
               "
             >
               <ArrowsRightLeftIcon className="h-4 w-4 text-slate-400 transition-colors group-hover:text-emerald-600" />
+
               <span className="flex-1 font-medium">
                 Switch role
               </span>
+
               <ChevronDownIcon
                 className={`
                   h-4 w-4 transition-transform duration-200
@@ -185,6 +224,7 @@ const ProfileDropdown = ({
             {/* Role Options */}
             {showRoleSwitcher && (
               <div className="border-t border-slate-100 bg-slate-50 px-2 py-2">
+
                 {/* Current Role */}
                 <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
@@ -192,14 +232,17 @@ const ProfileDropdown = ({
                       {initials}
                     </span>
                   </div>
+
                   <div className="flex-1">
                     <p className="font-semibold text-slate-900">
                       {currentRole}
                     </p>
+
                     <p className="text-xs text-slate-500">
                       Active
                     </p>
                   </div>
+
                   <CheckIcon className="h-4 w-4 text-emerald-600" />
                 </div>
 
@@ -226,10 +269,12 @@ const ProfileDropdown = ({
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200">
                       <ArrowsRightLeftIcon className="h-4 w-4 text-slate-600" />
                     </div>
+
                     <div className="flex-1">
                       <p className="font-semibold text-slate-900">
                         {otherRole}
                       </p>
+
                       <p className="text-xs text-slate-500">
                         Switch to {otherRole.toLowerCase()}
                       </p>
@@ -263,9 +308,13 @@ const ProfileDropdown = ({
                 "
               >
                 <ArrowRightOnRectangleIcon className="h-4 w-4 transition-colors group-hover:text-red-700" />
-                <span>Sign out</span>
+
+                <span>
+                  Sign out
+                </span>
               </button>
             )}
+
           </div>
         </div>
       )}

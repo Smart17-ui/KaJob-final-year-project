@@ -8,19 +8,27 @@ import {
 import type { User } from "@/shared/types";
 
 import {
-  getCurrentUser,
-  isAuthenticated,
   loginUser,
   logoutUser,
 } from "@/api/auth/auth";
 
+import {
+  getCurrentUser,
+  getRefreshToken,
+  isAuthenticated,
+  saveAuth,
+  clearAuth,
+} from "@/shared/auth";
+
 interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
+
   login: (
     email: string,
     password: string
   ) => Promise<User>;
+
   logout: () => Promise<void>;
 }
 
@@ -59,7 +67,19 @@ export function AuthProvider({
     const data = await loginUser({
       email,
       password,
+      role: "CLIENT",
     });
+
+    /*
+     * Save authentication data
+     * returned by the backend.
+     */
+    saveAuth(
+      data.tokens.access,
+      data.tokens.refresh,
+      data.user,
+      data.selected_role
+    );
 
     setUser(data.user);
     setIsLoggedIn(true);
@@ -72,10 +92,29 @@ export function AuthProvider({
   ========================= */
 
   async function logout(): Promise<void> {
-    await logoutUser();
+    const refreshToken =
+      getRefreshToken();
 
-    setUser(null);
-    setIsLoggedIn(false);
+    try {
+      /*
+       * Only call the backend logout
+       * endpoint if we have a refresh token.
+       */
+      if (refreshToken) {
+        await logoutUser(
+          refreshToken
+        );
+      }
+    } finally {
+      /*
+       * Always clear local authentication,
+       * even if the backend logout request fails.
+       */
+      clearAuth();
+
+      setUser(null);
+      setIsLoggedIn(false);
+    }
   }
 
   return (

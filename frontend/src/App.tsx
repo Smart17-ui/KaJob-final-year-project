@@ -18,7 +18,24 @@ import Footer from "@/components/footer";
 import Login from "@/pages/logIn";
 import Register from "@/pages/register";
 
+/* =========================
+   PASSWORD AUTH PAGES
+========================= */
+
+import ForgotPassword from "./pages/logIn/ForgotPassword";
+import ResetPassword from "./pages/logIn/ResetPassword";
+
+/* =========================
+   DASHBOARD LAYOUT
+========================= */
+
 import DashboardLayout from "@/components/dashboard/DashboardLayout/DashboardLayout";
+
+/* =========================
+   IDENTITY VERIFICATION
+========================= */
+
+import VerifyDetails from "./pages/dashboard/VerifyDetails";
 
 /* =========================
    CLIENT DASHBOARD PAGES
@@ -49,7 +66,21 @@ import WorkerNotifications from "@/pages/dashboard/worker/Notifications";
 import WorkerProfile from "@/pages/dashboard/worker/Profile";
 import WorkerSettings from "@/pages/dashboard/worker/Settings";
 
+/* =========================
+   CHANGE PASSWORD
+========================= */
+
+import ChangePassword from "./pages/logIn/ChangePassword";
+
+/* =========================
+   SHARED TYPES
+========================= */
+
 import { SelectedPage } from "@/shared/types";
+
+/* =========================
+   AUTH HELPERS
+========================= */
 
 import {
   isAuthenticated,
@@ -253,6 +284,20 @@ function App() {
     );
 
   /* =========================
+     AUTH PAGE CHECK
+     
+     These pages should NOT
+     display the Navbar.
+  ========================= */
+
+  const isAuthPage = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+  ].includes(location.pathname);
+
+  /* =========================
      RENDER
   ========================= */
 
@@ -261,21 +306,29 @@ function App() {
 
       {/* =========================
           NAVBAR
+
+          Hidden on:
+          - Dashboard pages
+          - Login
+          - Register
+          - Forgot Password
+          - Reset Password
       ========================= */}
 
-      {!isDashboard && (
-        <Navbar
-          isTopOfPage={
-            isTopOfPage
-          }
-          selectedPage={
-            selectedPage
-          }
-          setSelectedPage={
-            setSelectedPage
-          }
-        />
-      )}
+      {!isDashboard &&
+        !isAuthPage && (
+          <Navbar
+            isTopOfPage={
+              isTopOfPage
+            }
+            selectedPage={
+              selectedPage
+            }
+            setSelectedPage={
+              setSelectedPage
+            }
+          />
+        )}
 
       {/* =========================
           ROUTES
@@ -323,6 +376,9 @@ function App() {
 
         {/* ==================================================
             LOGIN
+
+            Navbar is hidden because
+            /login is included in isAuthPage.
         ================================================== */}
 
         <Route
@@ -334,12 +390,45 @@ function App() {
 
         {/* ==================================================
             REGISTER
+
+            Navbar is hidden because
+            /register is included in isAuthPage.
         ================================================== */}
 
         <Route
           path="/register"
           element={
             <Register />
+          }
+        />
+
+        {/* ==================================================
+            FORGOT PASSWORD
+
+            Navbar is hidden.
+        ================================================== */}
+
+        <Route
+          path="/forgot-password"
+          element={
+            <ForgotPassword />
+          }
+        />
+
+        {/* ==================================================
+            RESET PASSWORD
+
+            Example:
+
+            /reset-password?token=eyJhbGci...
+            
+            Navbar is hidden.
+        ================================================== */}
+
+        <Route
+          path="/reset-password"
+          element={
+            <ResetPassword />
           }
         />
 
@@ -450,6 +539,28 @@ function App() {
             path="settings"
             element={
               <Settings />
+            }
+          />
+
+          {/* =========================
+              CHANGE PASSWORD
+          ========================= */}
+
+          <Route
+            path="change-password"
+            element={
+              <ChangePassword />
+            }
+          />
+
+          {/* =========================
+              VERIFY DETAILS
+          ========================= */}
+
+          <Route
+            path="verify"
+            element={
+              <VerifyDetails />
             }
           />
 
@@ -573,6 +684,28 @@ function App() {
             path="settings"
             element={
               <WorkerSettings />
+            }
+          />
+
+          {/* =========================
+              CHANGE PASSWORD
+          ========================= */}
+
+          <Route
+            path="change-password"
+            element={
+              <ChangePassword />
+            }
+          />
+
+          {/* =========================
+              VERIFY DETAILS
+          ========================= */}
+
+          <Route
+            path="verify"
+            element={
+              <VerifyDetails />
             }
           />
 
