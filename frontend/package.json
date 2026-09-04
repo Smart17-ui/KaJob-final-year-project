@@ -14,10 +14,12 @@
     "@tanstack/react-query": "^5.102.2",
     "axios": "^1.19.0",
     "framer-motion": "^7.6.19",
+    "leaflet": "^1.9.4",
     "react": "^18.2.0",
     "react-anchor-link-smooth-scroll": "^1.0.12",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.86.0",
+    "react-leaflet": "^4.2.1",
     "react-router-dom": "^7.18.2",
     "zustand": "^5.0.15"
   },
