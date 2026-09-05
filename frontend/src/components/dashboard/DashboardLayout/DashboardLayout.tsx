@@ -159,6 +159,20 @@ const DashboardLayout = () => {
   }
 
   /* =========================
+     VERIFY DETAILS
+  ========================= */
+
+  function handleVerify() {
+    if (!role) {
+      return;
+    }
+
+    navigate(
+      `/${role.toLowerCase()}/dashboard/verify`
+    );
+  }
+
+  /* =========================
      SETTINGS
   ========================= */
 
@@ -287,6 +301,9 @@ const DashboardLayout = () => {
             onProfileClick={
               handleProfile
             }
+            onVerifyClick={
+              handleVerify
+            }
             onSettingsClick={
               handleSettings
             }
@@ -317,11 +334,11 @@ const DashboardLayout = () => {
           className="
             min-w-0
             p-4
-            pt-36
+            pt-[120px]
             sm:p-6
-            sm:pt-36
+            sm:pt-[120px]
             lg:p-8
-            lg:pt-36
+            lg:pt-[120px]
           "
         >
 

@@ -14,6 +14,7 @@ type TopBarProps = {
   onMenuOpen?: () => void;
   onNotificationsClick?: () => void;
   onProfileClick?: () => void;
+  onVerifyClick?: () => void;
   onSettingsClick?: () => void;
   onSwitchRole?: () => void;
   onLogout?: () => void;
@@ -25,6 +26,7 @@ const TopBar = ({
   onMenuOpen,
   onNotificationsClick,
   onProfileClick,
+  onVerifyClick,
   onSettingsClick,
   onSwitchRole,
   onLogout,
@@ -126,6 +128,7 @@ const TopBar = ({
             userName={userName}
             userRole={userRole}
             onProfileClick={onProfileClick}
+            onVerifyClick={onVerifyClick}
             onSettingsClick={onSettingsClick}
             onSwitchRole={onSwitchRole}
             onLogout={onLogout}

@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import {
+  ArrowLeftIcon,
   EnvelopeIcon,
   LockClosedIcon,
   EyeIcon,
@@ -140,7 +141,9 @@ export default function Login() {
   function validate(): boolean {
     const nextErrors: FormErrors = {};
 
-    /* EMAIL */
+    /* =========================
+       EMAIL
+    ========================= */
 
     if (!form.email.trim()) {
       nextErrors.email =
@@ -152,14 +155,18 @@ export default function Login() {
         "Enter a valid email address.";
     }
 
-    /* PASSWORD */
+    /* =========================
+       PASSWORD
+    ========================= */
 
     if (!form.password) {
       nextErrors.password =
         "Password is required.";
     }
 
-    /* ROLE */
+    /* =========================
+       ROLE
+    ========================= */
 
     if (!form.role) {
       nextErrors.role =
@@ -237,9 +244,12 @@ export default function Login() {
       if (
         data.selected_role === "CLIENT"
       ) {
-        navigate("/client/dashboard", {
-          replace: true,
-        });
+        navigate(
+          "/client/dashboard",
+          {
+            replace: true,
+          }
+        );
 
         return;
       }
@@ -247,9 +257,12 @@ export default function Login() {
       if (
         data.selected_role === "WORKER"
       ) {
-        navigate("/worker/dashboard", {
-          replace: true,
-        });
+        navigate(
+          "/worker/dashboard",
+          {
+            replace: true,
+          }
+        );
 
         return;
       }
@@ -261,6 +274,7 @@ export default function Login() {
       setFormError(
         "Your account role could not be determined."
       );
+
     } catch (error) {
       console.error(
         "LOGIN ERROR:",
@@ -272,6 +286,7 @@ export default function Login() {
       ========================= */
 
       if (error instanceof ApiError) {
+
         /* =========================
            INVALID CREDENTIALS
         ========================= */
@@ -324,7 +339,9 @@ export default function Login() {
               : String(roleError);
         }
 
-        setErrors(backendErrors);
+        setErrors(
+          backendErrors
+        );
 
         setFormError(
           error.message ||
@@ -341,6 +358,7 @@ export default function Login() {
       setFormError(
         "Unable to connect to the server. Please try again."
       );
+
     } finally {
       setIsSubmitting(false);
     }
@@ -351,7 +369,24 @@ export default function Login() {
   ========================= */
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 px-4 py-12">
+
+      {/* =========================
+          FIXED BACK TO HOME
+      ========================= */}
+
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        aria-label="Back to home"
+        className="fixed left-6 top-6 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition-all duration-200 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+      >
+        <ArrowLeftIcon className="h-6 w-6" />
+      </button>
+
+      {/* =========================
+          LOGIN CONTAINER
+      ========================= */}
 
       <motion.div
         initial={{
@@ -415,11 +450,13 @@ export default function Login() {
 
                 <p className="mt-2 text-base text-slate-600">
                   Sign in to your{" "}
+
                   <span className="font-semibold text-emerald-700">
                     {form.role === "WORKER"
                       ? "Worker"
                       : "Client"}
                   </span>{" "}
+
                   account.
                 </p>
               </>
@@ -491,7 +528,8 @@ export default function Login() {
                         y: 0,
                       }}
                       transition={{
-                        delay: index * 0.1,
+                        delay:
+                          index * 0.1,
                       }}
                       onClick={() =>
                         selectRole(
@@ -703,17 +741,12 @@ export default function Login() {
                     Password
                   </label>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormError(
-                        "Password reset is not available yet."
-                      )
-                    }
+                  <Link
+                    to="/forgot-password"
                     className="text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
                   >
                     Forgot?
-                  </button>
+                  </Link>
 
                 </div>
 
@@ -767,11 +800,13 @@ export default function Login() {
                     }
                     className="flex-shrink-0 text-slate-400 transition-colors hover:text-slate-600"
                   >
+
                     {showPassword ? (
                       <EyeSlashIcon className="h-5 w-5" />
                     ) : (
                       <EyeIcon className="h-5 w-5" />
                     )}
+
                   </button>
 
                 </div>
@@ -880,6 +915,7 @@ export default function Login() {
             }}
             className="text-center text-sm text-slate-600"
           >
+
             New to KaJob?{" "}
 
             <Link
