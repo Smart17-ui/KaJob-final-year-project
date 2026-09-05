@@ -43,6 +43,7 @@ import VerifyDetails from "./pages/dashboard/VerifyDetails";
 
 import ClientDashboard from "@/pages/dashboard/client/ClientDashboard";
 import MyJobs from "@/pages/dashboard/client/MyJobs";
+import ClientJobDetails from "@/pages/dashboard/client/JobDetails";
 import PostJob from "@/pages/dashboard/client/PostJob";
 import Applications from "@/pages/dashboard/client/Applications";
 import Messages from "@/pages/dashboard/client/Messages";
@@ -57,7 +58,7 @@ import Settings from "@/pages/dashboard/client/Settings";
 
 import WorkerDashboard from "@/pages/dashboard/worker/WorkerDashboard";
 import FindJobs from "@/pages/dashboard/worker/FindJobs";
-import JobDetails from "@/pages/dashboard/worker/JobDetails";
+import WorkerJobDetails from "@/pages/dashboard/worker/JobDetails";
 import MyApplications from "@/pages/dashboard/worker/MyApplications";
 import MyWork from "@/pages/dashboard/worker/MyWork";
 import WorkerMessages from "@/pages/dashboard/worker/Messages";
@@ -285,9 +286,6 @@ function App() {
 
   /* =========================
      AUTH PAGE CHECK
-     
-     These pages should NOT
-     display the Navbar.
   ========================= */
 
   const isAuthPage = [
@@ -295,7 +293,9 @@ function App() {
     "/register",
     "/forgot-password",
     "/reset-password",
-  ].includes(location.pathname);
+  ].includes(
+    location.pathname
+  );
 
   /* =========================
      RENDER
@@ -306,13 +306,6 @@ function App() {
 
       {/* =========================
           NAVBAR
-
-          Hidden on:
-          - Dashboard pages
-          - Login
-          - Register
-          - Forgot Password
-          - Reset Password
       ========================= */}
 
       {!isDashboard &&
@@ -359,12 +352,7 @@ function App() {
         />
 
         {/* ==================================================
-            GENERIC DASHBOARD URL
-
-            /dashboard
-
-            Logged in:
-              → appropriate dashboard
+            GENERIC DASHBOARD
         ================================================== */}
 
         <Route
@@ -376,9 +364,6 @@ function App() {
 
         {/* ==================================================
             LOGIN
-
-            Navbar is hidden because
-            /login is included in isAuthPage.
         ================================================== */}
 
         <Route
@@ -390,9 +375,6 @@ function App() {
 
         {/* ==================================================
             REGISTER
-
-            Navbar is hidden because
-            /register is included in isAuthPage.
         ================================================== */}
 
         <Route
@@ -404,8 +386,6 @@ function App() {
 
         {/* ==================================================
             FORGOT PASSWORD
-
-            Navbar is hidden.
         ================================================== */}
 
         <Route
@@ -417,12 +397,6 @@ function App() {
 
         {/* ==================================================
             RESET PASSWORD
-
-            Example:
-
-            /reset-password?token=eyJhbGci...
-            
-            Navbar is hidden.
         ================================================== */}
 
         <Route
@@ -443,9 +417,7 @@ function App() {
           }
         >
 
-          {/* =========================
-              CLIENT OVERVIEW
-          ========================= */}
+          {/* CLIENT OVERVIEW */}
 
           <Route
             index
@@ -454,9 +426,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              MY JOBS
-          ========================= */}
+          {/* MY JOBS */}
 
           <Route
             path="jobs"
@@ -465,19 +435,20 @@ function App() {
             }
           />
 
-          {/* =========================
-              POST JOB
-          ========================= */}
+          {/* CLIENT JOB DETAILS */}
 
           <Route
-            path="post-job"
+            path="jobs/:jobId"
             element={
-              <PostJob />
+              <ClientJobDetails />
             }
           />
 
           {/* =========================
-              APPLICATIONS
+              CLIENT APPLICATIONS
+
+              URL:
+              /client/dashboard/applications
           ========================= */}
 
           <Route
@@ -487,9 +458,16 @@ function App() {
             }
           />
 
-          {/* =========================
-              MESSAGES
-          ========================= */}
+          {/* POST JOB */}
+
+          <Route
+            path="post-job"
+            element={
+              <PostJob />
+            }
+          />
+
+          {/* MESSAGES */}
 
           <Route
             path="messages"
@@ -498,9 +476,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              ANALYTICS
-          ========================= */}
+          {/* ANALYTICS */}
 
           <Route
             path="analytics"
@@ -509,9 +485,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              NOTIFICATIONS
-          ========================= */}
+          {/* NOTIFICATIONS */}
 
           <Route
             path="notifications"
@@ -520,9 +494,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              PROFILE
-          ========================= */}
+          {/* PROFILE */}
 
           <Route
             path="profile"
@@ -531,9 +503,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              SETTINGS
-          ========================= */}
+          {/* SETTINGS */}
 
           <Route
             path="settings"
@@ -542,9 +512,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              CHANGE PASSWORD
-          ========================= */}
+          {/* CHANGE PASSWORD */}
 
           <Route
             path="change-password"
@@ -553,9 +521,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              VERIFY DETAILS
-          ========================= */}
+          {/* VERIFY */}
 
           <Route
             path="verify"
@@ -577,9 +543,7 @@ function App() {
           }
         >
 
-          {/* =========================
-              WORKER OVERVIEW
-          ========================= */}
+          {/* WORKER OVERVIEW */}
 
           <Route
             index
@@ -588,9 +552,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              FIND JOBS
-          ========================= */}
+          {/* FIND JOBS */}
 
           <Route
             path="jobs"
@@ -599,20 +561,16 @@ function App() {
             }
           />
 
-          {/* =========================
-              JOB DETAILS
-          ========================= */}
+          {/* WORKER JOB DETAILS */}
 
           <Route
             path="jobs/:jobId"
             element={
-              <JobDetails />
+              <WorkerJobDetails />
             }
           />
 
-          {/* =========================
-              MY JOBS
-          ========================= */}
+          {/* MY JOBS */}
 
           <Route
             path="my-jobs"
@@ -621,9 +579,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              APPLICATIONS
-          ========================= */}
+          {/* APPLICATIONS */}
 
           <Route
             path="applications"
@@ -632,9 +588,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              MESSAGES
-          ========================= */}
+          {/* MESSAGES */}
 
           <Route
             path="messages"
@@ -643,9 +597,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              PERFORMANCE
-          ========================= */}
+          {/* PERFORMANCE */}
 
           <Route
             path="performance"
@@ -654,9 +606,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              NOTIFICATIONS
-          ========================= */}
+          {/* NOTIFICATIONS */}
 
           <Route
             path="notifications"
@@ -665,9 +615,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              PROFILE
-          ========================= */}
+          {/* PROFILE */}
 
           <Route
             path="profile"
@@ -676,9 +624,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              SETTINGS
-          ========================= */}
+          {/* SETTINGS */}
 
           <Route
             path="settings"
@@ -687,9 +633,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              CHANGE PASSWORD
-          ========================= */}
+          {/* CHANGE PASSWORD */}
 
           <Route
             path="change-password"
@@ -698,9 +642,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              VERIFY DETAILS
-          ========================= */}
+          {/* VERIFY */}
 
           <Route
             path="verify"
