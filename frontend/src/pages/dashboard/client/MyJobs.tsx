@@ -1,247 +1,340 @@
 import {
   BriefcaseIcon,
   PlusIcon,
-  MagnifyingGlassIcon,
+  ArrowPathIcon,
+  ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
+
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { useNavigate } from "react-router-dom";
 
-type JobStatus =
-  | "ACTIVE"
-  | "COMPLETED"
-  | "DRAFT";
+import EmptyJobs from "../../../components/my-jobs/EmptyJobs";
+import JobCard from "../../../components/my-jobs/JobCard";
+import JobFilters from "../../../components/my-jobs/JobFilters";
 
-type Job = {
-  id: number;
-  title: string;
-  location: string;
-  budget: string;
-  status: JobStatus;
-  applications: number;
-  postedAt: string;
-};
+import {
+  getMyJobs,
+} from "../../../components/services/jobService";
+
+import type {
+  MyJob,
+} from "../../../shared/types/job";
 
 const MyJobs = () => {
   const navigate = useNavigate();
 
+  const [jobs, setJobs] = useState<MyJob[]>([]);
+  const [status, setStatus] = useState("ALL");
+
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
   /*
-   * Temporary data.
-   *
-   * This will later come from the Django REST API.
+   * =========================
+   * LOAD JOBS
+   * =========================
    */
-  const jobs: Job[] = [];
 
-  return (
-    <div className="space-y-6">
+  const loadJobs = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
 
-      {/* =========================
-          PAGE HEADER
-      ========================= */}
+    try {
+      const response = await getMyJobs();
 
-      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      setJobs(response.results);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(
+          "Failed to load your jobs."
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            My Jobs
-          </h1>
+  /*
+   * =========================
+   * LOAD ON PAGE OPEN
+   * =========================
+   */
 
-          <p className="mt-1 text-sm text-slate-500">
-            Manage the jobs you have posted.
-          </p>
-        </div>
+  useEffect(() => {
+    loadJobs();
+  }, []);
 
-        <button
-          type="button"
-          onClick={() =>
-            navigate("/dashboard/post-job")
-          }
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
-        >
-          <PlusIcon className="h-5 w-5" />
+  /*
+   * =========================
+   * FILTER JOBS
+   * =========================
+   */
 
-          Post a Job
-        </button>
+  const filteredJobs = useMemo(() => {
+    if (status === "ALL") {
+      return jobs;
+    }
 
-      </section>
+    return jobs.filter(
+      (job) => job.status === status
+    );
+  }, [jobs, status]);
 
-      {/* =========================
-          FILTER / SEARCH
-      ========================= */}
+  /*
+   * =========================
+   * VIEW JOB DETAILS
+   * =========================
+   */
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+  const handleViewJob = (jobId: number) => {
+    navigate(
+      `/client/dashboard/jobs/${jobId}`
+    );
+  };
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+  /*
+   * =========================
+   * POST JOB
+   * =========================
+   */
 
-          {/* SEARCH */}
+  const handlePostJob = () => {
+    navigate(
+      "/client/dashboard/post-job"
+    );
+  };
 
-          <div className="relative flex-1">
+  /*
+   * =========================
+   * LOADING
+   * =========================
+   */
 
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
 
-            <input
-              type="text"
-              placeholder="Search your jobs..."
-              className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-            />
+        <div className="flex items-center justify-between">
 
-          </div>
+          <div>
+            <div className="flex items-center gap-3">
 
-          {/* STATUS FILTER */}
-
-          <select
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-            defaultValue="ALL"
-          >
-            <option value="ALL">
-              All Jobs
-            </option>
-
-            <option value="ACTIVE">
-              Active
-            </option>
-
-            <option value="COMPLETED">
-              Completed
-            </option>
-
-            <option value="DRAFT">
-              Draft
-            </option>
-          </select>
-
-        </div>
-
-      </section>
-
-      {/* =========================
-          JOBS
-      ========================= */}
-
-      <section className="rounded-xl border border-slate-200 bg-white">
-
-        {/* HEADER */}
-
-        <div className="border-b border-slate-100 px-5 py-4">
-
-          <h2 className="text-base font-semibold text-slate-900">
-            Your Jobs
-          </h2>
-
-          <p className="mt-1 text-xs text-slate-500">
-            View and manage your posted jobs.
-          </p>
-
-        </div>
-
-        {/* =========================
-            EMPTY STATE
-        ========================= */}
-
-        {jobs.length === 0 && (
-          <div className="flex min-h-80 items-center justify-center px-6 py-12">
-
-            <div className="max-w-sm text-center">
-
-              {/* ICON */}
-
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-
-                <BriefcaseIcon className="h-7 w-7 text-slate-400" />
-
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+                <BriefcaseIcon className="h-6 w-6 text-green-600" />
               </div>
 
-              {/* TITLE */}
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  My Jobs
+                </h1>
 
-              <h3 className="mt-5 text-base font-semibold text-slate-900">
-                You don't have any jobs yet
-              </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Manage the jobs you have posted.
+                </p>
+              </div>
 
-              {/* DESCRIPTION */}
+            </div>
+          </div>
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Post your first job to start finding
-                skilled workers near you.
+        </div>
+
+        <section className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
+
+          <ArrowPathIcon className="mx-auto h-8 w-8 animate-spin text-green-600" />
+
+          <p className="mt-4 text-sm font-medium text-gray-700">
+            Loading your jobs...
+          </p>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Please wait while we fetch your jobs.
+          </p>
+
+        </section>
+
+      </div>
+    );
+  }
+
+  /*
+   * =========================
+   * ERROR
+   * =========================
+   */
+
+  if (errorMessage) {
+    return (
+      <div className="space-y-6">
+
+        <div className="flex items-center gap-3">
+
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+            <BriefcaseIcon className="h-6 w-6 text-green-600" />
+          </div>
+
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              My Jobs
+            </h1>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Manage the jobs you have posted.
+            </p>
+          </div>
+
+        </div>
+
+        <section className="rounded-2xl border border-red-200 bg-red-50 p-6">
+
+          <div className="flex items-start gap-3">
+
+            <ExclamationCircleIcon className="h-6 w-6 shrink-0 text-red-600" />
+
+            <div className="flex-1">
+
+              <h2 className="font-semibold text-red-800">
+                Unable to load your jobs
+              </h2>
+
+              <p className="mt-1 text-sm text-red-700">
+                {errorMessage}
               </p>
-
-              {/* BUTTON */}
 
               <button
                 type="button"
-                onClick={() =>
-                  navigate("/dashboard/post-job")
-                }
-                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                onClick={loadJobs}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50"
               >
-                <PlusIcon className="h-4 w-4" />
+                <ArrowPathIcon className="h-4 w-4" />
 
-                Post your first job
+                Try again
               </button>
 
             </div>
 
           </div>
-        )}
 
-        {/* =========================
-            JOB LIST
-        ========================= */}
+        </section>
 
-        {jobs.length > 0 && (
-          <div className="divide-y divide-slate-100">
+      </div>
+    );
+  }
 
-            {jobs.map((job) => (
-              <div
-                key={job.id}
-                className="p-5 transition-colors hover:bg-slate-50"
-              >
+  /*
+   * =========================
+   * RENDER
+   * =========================
+   */
 
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+  return (
+    <div className="space-y-6">
 
-                  <div>
+      {/* =========================
+          HEADER
+      ========================= */}
 
-                    <h3 className="font-semibold text-slate-900">
-                      {job.title}
-                    </h3>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-                    <p className="mt-1 text-sm text-slate-500">
-                      {job.location}
-                    </p>
+        <div>
 
-                  </div>
+          <div className="flex items-center gap-3">
 
-                  <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+              <BriefcaseIcon className="h-6 w-6 text-green-600" />
+            </div>
 
-                    <span className="text-sm font-semibold text-slate-900">
-                      {job.budget}
-                    </span>
+            <div>
 
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      {job.status}
-                    </span>
+              <h1 className="text-2xl font-bold text-gray-900">
+                My Jobs
+              </h1>
 
-                  </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Manage the jobs you have posted.
+              </p>
 
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
-
-                  <span>
-                    {job.applications} applications
-                  </span>
-
-                  <span>
-                    Posted {job.postedAt}
-                  </span>
-
-                </div>
-
-              </div>
-            ))}
+            </div>
 
           </div>
-        )}
 
-      </section>
+        </div>
+
+        <button
+          type="button"
+          onClick={handlePostJob}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+        >
+          <PlusIcon className="h-5 w-5" />
+
+          Post a job
+        </button>
+
+      </div>
+
+      {/* =========================
+          FILTERS
+      ========================= */}
+
+      {jobs.length > 0 && (
+        <JobFilters
+          status={status}
+          setStatus={setStatus}
+        />
+      )}
+
+      {/* =========================
+          NO JOBS
+      ========================= */}
+
+      {jobs.length === 0 ? (
+        <EmptyJobs
+          onPostJob={handlePostJob}
+        />
+      ) : filteredJobs.length === 0 ? (
+        <section className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+
+          <BriefcaseIcon className="mx-auto h-10 w-10 text-gray-300" />
+
+          <h2 className="mt-4 text-lg font-semibold text-gray-900">
+            No jobs found
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-500">
+            There are no jobs matching the selected status.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setStatus("ALL")}
+            className="mt-5 rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            Show all jobs
+          </button>
+
+        </section>
+      ) : (
+        <div className="space-y-4">
+
+          {filteredJobs.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              onView={handleViewJob}
+            />
+          ))}
+
+        </div>
+      )}
 
     </div>
   );

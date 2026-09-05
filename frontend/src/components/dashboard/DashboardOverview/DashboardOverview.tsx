@@ -2,7 +2,6 @@ import {
   BriefcaseIcon,
   MapPinIcon,
   MagnifyingGlassIcon,
-  ClockIcon,
   ArrowRightIcon,
   PlusIcon,
   DocumentTextIcon,
@@ -10,7 +9,11 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, getSelectedRole } from "@/shared/auth";
+
+import {
+  getCurrentUser,
+  getSelectedRole,
+} from "@/shared/auth";
 
 const DashboardOverview = () => {
   const navigate = useNavigate();
@@ -18,13 +21,18 @@ const DashboardOverview = () => {
   const user = getCurrentUser();
   const role = getSelectedRole();
 
-  const firstName = user?.first_name || "there";
+  const firstName =
+    user?.first_name || "there";
 
-  const isWorker = role === "WORKER";
-  const isClient = role === "CLIENT";
+  const isWorker =
+    role === "WORKER";
+
+  const isClient =
+    role === "CLIENT";
 
   return (
     <div className="min-h-full bg-slate-50">
+
       <div className="mx-auto max-w-7xl">
 
         {/* =====================================
@@ -36,14 +44,21 @@ const DashboardOverview = () => {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
-              <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
-                <span>KaJob</span>
 
-                <span>/</span>
+              <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
+
+                <span>
+                  KaJob
+                </span>
+
+                <span>
+                  /
+                </span>
 
                 <span className="font-medium text-slate-700">
                   My Workspace
                 </span>
+
               </div>
 
               <h1 className="text-2xl font-semibold text-slate-900">
@@ -55,12 +70,20 @@ const DashboardOverview = () => {
                   ? "Find nearby jobs and manage your work."
                   : "Manage your jobs and find the right workers."}
               </p>
+
             </div>
+
+            {/* =========================
+                POST JOB
+            ========================= */}
 
             {isClient && (
               <button
+                type="button"
                 onClick={() =>
-                  navigate("/client/dashboard/post-job")
+                  navigate(
+                    "/client/dashboard/post-job"
+                  )
                 }
                 className="
                   inline-flex
@@ -78,9 +101,11 @@ const DashboardOverview = () => {
                   hover:bg-emerald-700
                 "
               >
+
                 <PlusIcon className="h-4 w-4" />
 
                 Post a Job
+
               </button>
             )}
 
@@ -151,9 +176,15 @@ const DashboardOverview = () => {
 
           {isWorker && (
             <>
+
+              {/* =========================
+                  NEARBY JOBS HEADER
+              ========================= */}
+
               <div className="mb-6 flex items-center justify-between">
 
                 <div>
+
                   <h2 className="text-xl font-semibold text-slate-900">
                     Nearby Jobs
                   </h2>
@@ -161,11 +192,15 @@ const DashboardOverview = () => {
                   <p className="mt-1 text-sm text-slate-500">
                     Jobs available around your current location.
                   </p>
+
                 </div>
 
                 <button
+                  type="button"
                   onClick={() =>
-                    navigate("/worker/dashboard/jobs")
+                    navigate(
+                      "/worker/dashboard/jobs"
+                    )
                   }
                   className="
                     hidden
@@ -178,12 +213,18 @@ const DashboardOverview = () => {
                     sm:flex
                   "
                 >
+
                   View all
 
                   <ArrowRightIcon className="h-4 w-4" />
+
                 </button>
 
               </div>
+
+              {/* =========================
+                  JOB PREVIEW CARDS
+              ========================= */}
 
               <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
 
@@ -195,7 +236,9 @@ const DashboardOverview = () => {
                   budget="K500"
                   urgency="Urgent"
                   onClick={() =>
-                    navigate("/worker/dashboard/jobs")
+                    navigate(
+                      "/worker/dashboard/jobs"
+                    )
                   }
                 />
 
@@ -207,7 +250,9 @@ const DashboardOverview = () => {
                   budget="K1,200"
                   urgency="Normal"
                   onClick={() =>
-                    navigate("/worker/dashboard/jobs")
+                    navigate(
+                      "/worker/dashboard/jobs"
+                    )
                   }
                 />
 
@@ -219,20 +264,26 @@ const DashboardOverview = () => {
                   budget="K350"
                   urgency="Normal"
                   onClick={() =>
-                    navigate("/worker/dashboard/jobs")
+                    navigate(
+                      "/worker/dashboard/jobs"
+                    )
                   }
                 />
 
               </div>
 
-              {/* LOCATION STATUS */}
+              {/* =========================
+                  LOCATION STATUS
+              ========================= */}
 
               <div className="mt-8 rounded-lg border border-slate-200 bg-white p-5">
 
                 <div className="flex items-start gap-4">
 
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+
                     <MapPinIcon className="h-5 w-5 text-emerald-600" />
+
                   </div>
 
                   <div className="flex-1">
@@ -255,6 +306,7 @@ const DashboardOverview = () => {
                 </div>
 
               </div>
+
             </>
           )}
 
@@ -264,6 +316,11 @@ const DashboardOverview = () => {
 
           {isClient && (
             <>
+
+              {/* =========================
+                  CLIENT HEADER
+              ========================= */}
+
               <div className="mb-6">
 
                 <h2 className="text-xl font-semibold text-slate-900">
@@ -276,36 +333,62 @@ const DashboardOverview = () => {
 
               </div>
 
+              {/* =========================
+                  WORKSPACE CARDS
+              ========================= */}
+
               <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+                {/* =========================
+                    MY JOBS
+                ========================= */}
 
                 <WorkspaceCard
                   icon={BriefcaseIcon}
                   title="My Jobs"
                   description="View and manage the jobs you have posted."
                   onClick={() =>
-                    navigate("/client/dashboard/jobs")
+                    navigate(
+                      "/client/dashboard/jobs"
+                    )
                   }
                 />
+
+                {/* =========================
+                    APPLICATIONS
+                ========================= */}
 
                 <WorkspaceCard
                   icon={DocumentTextIcon}
                   title="Applications"
-                  description="Review workers who have applied to your jobs."
+                  description="Review applications from workers who have applied to your jobs."
                   onClick={() =>
-                    navigate("/client/dashboard/applications")
+                    navigate(
+                      "/client/dashboard/jobs"
+                    )
                   }
                 />
+
+                {/* =========================
+                    MESSAGES
+                ========================= */}
 
                 <WorkspaceCard
                   icon={ChatBubbleLeftRightIcon}
                   title="Messages"
                   description="Communicate with workers and manage conversations."
                   onClick={() =>
-                    navigate("/client/dashboard/messages")
+                    navigate(
+                      "/client/dashboard/messages"
+                    )
                   }
                 />
 
               </div>
+
+              {/* =========================
+                  GET STARTED
+              ========================= */}
 
               <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
 
@@ -319,8 +402,11 @@ const DashboardOverview = () => {
                 </p>
 
                 <button
+                  type="button"
                   onClick={() =>
-                    navigate("/client/dashboard/post-job")
+                    navigate(
+                      "/client/dashboard/post-job"
+                    )
                   }
                   className="
                     mt-5
@@ -338,9 +424,11 @@ const DashboardOverview = () => {
                     hover:bg-emerald-700
                   "
                 >
+
                   <PlusIcon className="h-4 w-4" />
 
                   Post your first job
+
                 </button>
 
               </div>
@@ -351,6 +439,7 @@ const DashboardOverview = () => {
         </div>
 
       </div>
+
     </div>
   );
 };
@@ -397,10 +486,16 @@ const JobPreviewCard = ({
       onClick={onClick}
     >
 
+      {/* =========================
+          CARD HEADER
+      ========================= */}
+
       <div className="flex items-start justify-between">
 
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
+
           <BriefcaseIcon className="h-5 w-5 text-emerald-600" />
+
         </div>
 
         <span
@@ -422,6 +517,10 @@ const JobPreviewCard = ({
 
       </div>
 
+      {/* =========================
+          JOB INFORMATION
+      ========================= */}
+
       <div className="mt-5">
 
         <p className="text-xs font-medium text-emerald-600">
@@ -441,6 +540,10 @@ const JobPreviewCard = ({
         </div>
 
       </div>
+
+      {/* =========================
+          JOB META
+      ========================= */}
 
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
 
@@ -507,6 +610,7 @@ const WorkspaceCard = ({
 }: WorkspaceCardProps) => {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="
         group
@@ -526,7 +630,9 @@ const WorkspaceCard = ({
       <div className="flex items-center justify-between">
 
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
+
           <Icon className="h-5 w-5 text-emerald-600" />
+
         </div>
 
         <ArrowRightIcon
