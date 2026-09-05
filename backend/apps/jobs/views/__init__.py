@@ -22,11 +22,18 @@ from .job_application_views import (
     UpdateApplicationStatusView,
     MyApplicationsView,
     MyJobApplicationsView,
+    ClientApplicationsView,
 )
 from .job_assignment_views import (
     AssignWorkerView,
     WorkerMarkCompleteView,
     ClientConfirmCompleteView,
+)
+from .application_status_views import (  # 🆕 Add this
+    ApplicationStatusView,
+    ApplicationStatusTransitionView,
+    ApplicationStatusSummaryView,
+    ApplicationStatusOptionsView,
 )
 
 __all__ = [
@@ -44,6 +51,7 @@ __all__ = [
     'CancelJobView',
     'CompleteJobView',
     'JobDetailForWorkerView',
+    
     # Job Application Views
     'ApplyForJobView',
     'JobApplicationsView',
@@ -51,8 +59,16 @@ __all__ = [
     'UpdateApplicationStatusView',
     'MyApplicationsView',
     'MyJobApplicationsView',
-    # Assignment Views
+    'ClientApplicationsView',
+    
+    # Job Assignment Views
     'AssignWorkerView',
     'WorkerMarkCompleteView',
     'ClientConfirmCompleteView',
+    
+    # Application Status Views
+    'ApplicationStatusView',
+    'ApplicationStatusTransitionView',
+    'ApplicationStatusSummaryView',
+    'ApplicationStatusOptionsView',
 ]

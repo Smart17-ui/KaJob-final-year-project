@@ -15,7 +15,6 @@ from .auth_views import (
     SwitchRoleView,
     GetUserRolesView,
 )
-
 from .profile_views import (
     UserProfileView,
     UserProfileUpdateView,
@@ -26,10 +25,12 @@ from .profile_views import (
     UpdateLocationView,
     UpdatePhoneNumberView,
 )
-
-# ✅ Remove these duplicate imports - they're already in profile_views
-# from .worker_views import WorkerProfileView
-# from .client_views import ClientProfileView
+from .worker_views import (
+    WorkerDetailView,
+    WorkerSummaryView,
+    WorkerApplicationsView,
+    WorkerAvailabilityView,
+)
 
 __all__ = [
     # Auth Views
@@ -46,8 +47,7 @@ __all__ = [
     'AddRoleView',
     'SwitchRoleView',
     'GetUserRolesView',
-    
-    # Profile Views (all from profile_views.py)
+    # Profile Views
     'UserProfileView',
     'UserProfileUpdateView',
     'WorkerProfileView',
@@ -56,4 +56,9 @@ __all__ = [
     'ClientProfileUpdateView',
     'UpdateLocationView',
     'UpdatePhoneNumberView',
+    # Worker Views
+    'WorkerDetailView',
+    'WorkerSummaryView',
+    'WorkerApplicationsView',
+    'WorkerAvailabilityView',
 ]

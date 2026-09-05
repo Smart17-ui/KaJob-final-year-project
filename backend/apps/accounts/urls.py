@@ -23,6 +23,10 @@ from apps.accounts.views import (
     ClientProfileUpdateView,
     UpdateLocationView,
     UpdatePhoneNumberView,
+    WorkerDetailView,
+    WorkerSummaryView,
+    WorkerApplicationsView,
+    WorkerAvailabilityView,
 )
 
 app_name = 'accounts'
@@ -73,4 +77,13 @@ urlpatterns = [
     path('profile/worker/update/', WorkerProfileUpdateView.as_view(), name='worker-profile-update'),
     path('profile/client/', ClientProfileView.as_view(), name='client-profile'),
     path('profile/client/update/', ClientProfileUpdateView.as_view(), name='client-profile-update'),
+    
+    # ============================================
+    # 🆕 WORKER MANAGEMENT (For Clients)
+    # ============================================
+    
+    path('workers/<int:worker_id>/', WorkerDetailView.as_view(), name='worker-detail'),
+    path('workers/<int:worker_id>/summary/', WorkerSummaryView.as_view(), name='worker-summary'),
+    path('workers/<int:worker_id>/applications/', WorkerApplicationsView.as_view(), name='worker-applications'),
+    path('workers/<int:worker_id>/availability/', WorkerAvailabilityView.as_view(), name='worker-availability'),
 ]

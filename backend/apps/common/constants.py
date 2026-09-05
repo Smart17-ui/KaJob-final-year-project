@@ -65,22 +65,118 @@ class JobStatus:
 
 
 # ============================================
-# APPLICATION STATUS
+# APPLICATION STATUS - ENHANCED
 # ============================================
 
 class ApplicationStatus:
-    """Job application statuses"""
+    """
+    Job application status constants with display information.
+    """
     PENDING = 'PENDING'
     ACCEPTED = 'ACCEPTED'
     REJECTED = 'REJECTED'
     WITHDRAWN = 'WITHDRAWN'
+    COMPLETED = 'COMPLETED'  # 🆕 Added for completed jobs
     
     CHOICES = [
         (PENDING, 'Pending'),
         (ACCEPTED, 'Accepted'),
         (REJECTED, 'Rejected'),
         (WITHDRAWN, 'Withdrawn'),
+        (COMPLETED, 'Completed'),  # 🆕 Added
     ]
+    
+    # Status groups for filtering
+    ACTIVE_STATUSES = [PENDING, ACCEPTED]
+    TERMINAL_STATUSES = [REJECTED, WITHDRAWN, COMPLETED]
+    CLIENT_ACTION_REQUIRED = [PENDING]
+    WORKER_ACTION_REQUIRED = [ACCEPTED]
+    
+    # Status transitions (state machine)
+    TRANSITIONS = {
+        PENDING: [ACCEPTED, REJECTED, WITHDRAWN],
+        ACCEPTED: [COMPLETED],
+        REJECTED: [],  # Terminal
+        WITHDRAWN: [],  # Terminal
+        COMPLETED: [],  # Terminal
+    }
+    
+    # Status display mapping for frontend
+    STATUS_DISPLAY = {
+        PENDING: {
+            'label': 'Pending',
+            'icon': '⏳',
+            'color': '#f59e0b',
+            'badge_class': 'badge-warning',
+            'description': 'Application is awaiting client review',
+            'action_required': 'Client Review',
+        },
+        ACCEPTED: {
+            'label': 'Accepted',
+            'icon': '✅',
+            'color': '#10b981',
+            'badge_class': 'badge-success',
+            'description': 'Application accepted and worker assigned',
+            'action_required': 'Worker Complete Job',
+        },
+        REJECTED: {
+            'label': 'Rejected',
+            'icon': '❌',
+            'color': '#ef4444',
+            'badge_class': 'badge-danger',
+            'description': 'Application was rejected by the client',
+            'action_required': 'None',
+        },
+        WITHDRAWN: {
+            'label': 'Withdrawn',
+            'icon': '↩️',
+            'color': '#6b7280',
+            'badge_class': 'badge-secondary',
+            'description': 'Worker withdrew the application',
+            'action_required': 'None',
+        },
+        COMPLETED: {
+            'label': 'Completed',
+            'icon': '🎉',
+            'color': '#8b5cf6',
+            'badge_class': 'badge-info',
+            'description': 'Worker completed the job successfully',
+            'action_required': 'None',
+        },
+    }
+    
+    @classmethod
+    def get_display_info(cls, status: str) -> dict:
+        """Get display information for a status."""
+        return cls.STATUS_DISPLAY.get(status, {
+            'label': status.title(),
+            'icon': '📌',
+            'color': '#6b7280',
+            'badge_class': 'badge-secondary',
+            'description': 'Unknown status',
+            'action_required': 'Unknown',
+        })
+    
+    @classmethod
+    def can_transition(cls, current_status: str, new_status: str) -> bool:
+        """Check if a status transition is allowed."""
+        allowed = cls.TRANSITIONS.get(current_status, [])
+        return new_status in allowed
+    
+    @classmethod
+    def get_valid_transitions(cls, current_status: str) -> list:
+        """Get all valid next states for a given status."""
+        return cls.TRANSITIONS.get(current_status, [])
+    
+    @classmethod
+    def is_terminal(cls, status: str) -> bool:
+        """Check if a status is terminal (cannot change)."""
+        return status in cls.TERMINAL_STATUSES
+    
+    @classmethod
+    def is_active(cls, status: str) -> bool:
+        """Check if a status is active (work in progress)."""
+        return status in cls.ACTIVE_STATUSES
 
 
 # ============================================
@@ -90,13 +186,13 @@ class ApplicationStatus:
 class AssignmentStatus:
     """Job assignment statuses"""
     ACTIVE = 'ACTIVE'
-    IN_PROGRESS = 'IN_PROGRESS'  # ✅ Added
+    IN_PROGRESS = 'IN_PROGRESS'
     COMPLETED = 'COMPLETED'
     CANCELLED = 'CANCELLED'
     
     CHOICES = [
         (ACTIVE, 'Active'),
-        (IN_PROGRESS, 'In Progress'),  # ✅ Added
+        (IN_PROGRESS, 'In Progress'),
         (COMPLETED, 'Completed'),
         (CANCELLED, 'Cancelled'),
     ]
