@@ -1,21 +1,16 @@
+# apps/jobs/models/job_category.py
+
 from django.db import models
-from apps.common.models.mixins import TimestampMixin
+from apps.common.models.mixins import BaseModel
 
 
-class JobCategory(TimestampMixin):
+class JobCategory(BaseModel):
     """
-    Master list of job categories.
+    Category for jobs (e.g., Plumbing, Electrical, Cleaning).
     """
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
-    icon = models.CharField(max_length=50, blank=True)
-    parent_category = models.ForeignKey(
-        'self',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='subcategories'
-    )
+    icon = models.CharField(max_length=50, blank=True, help_text="FontAwesome or emoji icon")
     
     class Meta:
         db_table = 'job_categories'

@@ -1,6 +1,8 @@
+# apps/accounts/services/token_service.py
+
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from django.contrib.auth import get_user_model
 from django.conf import settings
 import logging
@@ -16,25 +18,39 @@ class TokenService:
     """
     
     # ============================================
-    # TOKEN GENERATION
+    # TOKEN GENERATION (UPDATED WITH ROLES)
     # ============================================
     
     @staticmethod
-    def generate_tokens(user) -> Dict[str, str]:
+    def generate_tokens(user, selected_role: str = None) -> Dict[str, str]:
         """
         Generate access and refresh tokens for a user.
         
         Args:
             user: User instance
+            selected_role: Optional role to set as current role
         
         Returns:
             Dict containing access and refresh tokens
         """
         refresh = RefreshToken.for_user(user)
         
+        # Get user's roles
+        user_roles = user.get_roles_names() if hasattr(user, 'get_roles_names') else []
+        
         # Add custom claims
         refresh['user_id'] = user.id
         refresh['email'] = user.email
+        refresh['roles'] = user_roles
+        
+        # ✅ Add selected role (for role switching)
+        if selected_role:
+            refresh['current_role'] = selected_role
+        else:
+            refresh['current_role'] = user_roles[0] if user_roles else None
+        
+        # ✅ Add is_verified flag for quick access
+        refresh['is_verified'] = user.is_verified
         
         return {
             'access': str(refresh.access_token),
@@ -42,11 +58,20 @@ class TokenService:
         }
     
     @staticmethod
-    def generate_access_token(user) -> str:
+    def generate_access_token(user, selected_role: str = None) -> str:
         """
-        Generate only an access token.
+        Generate only an access token with role context.
         """
         refresh = RefreshToken.for_user(user)
+        
+        user_roles = user.get_roles_names() if hasattr(user, 'get_roles_names') else []
+        
+        refresh['user_id'] = user.id
+        refresh['email'] = user.email
+        refresh['roles'] = user_roles
+        refresh['current_role'] = selected_role or (user_roles[0] if user_roles else None)
+        refresh['is_verified'] = user.is_verified
+        
         return str(refresh.access_token)
     
     @staticmethod
@@ -58,7 +83,7 @@ class TokenService:
         return str(refresh)
     
     # ============================================
-    # TOKEN VALIDATION
+    # TOKEN VALIDATION (UPDATED WITH ROLES)
     # ============================================
     
     @staticmethod
@@ -77,6 +102,9 @@ class TokenService:
             return {
                 'user_id': access_token.get('user_id'),
                 'email': access_token.get('email'),
+                'roles': access_token.get('roles', []),
+                'current_role': access_token.get('current_role'),
+                'is_verified': access_token.get('is_verified', False),
                 'exp': access_token.get('exp'),
                 'iat': access_token.get('iat'),
             }
@@ -128,6 +156,22 @@ class TokenService:
         except User.DoesNotExist:
             logger.warning(f"User {payload['user_id']} not found for token")
             return None
+    
+    @staticmethod
+    def get_current_role_from_token(token: str) -> Optional[str]:
+        """
+        Get the current role from an access token.
+        
+        Args:
+            token: Access token string
+        
+        Returns:
+            Current role if present, None otherwise
+        """
+        payload = TokenService.validate_access_token(token)
+        if not payload:
+            return None
+        return payload.get('current_role')
     
     # ============================================
     # TOKEN REFRESH
@@ -184,28 +228,125 @@ class TokenService:
             return False
     
     # ============================================
-    # EMAIL VERIFICATION TOKENS
+    # PHASE 2: EMAIL VERIFICATION TOKENS
     # ============================================
     
     @staticmethod
-    def generate_verification_token(user) -> str:
+    def generate_email_verification_token(user) -> str:
         """
-        Generate a token for email verification.
-        Uses JWT with a short expiry.
-        """
-        from rest_framework_simplejwt.tokens import AccessToken
+        Generate a token for email verification (Phase 2).
         
+        Args:
+            user: User instance
+        
+        Returns:
+            JWT token string with email verification claim
+        """
         token = AccessToken.for_user(user)
-        # Override expiry to 24 hours
-        # The default expiry is set in settings
+        
+        token['verification_type'] = 'email'
+        token['purpose'] = 'email_verification'
+        token['expires_in'] = 86400  # 24 hours in seconds
+        
         return str(token)
     
     @staticmethod
-    def get_user_from_verification_token(token: str) -> Optional[User]:
+    def get_user_from_email_verification_token(token: str) -> Optional[User]:
         """
-        Get user from verification token.
+        Get user from email verification token.
+        Validates that the token is specifically for email verification.
+        
+        Args:
+            token: Email verification token string
+        
+        Returns:
+            User instance if valid, None otherwise
         """
-        return TokenService.get_user_from_access_token(token)
+        try:
+            access_token = AccessToken(token)
+            
+            if access_token.get('verification_type') != 'email':
+                logger.warning("Token is not an email verification token")
+                return None
+            
+            if access_token.get('purpose') != 'email_verification':
+                logger.warning("Token purpose is not email verification")
+                return None
+            
+            user_id = access_token.get('user_id')
+            return User.objects.get(id=user_id)
+            
+        except InvalidToken:
+            logger.warning("Invalid email verification token provided")
+            return None
+        except User.DoesNotExist:
+            logger.warning(f"User not found for email verification token")
+            return None
+        except Exception as e:
+            logger.error(f"Error validating email verification token: {e}")
+            return None
+    
+    # ============================================
+    # PHASE 1: PHONE OTP VERIFICATION
+    # ============================================
+    
+    @staticmethod
+    def generate_phone_otp(user) -> str:
+        """
+        Generate a 6-digit OTP for phone verification (Phase 1).
+        
+        Args:
+            user: User instance
+        
+        Returns:
+            6-digit OTP string
+        """
+        import random
+        return f"{random.randint(100000, 999999)}"
+    
+    # ============================================
+    # PHASE 3: DOCUMENT VERIFICATION TOKENS
+    # ============================================
+    
+    @staticmethod
+    def generate_document_upload_token(user) -> str:
+        """
+        Generate a token for document upload session.
+        
+        Args:
+            user: User instance
+        
+        Returns:
+            JWT token string with document upload claim
+        """
+        token = AccessToken.for_user(user)
+        token['purpose'] = 'document_upload'
+        token['expires_in'] = 3600  # 1 hour
+        
+        return str(token)
+    
+    @staticmethod
+    def get_user_from_document_token(token: str) -> Optional[User]:
+        """
+        Get user from document upload token.
+        
+        Args:
+            token: Document token string
+        
+        Returns:
+            User instance if valid, None otherwise
+        """
+        try:
+            access_token = AccessToken(token)
+            
+            if access_token.get('purpose') != 'document_upload':
+                return None
+            
+            user_id = access_token.get('user_id')
+            return User.objects.get(id=user_id)
+            
+        except Exception:
+            return None
     
     # ============================================
     # PASSWORD RESET TOKENS
@@ -217,11 +358,8 @@ class TokenService:
         Generate a token for password reset.
         Uses JWT with a short expiry (1 hour).
         """
-        from rest_framework_simplejwt.tokens import AccessToken
-        
         token = AccessToken.for_user(user)
-        # Override expiry to 1 hour
-        # The default expiry is set in settings
+        token['purpose'] = 'password_reset'
         return str(token)
     
     @staticmethod
@@ -229,4 +367,36 @@ class TokenService:
         """
         Get user from reset token.
         """
-        return TokenService.get_user_from_access_token(token)
+        try:
+            access_token = AccessToken(token)
+            
+            if access_token.get('purpose') != 'password_reset':
+                return None
+            
+            user_id = access_token.get('user_id')
+            return User.objects.get(id=user_id)
+            
+        except Exception:
+            return None
+    
+    # ============================================
+    # DEPRECATED METHODS (Backward Compatibility)
+    # ============================================
+    
+    @staticmethod
+    def generate_verification_token(user) -> str:
+        """
+        DEPRECATED: Use generate_email_verification_token instead.
+        Kept for backward compatibility.
+        """
+        logger.warning("generate_verification_token is deprecated, use generate_email_verification_token instead")
+        return TokenService.generate_email_verification_token(user)
+    
+    @staticmethod
+    def get_user_from_verification_token(token: str) -> Optional[User]:
+        """
+        DEPRECATED: Use get_user_from_email_verification_token instead.
+        Kept for backward compatibility.
+        """
+        logger.warning("get_user_from_verification_token is deprecated, use get_user_from_email_verification_token instead")
+        return TokenService.get_user_from_email_verification_token(token)

@@ -1,3 +1,5 @@
+# apps/identity_verification/models/identity_verification.py
+
 from django.db import models
 from apps.common.models.mixins import BaseModel
 from apps.common.constants import VerificationStatus, DocumentType

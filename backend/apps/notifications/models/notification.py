@@ -1,3 +1,5 @@
+# apps/notifications/models/notification.py
+
 from django.db import models
 from django.utils import timezone
 from apps.common.models.mixins import BaseModel
@@ -25,12 +27,20 @@ class Notification(BaseModel):
     # Related Entity (for click-through)
     related_entity_id = models.BigIntegerField(null=True, blank=True)
     related_entity_type = models.CharField(max_length=50, blank=True)
+    redirect_url = models.CharField(max_length=500, blank=True)
+    
+    # Additional Data
+    data = models.JSONField(default=dict, blank=True)
     
     # Status
     is_read = models.BooleanField(default=False)
     
     # Timestamps
     read_at = models.DateTimeField(null=True, blank=True)
+    
+    # Email tracking
+    email_sent = models.BooleanField(default=False)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'notifications'
@@ -40,6 +50,7 @@ class Notification(BaseModel):
         indexes = [
             models.Index(fields=['recipient', 'is_read']),
             models.Index(fields=['recipient', 'created_at']),
+            models.Index(fields=['notification_type']),
         ]
     
     def __str__(self):
@@ -51,3 +62,9 @@ class Notification(BaseModel):
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=['is_read', 'read_at'])
+    
+    def mark_as_unread(self):
+        """Mark notification as unread"""
+        self.is_read = False
+        self.read_at = None
+        self.save(update_fields=['is_read', 'read_at'])

@@ -6,9 +6,9 @@ from django.db import transaction
 from django.utils import timezone
 from typing import Dict, Any, List, Optional
 from apps.jobs.repositories import JobRepository
-from apps.jobs.models import Job
+from apps.jobs.models import Job, JobAssignment, JobApplication
 from apps.audit.models import AuditLog
-from apps.common.constants import JobStatus
+from apps.common.constants import JobStatus, AssignmentStatus, ApplicationStatus
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
 from apps.matching.services import GeocodingService
 from urllib.parse import quote
@@ -75,24 +75,6 @@ class JobService:
     def create_job(self, client, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new job posting.
-        
-        🆕 Auto-fills general_location from GPS coordinates if not provided.
-        🆕 Auto-generates map_url and directions_url from GPS coordinates.
-        
-        Args:
-            client: The client user
-            data: {
-                title, description, budget, category_id,
-                general_location (optional), exact_location (optional),
-                latitude, longitude,
-                job_date (optional), job_time (optional), timeframe,
-                is_flexible, duration_hours, urgency,
-                required_skills (optional),
-                place_id (optional)
-            }
-        
-        Returns:
-            Dict with job details
         """
         # Check if client is verified
         if not client.is_verified:
@@ -120,7 +102,7 @@ class JobService:
             if job_date < timezone.now().date():
                 raise BusinessRuleViolation("Job date cannot be in the past.")
         
-        # 🆕 Auto-fill general_location from GPS if not provided
+        # Auto-fill general_location from GPS if not provided
         general_location = data.get('general_location')
         latitude = data.get('latitude')
         longitude = data.get('longitude')
@@ -137,7 +119,7 @@ class JobService:
                 logger.warning(f"Failed to auto-fill location: {str(e)}")
                 general_location = f"{latitude}, {longitude}"
         
-        # 🆕 Generate map URLs from GPS coordinates
+        # Generate map URLs from GPS coordinates
         map_urls = {}
         if latitude and longitude:
             try:
@@ -161,12 +143,10 @@ class JobService:
             exact_location=data.get('exact_location', ''),
             latitude=latitude,
             longitude=longitude,
-            # 🆕 Map URLs
             map_url=map_urls.get('map_url', ''),
             directions_url=map_urls.get('directions_url', ''),
             place_id=data.get('place_id', ''),
             status=JobStatus.OPEN,
-            # Timing fields
             job_date=job_date,
             job_time=data.get('job_time'),
             timeframe=data.get('timeframe', 'ANYTIME'),
@@ -212,18 +192,22 @@ class JobService:
     
     def get_job_by_id(self, job_id: int) -> Optional[Job]:
         """Get job by ID"""
-        job = self.job_repo.get_by_id(job_id)
-        if not job:
+        try:
+            job = Job.objects.get(id=job_id, deleted_at__isnull=True)
+            return job
+        except Job.DoesNotExist:
             raise ResourceNotFound("Job not found.")
-        return job
     
     def get_open_jobs(self) -> List[Job]:
         """Get all open jobs"""
-        return self.job_repo.get_open_jobs()
+        return Job.objects.filter(
+            status=JobStatus.OPEN,
+            deleted_at__isnull=True
+        ).order_by('-posted_at')
     
     def get_urgent_jobs(self) -> List[Job]:
         """Get urgent and immediate jobs"""
-        return self.job_repo.filter(
+        return Job.objects.filter(
             status=JobStatus.OPEN,
             urgency__in=['IMMEDIATE', 'URGENT'],
             deleted_at__isnull=True
@@ -231,23 +215,37 @@ class JobService:
     
     def get_jobs_by_client(self, client_id: int) -> List[Job]:
         """Get jobs posted by a client"""
-        return self.job_repo.get_by_client_id(client_id)
+        return Job.objects.filter(
+            client_id=client_id,
+            deleted_at__isnull=True
+        ).order_by('-posted_at')
     
     def get_jobs_by_worker(self, worker_id: int) -> List[Job]:
         """Get jobs assigned to a worker"""
-        return self.job_repo.get_jobs_by_worker(worker_id)
+        return Job.objects.filter(
+            assignments__worker_id=worker_id,
+            deleted_at__isnull=True
+        ).distinct().order_by('-posted_at')
     
     def get_active_jobs_by_worker(self, worker_id: int) -> List[Job]:
         """Get active jobs assigned to a worker"""
-        return self.job_repo.get_active_jobs_by_worker(worker_id)
+        return Job.objects.filter(
+            assignments__worker_id=worker_id,
+            assignments__status=AssignmentStatus.ACTIVE,
+            deleted_at__isnull=True
+        ).distinct().order_by('-posted_at')
     
     def get_open_jobs_by_client(self, client_id: int) -> List[Job]:
         """Get open jobs posted by a client"""
-        return self.job_repo.get_open_jobs_by_client(client_id)
+        return Job.objects.filter(
+            client_id=client_id,
+            status=JobStatus.OPEN,
+            deleted_at__isnull=True
+        ).order_by('-posted_at')
     
     def get_jobs_by_skills(self, skill_ids: List[int]) -> List[Job]:
         """Get jobs that require specific skills (optional)"""
-        return self.job_repo.filter(
+        return Job.objects.filter(
             required_skills__in=skill_ids,
             status=JobStatus.OPEN,
             deleted_at__isnull=True
@@ -255,7 +253,11 @@ class JobService:
     
     def search_jobs(self, query: str) -> List[Job]:
         """Search jobs by title or description"""
-        return self.job_repo.search_jobs(query)
+        return Job.objects.filter(
+            title__icontains=query,
+            status=JobStatus.OPEN,
+            deleted_at__isnull=True
+        ).order_by('-posted_at')
     
     # ============================================
     # FILTER JOBS (Non-location filters)
@@ -271,25 +273,30 @@ class JobService:
         job_date: date = None,
         timeframe: str = None,
     ) -> List[Job]:
-        """
-        Filter jobs by category, budget, skills, urgency, date, and timeframe.
-        Location filtering is handled by the Matching Service.
-        """
-        jobs = self.job_repo.filter_jobs(category_id, min_budget, max_budget)
+        """Filter jobs by category, budget, skills, urgency, date, and timeframe."""
+        jobs = Job.objects.filter(
+            status=JobStatus.OPEN,
+            deleted_at__isnull=True
+        )
         
-        # Filter by skills if provided (optional)
+        if category_id:
+            jobs = jobs.filter(category_id=category_id)
+        
+        if min_budget:
+            jobs = jobs.filter(budget__gte=min_budget)
+        
+        if max_budget:
+            jobs = jobs.filter(budget__lte=max_budget)
+        
         if skill_ids:
             jobs = jobs.filter(required_skills__in=skill_ids).distinct()
         
-        # Filter by urgency if provided
         if urgency:
             jobs = jobs.filter(urgency=urgency)
         
-        # Filter by date if provided
         if job_date:
             jobs = jobs.filter(job_date=job_date)
         
-        # Filter by timeframe if provided
         if timeframe:
             jobs = jobs.filter(timeframe=timeframe)
         
@@ -301,30 +308,22 @@ class JobService:
     
     @transaction.atomic
     def update_job(self, client, job_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update a job posting.
-        """
-        job = self.job_repo.get_by_id(job_id)
-        if not job:
-            raise ResourceNotFound("Job not found.")
+        """Update a job posting."""
+        job = self.get_job_by_id(job_id)
         
-        # Check ownership
         if job.client_id != client.id:
             raise BusinessRuleViolation("You don't have permission to update this job.")
         
-        # Check if job can be updated
         if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
             raise BusinessRuleViolation(f"Cannot update a {job.status} job.")
         
-        # Update job fields (including timing and skills)
         for key, value in data.items():
             if key == 'required_skills':
                 if value:
                     job.required_skills.set(value)
                 else:
                     job.required_skills.clear()
-            elif key == 'latitude' or key == 'longitude':
-                # 🆕 If GPS coordinates change, regenerate map URLs
+            elif key in ['latitude', 'longitude']:
                 setattr(job, key, value)
                 if 'latitude' in data and 'longitude' in data:
                     lat = data.get('latitude')
@@ -342,7 +341,6 @@ class JobService:
         
         job.save()
         
-        # Audit log
         AuditLog.objects.create(
             user=client,
             action='JOB_UPDATED',
@@ -364,25 +362,19 @@ class JobService:
     
     @transaction.atomic
     def delete_job(self, client, job_id: int) -> Dict[str, Any]:
-        """
-        Delete (soft delete) a job.
-        """
-        job = self.job_repo.get_by_id(job_id)
-        if not job:
-            raise ResourceNotFound("Job not found.")
+        """Delete (soft delete) a job."""
+        job = self.get_job_by_id(job_id)
         
-        # Check ownership
         if job.client_id != client.id:
             raise BusinessRuleViolation("You don't have permission to delete this job.")
         
-        # Check if job can be deleted
         if job.status == JobStatus.COMPLETED:
             raise BusinessRuleViolation("Cannot delete a completed job.")
         
-        # Soft delete
-        self.job_repo.delete(job, user=client)
+        job.deleted_at = timezone.now()
+        job.deleted_by = client
+        job.save()
         
-        # Audit log
         AuditLog.objects.create(
             user=client,
             action='JOB_DELETED',
@@ -405,49 +397,30 @@ class JobService:
         """
         Get job details for a worker with conditional disclosure.
         
-        🔑 This is the KEY method for the conditional disclosure feature.
+        🔑 KEY METHOD: Controls what workers can see.
         
         What it does:
         1. Gets the job by ID
         2. Checks if the worker has an ACTIVE assignment
-        3. If assigned: Worker can see full details (exact_location, map_url, directions_url, client_name, client_phone)
+        3. If assigned: Worker can see full details
         4. If not assigned: Worker can only see general_location
-        
-        Why this matters:
-        - Protects client privacy until the job is officially assigned
-        - Workers only get contact details and map after commitment
-        - Builds trust in the platform
-        
-        Args:
-            job_id: The job ID
-            worker_id: The worker's user ID
-        
-        Returns:
-            Dict containing:
-            - job: The Job object
-            - can_view_full_details: Boolean
-            - assignment_status: str or None
-            - application_status: str or None
-        
-        Raises:
-            ResourceNotFound: If job doesn't exist
-            BusinessRuleViolation: If job is not available or assigned to someone else
         """
         # Get the job
         job = self.get_job_by_id(job_id)
         
-        # Check if job is available or assigned to this worker
+        # Check if job is available
         if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
             raise BusinessRuleViolation("This job is no longer available.")
         
         # Check if worker is assigned to this job
-        is_assigned = job.is_accepted_by_worker(worker_id)
+        is_assigned = JobAssignment.objects.filter(
+            job=job,
+            worker_id=worker_id,
+            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
+        ).exists()
         
         # If job is assigned to someone else, worker can't view it
-        if job.status in [JobStatus.ASSIGNED, JobStatus.IN_PROGRESS, JobStatus.AWAITING_CONFIRMATION]:
-            from apps.jobs.models import JobAssignment
-            from apps.common.constants import AssignmentStatus
-            
+        if job.status in [JobStatus.ASSIGNED, JobStatus.IN_PROGRESS]:
             has_active_assignment = JobAssignment.objects.filter(
                 job=job,
                 status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
@@ -458,12 +431,18 @@ class JobService:
                     "This job has been assigned to another worker."
                 )
         
+        # Get application status
+        application = JobApplication.objects.filter(
+            job=job,
+            worker_id=worker_id
+        ).first()
+        
         # Return job with access information
         return {
             'job': job,
             'can_view_full_details': is_assigned,
             'assignment_status': job.get_worker_assignment_status(worker_id),
-            'application_status': job.get_worker_application_status(worker_id),
+            'application_status': application.status if application else None,
         }
     
     # ============================================
@@ -472,19 +451,29 @@ class JobService:
     
     def count_open_jobs(self) -> int:
         """Count open jobs"""
-        return self.job_repo.count_open_jobs()
+        return Job.objects.filter(
+            status=JobStatus.OPEN,
+            deleted_at__isnull=True
+        ).count()
     
     def count_jobs_by_client(self, client_id: int) -> int:
         """Count jobs posted by a client"""
-        return self.job_repo.count_jobs_by_client(client_id)
+        return Job.objects.filter(
+            client_id=client_id,
+            deleted_at__isnull=True
+        ).count()
     
     def count_active_jobs_by_worker(self, worker_id: int) -> int:
         """Count active jobs assigned to a worker"""
-        return self.job_repo.count_active_jobs_by_worker(worker_id)
+        return Job.objects.filter(
+            assignments__worker_id=worker_id,
+            assignments__status=AssignmentStatus.ACTIVE,
+            deleted_at__isnull=True
+        ).distinct().count()
     
     def count_urgent_jobs(self) -> int:
         """Count urgent and immediate jobs"""
-        return self.job_repo.filter(
+        return Job.objects.filter(
             status=JobStatus.OPEN,
             urgency__in=['IMMEDIATE', 'URGENT'],
             deleted_at__isnull=True

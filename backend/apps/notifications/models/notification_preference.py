@@ -1,7 +1,8 @@
+# apps/notifications/models/notification_preference.py
+
 from django.db import models
 
 
-# Define default preferences as a regular function (not lambda)
 def default_notification_preferences():
     """Default notification preferences"""
     return {
@@ -14,6 +15,7 @@ def default_notification_preferences():
         'verification_rejected': True,
         'account_suspended': True,
         'warning_issued': True,
+        'review_received': True,
     }
 
 
@@ -27,9 +29,14 @@ class NotificationPreference(models.Model):
         related_name='notification_preferences'
     )
     
+    # Channel preferences
+    email_enabled = models.BooleanField(default=True)
+    in_app_enabled = models.BooleanField(default=True)
+    push_enabled = models.BooleanField(default=True)
+    
     # Preferences stored as JSON for flexibility
     preferences = models.JSONField(
-        default=default_notification_preferences  # ✅ Use the function instead of lambda
+        default=default_notification_preferences
     )
     
     # Timestamps
@@ -52,3 +59,7 @@ class NotificationPreference(models.Model):
         """Set a specific preference"""
         self.preferences[key] = value
         self.save(update_fields=['preferences'])
+    
+    def is_enabled(self, notification_type):
+        """Check if a notification type is enabled"""
+        return self.get_preference(notification_type, True)

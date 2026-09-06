@@ -98,6 +98,134 @@ class JobSerializer(serializers.ModelSerializer):
         return obj.job_display_time
 
 
+# ============================================================
+# 🆕 JOB DETAIL SERIALIZER (For Client/Admin Full Access)
+# ============================================================
+
+class JobDetailSerializer(serializers.ModelSerializer):
+    """
+    Detailed serializer for job (Client/Admin view with full access).
+    
+    This shows ALL fields including sensitive information like:
+    - exact_location
+    - client_name, client_phone, client_email
+    - map_url, directions_url
+    
+    This is used by:
+    - JobDetailView (GET /api/jobs/{id}/) - Client/Admin only
+    """
+    client_name = serializers.SerializerMethodField()
+    client_phone = serializers.SerializerMethodField()
+    client_email = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    assigned_worker_name = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    urgency_display = serializers.SerializerMethodField()
+    timeframe_display = serializers.SerializerMethodField()
+    is_urgent = serializers.SerializerMethodField()
+    job_display_date = serializers.SerializerMethodField()
+    job_display_time = serializers.SerializerMethodField()
+    search_radius_km = serializers.FloatField(read_only=True)
+    
+    class Meta:
+        model = Job
+        fields = [
+            # Basic info
+            'id',
+            'title',
+            'description',
+            'budget',
+            
+            # Client info (full access)
+            'client',
+            'client_name',
+            'client_phone',
+            'client_email',
+            
+            # Category
+            'category',
+            'category_name',
+            
+            # Assignment
+            'assigned_worker_name',
+            
+            # Location (full access)
+            'general_location',
+            'exact_location',
+            'map_url',
+            'directions_url',
+            'place_id',
+            'latitude',
+            'longitude',
+            'search_radius_km',
+            
+            # Timing fields
+            'job_date',
+            'job_time',
+            'timeframe',
+            'timeframe_display',
+            'is_flexible',
+            'duration_hours',
+            'urgency',
+            'urgency_display',
+            'job_display_date',
+            'job_display_time',
+            'is_urgent',
+            
+            # Status
+            'status',
+            'status_display',
+            'posted_at',
+            'completed_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'id',
+            'client',
+            'posted_at',
+            'completed_at',
+            'created_at',
+            'updated_at',
+        ]
+    
+    def get_client_name(self, obj):
+        return obj.client.full_name if obj.client else None
+    
+    def get_client_phone(self, obj):
+        return obj.client.phone_number if obj.client else None
+    
+    def get_client_email(self, obj):
+        return obj.client.email if obj.client else None
+    
+    def get_category_name(self, obj):
+        return obj.category.name if obj.category else None
+    
+    def get_assigned_worker_name(self, obj):
+        assignment = obj.assignments.filter(status='ACTIVE').first()
+        if assignment:
+            return assignment.worker.full_name
+        return None
+    
+    def get_status_display(self, obj):
+        return dict(JobStatus.CHOICES).get(obj.status)
+    
+    def get_urgency_display(self, obj):
+        return dict(Job.URGENCY_CHOICES).get(obj.urgency)
+    
+    def get_timeframe_display(self, obj):
+        return dict(Job.TIMEFRAME_CHOICES).get(obj.timeframe) if hasattr(obj, 'timeframe') else None
+    
+    def get_is_urgent(self, obj):
+        return obj.urgency in ['IMMEDIATE', 'URGENT']
+    
+    def get_job_display_date(self, obj):
+        return obj.job_display_date
+    
+    def get_job_display_time(self, obj):
+        return obj.job_display_time
+
+
 class JobCreateSerializer(serializers.Serializer):
     """
     Serializer for creating a job.
@@ -313,9 +441,9 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     
     # Conditional fields (only visible when assigned)
     exact_location = serializers.SerializerMethodField()
-    map_url = serializers.SerializerMethodField()          # 🆕
-    directions_url = serializers.SerializerMethodField()   # 🆕
-    place_id = serializers.SerializerMethodField()         # 🆕
+    map_url = serializers.SerializerMethodField()
+    directions_url = serializers.SerializerMethodField()
+    place_id = serializers.SerializerMethodField()
     location_display = serializers.SerializerMethodField()
     can_view_full_details = serializers.SerializerMethodField()
     assignment_status = serializers.SerializerMethodField()
@@ -342,9 +470,9 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
             # Location (conditional)
             'general_location',
             'exact_location',
-            'map_url',              # 🆕 Hidden until assigned
-            'directions_url',       # 🆕 Hidden until assigned
-            'place_id',             # 🆕 Hidden until assigned
+            'map_url',
+            'directions_url',
+            'place_id',
             'location_display',
             'latitude',
             'longitude',
@@ -405,108 +533,65 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     # ============================================================
     
     def get_client_name(self, obj):
-        """
-        🔒 Only show client name if worker is assigned.
-        
-        Why: Protects client identity until job is confirmed.
-        """
+        """🔒 Only show client name if worker is assigned."""
         if self._can_view_full_details(obj):
             return obj.client.full_name if obj.client else None
         return None
     
     def get_client_phone(self, obj):
-        """
-        🔒 Only show client phone if worker is assigned.
-        
-        Why: Prevents workers from contacting clients without commitment.
-        """
+        """🔒 Only show client phone if worker is assigned."""
         if self._can_view_full_details(obj):
             return obj.client.phone_number if obj.client else None
         return None
     
     def get_exact_location(self, obj):
-        """
-        🔒 Only show exact location if worker is assigned.
-        
-        Why: Protects client's exact address until job is confirmed.
-        """
+        """🔒 Only show exact location if worker is assigned."""
         if self._can_view_full_details(obj):
             return obj.exact_location
         return None
     
     def get_map_url(self, obj):
-        """
-        🗺️ Only show map URL if worker is assigned.
-        
-        Why: Prevents workers from seeing exact location until commitment.
-        """
+        """🗺️ Only show map URL if worker is assigned."""
         if self._can_view_full_details(obj):
             return obj.map_url
         return None
     
     def get_directions_url(self, obj):
-        """
-        🚗 Only show directions URL if worker is assigned.
-        
-        Why: Directions reveal exact location - hidden until commitment.
-        """
+        """🚗 Only show directions URL if worker is assigned."""
         if self._can_view_full_details(obj):
             return obj.directions_url
         return None
     
     def get_place_id(self, obj):
-        """
-        📍 Only show place ID if worker is assigned.
-        
-        Why: Place ID can be used to find exact location - hidden until commitment.
-        """
+        """📍 Only show place ID if worker is assigned."""
         if self._can_view_full_details(obj):
             return obj.place_id
         return None
     
     def get_location_display(self, obj):
-        """
-        📍 Returns the appropriate location based on assignment status.
-        
-        - If assigned: shows exact_location (or general_location as fallback)
-        - If not assigned: shows only general_location
-        """
+        """📍 Returns the appropriate location based on assignment status."""
         if self._can_view_full_details(obj):
             return obj.exact_location or obj.general_location
         return obj.general_location
     
     def get_can_view_full_details(self, obj):
-        """
-        🚦 Boolean flag indicating if worker can see full details.
-        
-        Frontend can use this to show/hide UI elements.
-        """
+        """🚦 Boolean flag indicating if worker can see full details."""
         return self._can_view_full_details(obj)
     
     def get_assignment_status(self, obj):
-        """
-        📊 Get the worker's assignment status for this job.
-        
-        Possible values: 'ACTIVE', 'COMPLETED', 'CANCELLED', None
-        """
+        """📊 Get the worker's assignment status for this job."""
         if not self.worker_id:
             return None
         return obj.get_worker_assignment_status(self.worker_id)
     
     def get_application_status(self, obj):
-        """
-        📊 Get the worker's application status for this job.
-        
-        Possible values: 'PENDING', 'ACCEPTED', 'REJECTED', 'WITHDRAWN', None
-        """
+        """📊 Get the worker's application status for this job."""
         if not self.worker_id:
             return None
         return obj.get_worker_application_status(self.worker_id)
     
     def get_assigned_at(self, obj):
-        """
-        📅 Get when the worker was assigned to this job.
-        """
+        """📅 Get when the worker was assigned to this job."""
         if not self.worker_id:
             return None
         
@@ -524,13 +609,6 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     def _can_view_full_details(self, obj) -> bool:
         """
         🔑 KEY METHOD: Check if the current worker is assigned to this job.
-        
-        This is called by all conditional getters.
-        Results are cached to avoid multiple DB queries.
-        
-        Returns:
-            True: Worker has an ACTIVE assignment → Show all details
-            False: Worker is NOT assigned → Hide sensitive details
         """
         if not self.worker_id:
             return False

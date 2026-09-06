@@ -3,34 +3,46 @@
 from .job_serializer import (
     JobSerializer,
     JobCreateSerializer,
-    JobUpdateSerializer,
     JobListSerializer,
-    WorkerJobDetailSerializer,  # 🆕 Add this import
+    JobDetailSerializer,
+    JobUpdateSerializer,
+    WorkerJobDetailSerializer,
 )
 from .job_application_serializer import (
     JobApplicationSerializer,
     JobApplicationCreateSerializer,
     JobApplicationListSerializer,
+    ClientApplicationSerializer,
 )
 from .job_assignment_serializer import (
     JobAssignmentSerializer,
     JobAssignmentCreateSerializer,
+    JobAssignmentListSerializer,        # ✅ Now available
+    JobAssignmentDetailSerializer,
+    JobAssignmentUpdateSerializer,
+    JobAssignmentStatusInfoSerializer,
 )
 
 __all__ = [
-    # Job serializers
+    # Job Serializers
     'JobSerializer',
     'JobCreateSerializer',
-    'JobUpdateSerializer',
     'JobListSerializer',
-    'WorkerJobDetailSerializer',  # 🆕 Add this to __all__
+    'JobDetailSerializer',
+    'JobUpdateSerializer',
+    'WorkerJobDetailSerializer',
     
-    # Job Application serializers
+    # Job Application Serializers
     'JobApplicationSerializer',
     'JobApplicationCreateSerializer',
     'JobApplicationListSerializer',
+    'ClientApplicationSerializer',
     
-    # Job Assignment serializers
+    # Job Assignment Serializers
     'JobAssignmentSerializer',
     'JobAssignmentCreateSerializer',
+    'JobAssignmentListSerializer',      # ✅ Now available
+    'JobAssignmentDetailSerializer',
+    'JobAssignmentUpdateSerializer',
+    'JobAssignmentStatusInfoSerializer',
 ]

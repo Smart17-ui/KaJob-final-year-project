@@ -1,5 +1,7 @@
+# apps/accounts/repositories/user_repository.py
+
 from typing import Optional, List, Tuple
-from django.db.models import Q
+from django.db.models import Q, Count
 from apps.accounts.models import User
 from apps.common.repositories import BaseRepository
 from apps.common.constants import UserAccountStatus
@@ -87,27 +89,66 @@ class UserRepository(BaseRepository[User]):
         )
     
     # ============================================
-    # FILTER BY ROLE
+    # 🆕 FILTER BY ROLE (Role Player Pattern)
     # ============================================
     
     def get_users_by_role(self, role_name: str) -> List[User]:
-        """Get users by role name"""
+        """Get users with a specific role."""
         return self.filter(
             user_roles__role__name=role_name,
             deleted_at__isnull=True
-        )
+        ).distinct()
+    
+    def get_verified_users_by_role(self, role_name: str) -> List[User]:
+        """Get verified users with a specific role."""
+        return self.filter(
+            user_roles__role__name=role_name,
+            is_verified=True,
+            account_status=UserAccountStatus.ACTIVE,
+            deleted_at__isnull=True
+        ).distinct()
     
     def get_admin_users(self) -> List[User]:
-        """Get all admin users"""
+        """Get all admin users."""
         return self.get_users_by_role('ADMIN')
     
     def get_worker_users(self) -> List[User]:
-        """Get all worker users"""
+        """Get all worker users."""
         return self.get_users_by_role('WORKER')
     
     def get_client_users(self) -> List[User]:
-        """Get all client users"""
+        """Get all client users."""
         return self.get_users_by_role('CLIENT')
+    
+    def get_users_with_multiple_roles(self) -> List[User]:
+        """Get users with more than one role."""
+        return self.annotate(
+            role_count=Count('user_roles')
+        ).filter(
+            role_count__gt=1,
+            deleted_at__isnull=True
+        )
+    
+    def get_users_without_roles(self) -> List[User]:
+        """Get users without any roles."""
+        return self.annotate(
+            role_count=Count('user_roles')
+        ).filter(
+            role_count=0,
+            deleted_at__isnull=True
+        )
+    
+    def get_user_with_roles_prefetched(self, user_id: int) -> Optional[User]:
+        """Get user with roles prefetched."""
+        try:
+            return self.model_class.objects.prefetch_related(
+                'user_roles__role'
+            ).get(
+                id=user_id,
+                deleted_at__isnull=True
+            )
+        except self.model_class.DoesNotExist:
+            return None
     
     # ============================================
     # SEARCH
@@ -190,3 +231,39 @@ class UserRepository(BaseRepository[User]):
             ).get(id=user_id)
         except self.model_class.DoesNotExist:
             return None
+    
+    # ============================================
+    # 🆕 ROLE SPECIFIC QUERIES
+    # ============================================
+    
+    def get_workers(self) -> List[User]:
+        """Get all users with WORKER role."""
+        return self.get_users_by_role('WORKER')
+    
+    def get_clients(self) -> List[User]:
+        """Get all users with CLIENT role."""
+        return self.get_users_by_role('CLIENT')
+    
+    def get_verified_workers(self) -> List[User]:
+        """Get verified users with WORKER role."""
+        return self.get_verified_users_by_role('WORKER')
+    
+    def get_verified_clients(self) -> List[User]:
+        """Get verified users with CLIENT role."""
+        return self.get_verified_users_by_role('CLIENT')
+    
+    def get_active_workers(self) -> List[User]:
+        """Get active users with WORKER role."""
+        return self.filter(
+            user_roles__role__name='WORKER',
+            account_status=UserAccountStatus.ACTIVE,
+            deleted_at__isnull=True
+        ).distinct()
+    
+    def get_active_clients(self) -> List[User]:
+        """Get active users with CLIENT role."""
+        return self.filter(
+            user_roles__role__name='CLIENT',
+            account_status=UserAccountStatus.ACTIVE,
+            deleted_at__isnull=True
+        ).distinct()

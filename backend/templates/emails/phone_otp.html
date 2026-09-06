@@ -1,0 +1,23 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Phone Verification Code{% endblock %}
+
+{% block content %}
+<h2>Phone Verification</h2>
+
+<p>Hello {{ full_name }},</p>
+
+<p>Your verification code for {{ phone_number }} is:</p>
+
+<div style="text-align: center; padding: 20px; background: #f0f0f0; border-radius: 8px; font-size: 32px; letter-spacing: 8px; font-weight: bold;">
+    {{ otp }}
+</div>
+
+<p>This code will expire in <strong>10 minutes</strong>.</p>
+
+<p>If you didn't request this, you can safely ignore this email.</p>
+
+<p><small>Note: SMS service is currently in development. Your OTP was sent via email as a fallback.</small></p>
+
+<p>Thanks,<br>KaJob Team</p>
+{% endblock %}

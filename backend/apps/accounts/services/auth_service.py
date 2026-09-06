@@ -1,6 +1,8 @@
+# apps/accounts/services/auth_service.py
+
 from django.db import transaction
 from django.utils import timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from apps.accounts.repositories import (
     UserRepository,
     RoleRepository,
@@ -13,13 +15,14 @@ from apps.audit.models import AuditLog
 from apps.common.constants import RoleType, UserAccountStatus
 from apps.common.exceptions import BusinessRuleViolation
 from apps.common.services import EmailService
-from apps.accounts.models import User
+from apps.accounts.models import User, Role
+from apps.identity_verification.services import VerificationService
 
 
 class AuthService:
     """
     Handles ALL authentication operations.
-    Single Responsibility: Manage authentication (register, login, password, verification).
+    Single Responsibility: Manage authentication (register, login, password, verification, roles).
     """
     
     def __init__(self):
@@ -33,6 +36,7 @@ class AuthService:
         # Services
         self.email_service = EmailService()
         self.token_service = TokenService()
+        self.verification_service = VerificationService()
     
     # ============================================
     # REGISTRATION (Role Player Pattern)
@@ -47,12 +51,20 @@ class AuthService:
         # Normalize email - case insensitive
         data['email'] = data['email'].lower().strip()
         
-        # Check if user already exists
+        # Check if user already exists by email
         existing_user = self.user_repo.get_by_email(data['email'])
         
         # If user exists, add the new role (Role Player Pattern)
         if existing_user:
             return self._add_role_to_existing_user(existing_user, data)
+        
+        # Check if user exists by phone
+        existing_user_by_phone = self.user_repo.get_by_phone(data['phone_number'])
+        if existing_user_by_phone:
+            # Found user by phone, update email and add role
+            existing_user_by_phone.email = data['email']
+            existing_user_by_phone.save(update_fields=['email'])
+            return self._add_role_to_existing_user(existing_user_by_phone, data)
         
         # ============================================
         # NEW USER REGISTRATION
@@ -101,11 +113,11 @@ class AuthService:
             details={'role': role.name},
         )
         
-        # Generate verification token
-        verification_token = self.token_service.generate_verification_token(user)
+        # Create verification record
+        self.verification_service.get_or_create_verification(user)
         
-        # Send verification email
-        self.email_service.send_verification_email(user, verification_token)
+        # Send phone OTP (Phase 1)
+        self.verification_service.send_phone_otp(user)
         
         # Generate access tokens
         tokens = self.token_service.generate_tokens(user)
@@ -113,7 +125,9 @@ class AuthService:
         return {
             'user': user,
             'tokens': tokens,
-            'message': 'Registration successful! Please check your email to verify your account.'
+            'message': 'Registration successful! Please verify your phone number to continue.',
+            'next_step': 'phone_verification',
+            'available_roles': user.get_roles_names(),
         }
     
     # ============================================
@@ -123,6 +137,8 @@ class AuthService:
     def _add_role_to_existing_user(self, user: User, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Add a new role to an existing user (Role Player Pattern).
+        ✅ NO RE-REGISTRATION NEEDED!
+        ✅ Verification status carries over!
         """
         # Get the role
         role = self.role_repo.get_by_name(data['role'])
@@ -133,6 +149,16 @@ class AuthService:
         if user.has_role(data['role']):
             raise BusinessRuleViolation(f"User already has the '{data['role']}' role.")
         
+        # ✅ Check if phone needs updating
+        if user.phone_number != data['phone_number']:
+            user.phone_number = data['phone_number']
+            user.save(update_fields=['phone_number'])
+        
+        # ✅ Check if email needs updating
+        if user.email != data['email']:
+            user.email = data['email']
+            user.save(update_fields=['email'])
+        
         # Add the new role to the user
         user.add_role(role)
         
@@ -142,19 +168,25 @@ class AuthService:
         elif role.name == RoleType.CLIENT and not hasattr(user, 'client_profile'):
             self.client_repo.create(user=user)
         
+        # ✅ Verification status carries over!
+        # User is already verified, no need to re-verify
+        
         # Audit log
         AuditLog.objects.create(
             user=user,
             action='ROLE_ADDED',
             entity_type='USER',
             entity_id=user.id,
-            details={'role': role.name},
+            details={
+                'role': role.name,
+                'user_is_verified': user.is_verified,
+            }
         )
         
-        # Generate tokens
+        # Generate tokens with updated roles
         tokens = self.token_service.generate_tokens(user)
         
-        # Determine the message based on role
+        # Determine message
         if role.name == RoleType.WORKER:
             message = "Worker role added successfully! You can now apply for jobs."
         elif role.name == RoleType.CLIENT:
@@ -165,8 +197,117 @@ class AuthService:
         return {
             'user': user,
             'tokens': tokens,
-            'message': message
+            'message': message,
+            'is_verified': user.is_verified,
+            'available_roles': user.get_roles_names(),
         }
+    
+    # ============================================
+    # ROLE MANAGEMENT (PUBLIC METHODS)
+    # ============================================
+    
+    @transaction.atomic
+    def add_role_to_user(self, user: User, role_name: str) -> Dict[str, Any]:
+        """
+        Add a new role to an existing user.
+        ✅ NO RE-REGISTRATION NEEDED!
+        ✅ Verification status carries over!
+        
+        This is the public method that views will call.
+        """
+        # Get the role
+        try:
+            role = Role.objects.get(name=role_name)
+        except Role.DoesNotExist:
+            raise BusinessRuleViolation(f"Role '{role_name}' does not exist.")
+        
+        # Check if user already has this role
+        if user.has_role(role_name):
+            raise BusinessRuleViolation(f"User already has the '{role_name}' role.")
+        
+        # Add the new role to the user
+        user.add_role(role)
+        
+        # Create role-specific profile if needed
+        if role_name == RoleType.WORKER and not hasattr(user, 'worker_profile'):
+            self.worker_repo.create(user=user)
+        elif role_name == RoleType.CLIENT and not hasattr(user, 'client_profile'):
+            self.client_repo.create(user=user)
+        
+        # ✅ Verification status carries over!
+        # User is already verified, no need to re-verify
+        
+        # Audit log
+        AuditLog.objects.create(
+            user=user,
+            action='ROLE_ADDED',
+            entity_type='USER',
+            entity_id=user.id,
+            details={
+                'role': role_name,
+                'user_is_verified': user.is_verified,
+            }
+        )
+        
+        # Generate tokens with updated roles
+        tokens = self.token_service.generate_tokens(user)
+        
+        return {
+            'user': user,
+            'tokens': tokens,
+            'message': f'{role_name} role added successfully!',
+            'is_verified': user.is_verified,
+            'available_roles': user.get_roles_names(),
+        }
+    
+    @transaction.atomic
+    def switch_role(self, user: User, role_name: str) -> Dict[str, Any]:
+        """
+        Switch to a different role.
+        """
+        # Check if user has the role
+        if not user.has_role(role_name):
+            raise BusinessRuleViolation(
+                f"User does not have the '{role_name}' role. "
+                f"Available roles: {', '.join(user.get_roles_names())}"
+            )
+        
+        # Audit log for role switch
+        AuditLog.objects.create(
+            user=user,
+            action='ROLE_SWITCHED',
+            entity_type='USER',
+            entity_id=user.id,
+            details={
+                'from_role': user.get_current_role(),
+                'to_role': role_name,
+            }
+        )
+        
+        # Generate tokens with role context
+        tokens = self.token_service.generate_tokens(user, role_name)
+        
+        return {
+            'user': user,
+            'tokens': tokens,
+            'current_role': role_name,
+            'available_roles': user.get_roles_names(),
+        }
+    
+    def get_user_roles(self, user: User) -> List[str]:
+        """
+        Get all roles for a user.
+        """
+        return user.get_roles_names()
+    
+    def get_current_role(self, user: User) -> Optional[str]:
+        """
+        Get the user's current role from token.
+        This is stored in the token as 'current_role'.
+        """
+        # This would be retrieved from the token context
+        # The actual implementation depends on how you store it
+        pass
     
     # ============================================
     # LOGIN / LOGOUT / REFRESH (WITH ROLE SELECTION)
@@ -235,8 +376,8 @@ class AuthService:
             },
         )
         
-        # Generate tokens
-        tokens = self.token_service.generate_tokens(user)
+        # Generate tokens with selected role
+        tokens = self.token_service.generate_tokens(user, selected_role)
         
         return {
             'user': user,
@@ -308,42 +449,32 @@ class AuthService:
         return True
     
     # ============================================
-    # EMAIL VERIFICATION
+    # EMAIL VERIFICATION (MOVED TO PHASE 2)
     # ============================================
     
     def verify_email(self, token: str) -> bool:
-        """Verify user's email address."""
-        user = self.token_service.get_user_from_verification_token(token)
-        if not user:
-            raise BusinessRuleViolation("Invalid or expired token.")
+        """
+        Verify user's email address.
+        ✅ DEPRECATED: Use identity_verification module instead.
+        """
+        result = self.verification_service.verify_email_token(token)
         
-        if user.is_verified:
+        if result['status'] == 'verified':
             return True
-        
-        # Mark as verified
-        self.user_repo.verify_user(user)
-        
-        AuditLog.objects.create(
-            user=user,
-            action='EMAIL_VERIFIED',
-            entity_type='USER',
-            entity_id=user.id,
-        )
-        
-        # Send welcome email
-        self.email_service.send_welcome_email(user)
-        
-        return True
+        else:
+            raise BusinessRuleViolation(result['message'])
     
     def resend_verification_email(self, user) -> bool:
-        """Resend verification email."""
-        if user.is_verified:
-            raise BusinessRuleViolation("Email is already verified.")
+        """
+        Resend verification email.
+        ✅ DEPRECATED: Use identity_verification module instead.
+        """
+        result = self.verification_service.send_email_verification(user)
         
-        verification_token = self.token_service.generate_verification_token(user)
-        self.email_service.send_verification_email(user, verification_token)
-        
-        return True
+        if result['status'] in ['email_sent', 'already_verified']:
+            return True
+        else:
+            raise BusinessRuleViolation(result['message'])
     
     # ============================================
     # USER LOOKUP
@@ -355,10 +486,17 @@ class AuthService:
     
     def get_user_by_email(self, email: str) -> Optional[User]:
         """Get user by email."""
-        # Normalize email - case insensitive
         email = email.lower().strip()
         return self.user_repo.get_by_email(email)
     
     def get_current_user(self, user_id: int) -> Optional[User]:
         """Get current user by ID."""
         return self.user_repo.get_by_id(user_id)
+    
+    # ============================================
+    # VERIFICATION STATUS
+    # ============================================
+    
+    def get_verification_status(self, user) -> Dict[str, Any]:
+        """Get current verification status for a user."""
+        return self.verification_service.get_verification_status(user)

@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+import logging
 
 from apps.jobs.services import JobService
 from apps.jobs.serializers import (
@@ -11,14 +12,16 @@ from apps.jobs.serializers import (
     JobCreateSerializer,
     JobUpdateSerializer,
     JobListSerializer,
-    WorkerJobDetailSerializer,  # 🆕 Import the new serializer
+    WorkerJobDetailSerializer,
 )
 from apps.common.permissions import IsClient, IsWorker, IsActiveUser, IsVerifiedUser
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
+from apps.common.constants import JobStatus, AssignmentStatus
 
 
 # Service instance
 job_service = JobService()
+logger = logging.getLogger(__name__)
 
 
 class CreateJobView(APIView):
@@ -72,24 +75,68 @@ class OpenJobsView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+# ============================================================
+# ✅ FIXED: MyJobsView
+# ============================================================
+
 class MyJobsView(APIView):
     """
+    GET /api/my-jobs/
     Get jobs posted by or assigned to the authenticated user.
+    
+    For Clients: Returns jobs they posted
+    For Workers: Returns jobs they are assigned to or have applied for
+    For Both: Returns a combined list
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
     
     def get(self, request):
+        from apps.jobs.models import Job, JobAssignment, JobApplication
+        
         user = request.user
+        
+        # Start with empty queryset
+        jobs = Job.objects.none()
+        
+        # If user is a client, get jobs they posted
         if user.is_client:
-            jobs = job_service.get_jobs_by_client(user.id)
-        elif user.is_worker:
-            jobs = job_service.get_jobs_by_worker(user.id)
-        else:
-            jobs = []
+            client_jobs = Job.objects.filter(
+                client=user,
+                deleted_at__isnull=True
+            )
+            jobs = jobs | client_jobs
+        
+        # If user is a worker, get jobs they are assigned to or applied for
+        if user.is_worker:
+            # Get jobs where worker is assigned
+            assigned_job_ids = JobAssignment.objects.filter(
+                worker=user
+            ).values_list('job_id', flat=True)
+            
+            # Get jobs where worker has applied
+            applied_job_ids = JobApplication.objects.filter(
+                worker=user
+            ).values_list('job_id', flat=True)
+            
+            # Combine both
+            worker_job_ids = set(assigned_job_ids) | set(applied_job_ids)
+            
+            if worker_job_ids:
+                worker_jobs = Job.objects.filter(
+                    id__in=worker_job_ids,
+                    deleted_at__isnull=True
+                )
+                jobs = jobs | worker_jobs
+        
+        # Remove duplicates and order by most recent
+        jobs = jobs.distinct().order_by('-posted_at')
+        
+        # Serialize
+        serializer = JobListSerializer(jobs, many=True)
         
         return Response({
-            'count': len(jobs),
-            'results': JobListSerializer(jobs, many=True).data
+            'count': len(serializer.data),
+            'results': serializer.data
         }, status=status.HTTP_200_OK)
 
 
@@ -114,9 +161,21 @@ class MyActiveJobsView(APIView):
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
     
     def get(self, request):
-        jobs = job_service.get_active_jobs_by_worker(request.user.id)
+        from apps.jobs.models import Job, JobAssignment
+        
+        # Get job IDs where worker has ACTIVE assignment
+        assigned_job_ids = JobAssignment.objects.filter(
+            worker=request.user,
+            status=AssignmentStatus.ACTIVE
+        ).values_list('job_id', flat=True)
+        
+        jobs = Job.objects.filter(
+            id__in=assigned_job_ids,
+            deleted_at__isnull=True
+        ).order_by('-posted_at')
+        
         return Response({
-            'count': len(jobs),
+            'count': jobs.count(),
             'results': JobListSerializer(jobs, many=True).data
         }, status=status.HTTP_200_OK)
 
@@ -226,10 +285,6 @@ class CancelJobView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ============================================
-# DEPRECATED VIEW (Use assignment service instead)
-# ============================================
-
 class CompleteJobView(APIView):
     """
     Mark a job as completed.
@@ -249,7 +304,7 @@ class CompleteJobView(APIView):
 
 
 # ============================================================
-# 🆕 JOB DETAIL FOR WORKER (Conditional Disclosure)
+# JOB DETAIL FOR WORKER (Conditional Disclosure)
 # ============================================================
 
 class JobDetailForWorkerView(APIView):
@@ -259,49 +314,21 @@ class JobDetailForWorkerView(APIView):
     Get job details for a worker with CONDITIONAL DISCLOSURE.
     
     🔑 KEY FEATURE: Workers only see full details after being assigned.
-    
-    What workers see:
-    ┌─────────────────────────────────────────────────────────────────────┐
-    │  IF ASSIGNED:                                                     │
-    │  - exact_location: "Plot 15, Kamwala Road"  ✅                   │
-    │  - client_name: "John Doe"  ✅                                   │
-    │  - client_phone: "+260971234567"  ✅                             │
-    │  - can_view_full_details: true                                   │
-    │                                                                   │
-    │  IF NOT ASSIGNED:                                                │
-    │  - exact_location: null  ❌                                      │
-    │  - client_name: null  ❌                                         │
-    │  - client_phone: null  ❌                                        │
-    │  - can_view_full_details: false                                  │
-    └─────────────────────────────────────────────────────────────────────┘
-    
-    Why this matters:
-    - Protects client privacy until the job is officially assigned
-    - Workers only get contact details after commitment
-    - Builds trust in the platform
-    
-    Permissions:
-    - User must be authenticated
-    - User must be a worker
-    - User must be active and verified
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
     
     def get(self, request, job_id):
         try:
-            # Get job with conditional disclosure
             result = job_service.get_job_for_worker(
                 job_id=job_id,
                 worker_id=request.user.id
             )
             
-            # Serialize with conditional disclosure
             serializer = WorkerJobDetailSerializer(
                 result['job'],
                 context={'worker_id': request.user.id}
             )
             
-            # Return response with access info
             return Response({
                 'job': serializer.data,
                 'can_view_full_details': result['can_view_full_details'],

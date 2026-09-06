@@ -1,4 +1,18 @@
 # apps/accounts/serializers/__init__.py
+
+# User Serializers
+from .user_serializer import (
+    UserSerializer,
+    ProfileSerializer,
+    UserDetailSerializer,
+    UserListSerializer,
+    RoleSerializer,
+    AddRoleSerializer,
+    SwitchRoleSerializer,
+    RoleResponseSerializer,
+)
+
+# Auth Serializers
 from .auth_serializer import (
     RegisterSerializer,
     LoginSerializer,
@@ -7,15 +21,35 @@ from .auth_serializer import (
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
     VerifyEmailSerializer,
+    ResendVerificationSerializer,
+    AuthResponseSerializer,
+    LogoutResponseSerializer,
+    TokenResponseSerializer,
+    UpdatePhoneSerializer,
 )
-from .user_serializer import (
-    UserSerializer,
-    ProfileSerializer,
-    UserDetailSerializer,
-    UserListSerializer,
+
+# Profile Serializers
+from .profile_serializer import (
+    ProfileUpdateSerializer,
+    WorkerProfileSerializer,
+    WorkerProfileUpdateSerializer,
+    ClientProfileSerializer,
+    ClientProfileUpdateSerializer,
 )
 
 __all__ = [
+    # User Serializers
+    'UserSerializer',
+    'ProfileSerializer',
+    'UserDetailSerializer',
+    'UserListSerializer',
+    'RoleSerializer',
+    
+    # Role Management Serializers
+    'AddRoleSerializer',
+    'SwitchRoleSerializer',
+    'RoleResponseSerializer',
+    
     # Auth Serializers
     'RegisterSerializer',
     'LoginSerializer',
@@ -24,10 +58,16 @@ __all__ = [
     'ForgotPasswordSerializer',
     'ResetPasswordSerializer',
     'VerifyEmailSerializer',
+    'ResendVerificationSerializer',
+    'AuthResponseSerializer',
+    'LogoutResponseSerializer',
+    'TokenResponseSerializer',
+    'UpdatePhoneSerializer',
     
-    # User Serializers
-    'UserSerializer',
-    'ProfileSerializer',
-    'UserDetailSerializer',
-    'UserListSerializer',
+    # Profile Serializers
+    'ProfileUpdateSerializer',
+    'WorkerProfileSerializer',
+    'WorkerProfileUpdateSerializer',
+    'ClientProfileSerializer',
+    'ClientProfileUpdateSerializer',
 ]

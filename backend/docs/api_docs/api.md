@@ -1,8 +1,10 @@
-# KaJob API Documentation
+# 📚 KaJob API Documentation - Complete Updated Version
+
+---
 
 ## Overview
 
-KaJob is a job marketplace platform that connects workers with clients for small tasks. This API provides endpoints for user management, identity verification, job operations, and reviews.
+KaJob is a job marketplace platform that connects workers with clients for small tasks. This API provides endpoints for user management, identity verification, job operations, location-based matching, and reviews.
 
 ## Base URL
 
@@ -13,7 +15,6 @@ http://localhost:8000/api
 ## Response Format
 
 ### Success Response
-
 ```json
 {
   "message": "Success message",
@@ -23,7 +24,6 @@ http://localhost:8000/api
 ```
 
 ### Error Response
-
 ```json
 {
   "error": "Error message"
@@ -31,7 +31,6 @@ http://localhost:8000/api
 ```
 
 ### Validation Error Response
-
 ```json
 {
   "field_name": [
@@ -73,9 +72,9 @@ Authorization: Bearer <access_token>
 
 ## 1.1 Register User
 
-**`POST /auth/register/`**
+**`POST /api/auth/register/`**
 
-Creates a new user account.
+Creates a new user account with role-based registration. Supports the Role Player Pattern where one user can have multiple roles.
 
 **Authentication:** Not required
 
@@ -96,24 +95,30 @@ Creates a new user account.
 | `first_name` | string | Yes | User's first name |
 | `last_name` | string | Yes | User's last name |
 | `email` | string | Yes | User's email (used for login) |
-| `phone_number` | string | Yes | User's phone number |
+| `phone_number` | string | Yes | User's phone number (validated for Zambia format) |
 | `password` | string | Yes | Min 8 characters |
 | `role` | string | Yes | `WORKER` or `CLIENT` |
+
+**Phone Number Validation:**
+- Zambia format: `0971234567` → normalized to `+260971234567`
+- International format: `+260971234567`
+- Invalid format returns error message
 
 **Success Response (201 Created):**
 ```json
 {
-  "message": "Registration successful! Please check your email to verify your account.",
+  "message": "Registration successful! Please verify your phone to continue.",
   "user": {
     "id": 1,
     "first_name": "John",
     "last_name": "Banda",
     "full_name": "John Banda",
     "email": "john@example.com",
-    "phone_number": "0971234567",
+    "phone_number": "+260971234567",
     "account_status": "ACTIVE",
     "is_verified": false,
     "roles": ["WORKER"],
+    "available_roles": ["WORKER"],
     "is_admin": false,
     "is_worker": true,
     "is_client": false,
@@ -122,7 +127,8 @@ Creates a new user account.
   "tokens": {
     "access": "eyJhbGciOiJIUzI1NiIs...",
     "refresh": "eyJhbGciOiJIUzI1NiIs..."
-  }
+  },
+  "next_step": "phone_verification"
 }
 ```
 
@@ -139,14 +145,20 @@ Creates a new user account.
   "error": "Phone number is already registered."
 }
 ```
+```json
+// 400 Bad Request - Invalid phone format
+{
+  "error": "Invalid phone number format. Please use a valid Zambia number (e.g., 0971234567) or international format (e.g., +260971234567)."
+}
+```
 
 ---
 
 ## 1.2 Login User
 
-**`POST /auth/login/`**
+**`POST /api/auth/login/`**
 
-Authenticates a user and returns JWT tokens.
+Authenticates a user and returns JWT tokens with role context.
 
 **Authentication:** Not required
 
@@ -154,7 +166,8 @@ Authenticates a user and returns JWT tokens.
 ```json
 {
   "email": "john@example.com",
-  "password": "SecurePass123!"
+  "password": "SecurePass123!",
+  "role": "WORKER"  // Optional: Specify which role to login as
 }
 ```
 
@@ -162,6 +175,7 @@ Authenticates a user and returns JWT tokens.
 |-------|------|----------|-------------|
 | `email` | string | Yes | User's email |
 | `password` | string | Yes | User's password |
+| `role` | string | No | `WORKER` or `CLIENT` (if user has multiple roles) |
 
 **Success Response (200 OK):**
 ```json
@@ -173,13 +187,14 @@ Authenticates a user and returns JWT tokens.
     "last_name": "Banda",
     "full_name": "John Banda",
     "email": "john@example.com",
-    "phone_number": "0971234567",
+    "phone_number": "+260971234567",
     "account_status": "ACTIVE",
     "is_verified": true,
-    "roles": ["WORKER"],
+    "roles": ["WORKER", "CLIENT"],
+    "available_roles": ["WORKER", "CLIENT"],
     "is_admin": false,
     "is_worker": true,
-    "is_client": false,
+    "is_client": true,
     "last_login": "2026-08-07T10:05:00Z",
     "created_at": "2026-08-07T10:00:00Z",
     "updated_at": "2026-08-07T10:05:00Z"
@@ -187,7 +202,9 @@ Authenticates a user and returns JWT tokens.
   "tokens": {
     "access": "eyJhbGciOiJIUzI1NiIs...",
     "refresh": "eyJhbGciOiJIUzI1NiIs..."
-  }
+  },
+  "selected_role": "WORKER",
+  "available_roles": ["WORKER", "CLIENT"]
 }
 ```
 
@@ -204,12 +221,153 @@ Authenticates a user and returns JWT tokens.
   "error": "Account has been suspended."
 }
 ```
+```json
+// 400 Bad Request - Role not found
+{
+  "error": "User does not have the 'CLIENT' role. Available roles: WORKER"
+}
+```
 
 ---
 
-## 1.3 Refresh Token
+## 1.3 Add Role to Existing User
 
-**`POST /auth/refresh/`**
+**`POST /api/auth/add-role/`**
+
+Adds a new role to an existing user. **NO RE-REGISTRATION NEEDED!**
+
+**Authentication:** Required
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+```json
+{
+  "role": "CLIENT"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `role` | string | Yes | `WORKER`, `CLIENT`, or `ADMIN` |
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "CLIENT role added successfully!",
+  "user": {
+    "id": 1,
+    "full_name": "John Banda",
+    "roles": ["WORKER", "CLIENT"],
+    "available_roles": ["WORKER", "CLIENT"],
+    "is_verified": true
+  },
+  "tokens": {
+    "access": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh": "eyJhbGciOiJIUzI1NiIs..."
+  },
+  "is_verified": true,
+  "available_roles": ["WORKER", "CLIENT"]
+}
+```
+
+**Error Responses:**
+```json
+// 400 Bad Request - Role not found
+{
+  "error": "Role 'CLIENT' does not exist."
+}
+```
+```json
+// 400 Bad Request - Already has role
+{
+  "error": "User already has the 'CLIENT' role."
+}
+```
+
+---
+
+## 1.4 Switch Role
+
+**`POST /api/auth/switch-role/`**
+
+Switches between roles for users with multiple roles.
+
+**Authentication:** Required
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+```json
+{
+  "role": "WORKER"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `role` | string | Yes | Role to switch to (must be one of user's available roles) |
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "Switched to WORKER role.",
+  "user": {
+    "id": 1,
+    "full_name": "John Banda",
+    "available_roles": ["WORKER", "CLIENT"]
+  },
+  "tokens": {
+    "access": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh": "eyJhbGciOiJIUzI1NiIs..."
+  },
+  "current_role": "WORKER",
+  "available_roles": ["WORKER", "CLIENT"]
+}
+```
+
+**Error Responses:**
+```json
+// 400 Bad Request - Role not available
+{
+  "error": "User does not have the 'ADMIN' role. Available roles: WORKER, CLIENT"
+}
+```
+
+---
+
+## 1.5 Get User Roles
+
+**`GET /api/auth/roles/`**
+
+Gets all roles for the authenticated user.
+
+**Authentication:** Required
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "roles": ["WORKER", "CLIENT"],
+  "current_role": "WORKER"
+}
+```
+
+---
+
+## 1.6 Refresh Token
+
+**`POST /api/auth/refresh/`**
 
 Gets a new access token using a refresh token.
 
@@ -233,19 +391,11 @@ Gets a new access token using a refresh token.
 }
 ```
 
-**Error Responses:**
-```json
-// 401 Unauthorized - Invalid token
-{
-  "error": "Invalid or expired refresh token"
-}
-```
-
 ---
 
-## 1.4 Logout
+## 1.7 Logout
 
-**`POST /auth/logout/`**
+**`POST /api/auth/logout/`**
 
 Blacklists the refresh token.
 
@@ -254,7 +404,6 @@ Blacklists the refresh token.
 **Request Headers:**
 ```http
 Authorization: Bearer <access_token>
-Content-Type: application/json
 ```
 
 **Request Body:**
@@ -271,21 +420,13 @@ Content-Type: application/json
 }
 ```
 
-**Error Responses:**
-```json
-// 400 Bad Request - Missing token
-{
-  "error": "Refresh token is required"
-}
-```
-
 ---
 
-## 1.5 Get Current User
+## 1.8 Get Current User
 
-**`GET /auth/me/`**
+**`GET /api/auth/me/`**
 
-Returns the authenticated user's profile.
+Returns the authenticated user's profile with roles.
 
 **Authentication:** Required
 
@@ -303,13 +444,14 @@ Authorization: Bearer <access_token>
     "last_name": "Banda",
     "full_name": "John Banda",
     "email": "john@example.com",
-    "phone_number": "0971234567",
+    "phone_number": "+260971234567",
     "account_status": "ACTIVE",
     "is_verified": true,
-    "roles": ["WORKER"],
+    "roles": ["WORKER", "CLIENT"],
+    "available_roles": ["WORKER", "CLIENT"],
     "is_admin": false,
     "is_worker": true,
-    "is_client": false,
+    "is_client": true,
     "created_at": "2026-08-07T10:00:00Z"
   }
 }
@@ -317,19 +459,13 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 1.6 Change Password
+## 1.9 Change Password
 
-**`POST /auth/change-password/`**
+**`POST /api/auth/change-password/`**
 
 Changes the authenticated user's password.
 
 **Authentication:** Required
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-Content-Type: application/json
-```
 
 **Request Body:**
 ```json
@@ -351,19 +487,11 @@ Content-Type: application/json
 }
 ```
 
-**Error Responses:**
-```json
-// 400 Bad Request - Wrong password
-{
-  "error": "Current password is incorrect."
-}
-```
-
 ---
 
-## 1.7 Forgot Password
+## 1.10 Forgot Password
 
-**`POST /auth/forgot-password/`**
+**`POST /api/auth/forgot-password/`**
 
 Sends a password reset link to the user's email.
 
@@ -385,9 +513,9 @@ Sends a password reset link to the user's email.
 
 ---
 
-## 1.8 Reset Password
+## 1.11 Reset Password
 
-**`POST /auth/reset-password/`**
+**`POST /api/auth/reset-password/`**
 
 Resets the user's password using a token.
 
@@ -401,11 +529,6 @@ Resets the user's password using a token.
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `token` | string | Yes | Token from reset email |
-| `new_password` | string | Yes | Min 8 characters |
-
 **Success Response (200 OK):**
 ```json
 {
@@ -415,9 +538,9 @@ Resets the user's password using a token.
 
 ---
 
-## 1.9 Verify Email
+## 1.12 Verify Email
 
-**`POST /auth/verify-email/`**
+**`POST /api/auth/verify-email/`**
 
 Verifies the user's email address.
 
@@ -439,9 +562,9 @@ Verifies the user's email address.
 
 ---
 
-## 1.10 Resend Verification Email
+## 1.13 Resend Verification Email
 
-**`POST /auth/resend-verification/`**
+**`POST /api/auth/resend-verification/`**
 
 Resends the verification email.
 
@@ -461,73 +584,334 @@ Authorization: Bearer <access_token>
 
 ---
 
-# Module 2: Identity Verification
+## 1.14 Update Profile
 
-## 2.1 Upload Document
+**`PUT /api/profile/update/`**
 
-**`POST /upload/`**
+Updates the user's profile information.
 
-Uploads a document image (supports both camera capture and gallery upload).
-
-**Authentication:** Required (User)
+**Authentication:** Required
 
 **Request Headers:**
 ```http
 Authorization: Bearer <access_token>
-Content-Type: multipart/form-data
 ```
 
 **Request Body:**
-```html
-<form>
-  <input type="file" name="file" accept="image/*" capture="environment" />
-  <input type="text" name="document_type" value="NRC_FRONT" />
-  <button type="submit">Upload</button>
-</form>
+```json
+{
+  "bio": "Experienced plumber with 5 years experience",
+  "address": "15 Kamwala Road, Lusaka",
+  "province": "Lusaka",
+  "district": "Lusaka",
+  "latitude": -15.3875,
+  "longitude": 28.3412
+}
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `file` | file | Yes | Image file (JPG, PNG, GIF, WebP) |
-| `document_type` | string | Yes | `NRC_FRONT`, `NRC_BACK`, `PASSPORT_PHOTO`, `SELFIE` |
+| `bio` | string | No | User biography |
+| `address` | string | No | Physical address |
+| `province` | string | No | Province |
+| `district` | string | No | District |
+| `latitude` | decimal | No | Current latitude |
+| `longitude` | decimal | No | Current longitude |
 
-**File Requirements:**
-- **Max Size:** 5MB
-- **Allowed Formats:** JPG, JPEG, PNG, GIF, WebP, BMP
-
-**Success Response (201 Created):**
+**Success Response (200 OK):**
 ```json
 {
-  "file_path": "/media/verification/1_1234567890.jpg",
-  "file_name": "nrc_front.jpg",
-  "file_size": 1024567,
-  "mime_type": "image/jpeg"
-}
-```
-
-**Error Responses:**
-```json
-// 400 Bad Request - File too large
-{
-  "error": "File size exceeds 5MB limit."
-}
-```
-```json
-// 400 Bad Request - Invalid format
-{
-  "error": "Invalid image format. Allowed formats: .jpg, .jpeg, .png, .gif, .webp, .bmp"
+  "message": "Profile updated successfully!",
+  "profile": {
+    "id": 1,
+    "bio": "Experienced plumber with 5 years experience",
+    "address": "15 Kamwala Road, Lusaka",
+    "province": "Lusaka",
+    "district": "Lusaka",
+    "latitude": "-15.3875",
+    "longitude": "28.3412"
+  }
 }
 ```
 
 ---
 
-## 2.2 Submit Verification
+## 1.15 Update Phone Number
 
-**`POST /verification/submit/`**
+**`PUT /api/profile/phone/`**
 
-Submits identity verification documents.
+Updates the user's phone number. Resets verification status.
 
-**Authentication:** Required (User)
+**Authentication:** Required
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+```json
+{
+  "phone_number": "0977654321"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "status": "updated",
+  "message": "Phone number updated successfully. Please verify your new phone number.",
+  "phone_number": "+260977654321",
+  "verification_reset": true,
+  "next_step": "phone_verification"
+}
+```
+
+**Error Responses:**
+```json
+// 400 Bad Request - Invalid format
+{
+  "error": "Invalid phone number format. Please use a valid Zambia number (e.g., 0971234567) or international format (e.g., +260971234567)."
+}
+```
+```json
+// 400 Bad Request - Already registered
+{
+  "error": "This phone number is already registered to another account."
+}
+```
+
+---
+
+## 1.16 Update Location
+
+**`PUT /api/profile/location/`**
+
+Updates the user's current location. This is called by the frontend every time the user moves significantly (every 10 seconds when location changes > 50m).
+
+**Authentication:** Required
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+```json
+{
+  "latitude": -15.3875,
+  "longitude": 28.3412
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "Location updated successfully!",
+  "profile": {
+    "id": 1,
+    "latitude": "-15.3875",
+    "longitude": "28.3412"
+  }
+}
+```
+
+**Smart Location Saving:**
+- Location is only updated when:
+  1. User moves more than **50 meters**, OR
+  2. More than **30 seconds** have passed since last save
+- This reduces database writes by ~50-70%
+
+---
+
+# Module 2: Identity Verification
+
+## 2.1 Send Phone OTP
+
+**`POST /api/verification/phone/send-otp/`**
+
+Sends a 6-digit OTP to the user's phone number via email (SMS fallback).
+
+**Authentication:** Required
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Request Body:** (empty)
+```json
+{}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "status": "otp_sent",
+  "message": "OTP sent to +260971234567 via email (SMS fallback).",
+  "phone_number": "+260971234567",
+  "via": "email",
+  "expires_in": 10
+}
+```
+
+**Error Responses:**
+```json
+// 400 Bad Request - Invalid phone
+{
+  "status": "invalid_phone",
+  "message": "Invalid phone number format. Please use a valid Zambia number (e.g., 0971234567) or international format (e.g., +260971234567).",
+  "phone_number": "0971234567",
+  "suggestion": "Please update your phone number to a valid format."
+}
+```
+```json
+// 200 OK - Already verified
+{
+  "status": "already_verified",
+  "message": "Phone number is already verified.",
+  "phone_number": "+260971234567"
+}
+```
+
+---
+
+## 2.2 Verify Phone OTP
+
+**`POST /api/verification/phone/verify-otp/`**
+
+Verifies the phone number using OTP.
+
+**Authentication:** Required
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+```json
+{
+  "otp": "123456"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "status": "verified",
+  "message": "Phone number verified successfully!",
+  "next_step": "email_verification"
+}
+```
+
+**Error Responses:**
+```json
+// 400 Bad Request - Invalid OTP
+{
+  "status": "invalid",
+  "message": "Invalid OTP. Please try again.",
+  "attempts_remaining": 4
+}
+```
+```json
+// 400 Bad Request - Max attempts
+{
+  "status": "max_attempts",
+  "message": "Maximum attempts exceeded. Please request a new OTP."
+}
+```
+```json
+// 400 Bad Request - Expired
+{
+  "status": "expired",
+  "message": "OTP has expired. Please request a new one."
+}
+```
+
+---
+
+## 2.3 Send Email Verification
+
+**`POST /api/verification/email/send/`**
+
+Sends email verification link to the user.
+
+**Authentication:** Required
+
+**Request Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "status": "email_sent",
+  "message": "Verification email sent to your email address.",
+  "email": "john@example.com"
+}
+```
+
+**Error Responses:**
+```json
+// 400 Bad Request - Phone not verified
+{
+  "status": "phone_not_verified",
+  "message": "Please verify your phone number first.",
+  "required_phase": "phone_verification"
+}
+```
+
+---
+
+## 2.4 Verify Email
+
+**`GET /api/verification/email/verify/`**
+
+Verifies the email using a token.
+
+**Authentication:** Not required
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `token` | string | Yes | Verification token from email |
+
+**Success Response (200 OK):**
+```json
+{
+  "status": "verified",
+  "message": "Email verified successfully!",
+  "next_step": "document_upload"
+}
+```
+
+**Error Responses:**
+```json
+// 400 Bad Request - Invalid token
+{
+  "status": "invalid_token",
+  "message": "Invalid or expired verification token."
+}
+```
+```json
+// 400 Bad Request - Expired
+{
+  "status": "expired",
+  "message": "Verification link has expired. Please request a new one."
+}
+```
+
+---
+
+## 2.5 Submit Documents
+
+**`POST /api/verification/documents/submit/`**
+
+Submits identity verification documents for admin review.
+
+**Authentication:** Required
 
 **Request Headers:**
 ```http
@@ -542,6 +926,13 @@ Content-Type: application/json
   "document_number": "123456/78/1",
   "documents": [
     {
+      "document_type": "SELFIE",
+      "file_path": "/media/verification/selfie.jpg",
+      "file_name": "selfie.jpg",
+      "file_size": 543210,
+      "mime_type": "image/jpeg"
+    },
+    {
       "document_type": "NRC_FRONT",
       "file_path": "/media/verification/nrc_front.jpg",
       "file_name": "nrc_front.jpg",
@@ -554,13 +945,6 @@ Content-Type: application/json
       "file_name": "nrc_back.jpg",
       "file_size": 987654,
       "mime_type": "image/jpeg"
-    },
-    {
-      "document_type": "SELFIE",
-      "file_path": "/media/verification/selfie.jpg",
-      "file_name": "selfie.jpg",
-      "file_size": 543210,
-      "mime_type": "image/jpeg"
     }
   ]
 }
@@ -570,23 +954,19 @@ Content-Type: application/json
 |-------|------|----------|-------------|
 | `document_type` | string | Yes | `NRC_FRONT`, `NRC_BACK`, `PASSPORT_PHOTO`, `SELFIE` |
 | `document_number` | string | Yes | Document identification number |
-| `documents` | array | Yes | List of document uploads (from upload endpoint) |
+| `documents` | array | Yes | List of document uploads |
 
 **Document Number Validation:**
-
 | Document Type | Format | Example |
 |---------------|--------|---------|
 | `NRC_FRONT` / `NRC_BACK` | `\d{6}/\d{2}/\d{1}` | `123456/78/1` |
-| `PASSPORT_PHOTO` | `[A-Z]{2}\d{6}` | `ZA123456` |
-| `SELFIE` | No validation | N/A |
 
-**Success Response (201 Created):**
+**Success Response (200 OK):**
 ```json
 {
-  "message": "Verification submitted successfully. Please wait for admin review.",
-  "verification_id": 1,
-  "status": "PENDING",
-  "documents": 3
+  "status": "documents_submitted",
+  "message": "Documents submitted successfully. Awaiting admin review.",
+  "verification_id": 1
 }
 ```
 
@@ -594,29 +974,31 @@ Content-Type: application/json
 ```json
 // 400 Bad Request - Duplicate document
 {
-  "document_number": [
-    "This document number is already registered. Please use a different one."
-  ]
+  "error": "This document number is already registered. Please use a different one or contact support."
 }
 ```
 ```json
-// 400 Bad Request - Invalid NRC format
+// 400 Bad Request - Email not verified
 {
-  "document_number": [
-    "Invalid NRC format. Expected format: 123456/78/1 (6 digits / 2 digits / 1 digit)"
-  ]
+  "error": "Please verify your email before submitting documents."
+}
+```
+```json
+// 400 Bad Request - Already pending
+{
+  "error": "You already have a pending verification request. Please wait for admin review."
 }
 ```
 
 ---
 
-## 2.3 Get Verification Status
+## 2.6 Get Verification Status
 
-**`GET /verification/status/`**
+**`GET /api/verification/status/`**
 
 Gets the current verification status.
 
-**Authentication:** Required (User)
+**Authentication:** Required
 
 **Request Headers:**
 ```http
@@ -628,52 +1010,38 @@ Authorization: Bearer <access_token>
 {
   "has_submitted": true,
   "verification_id": 1,
-  "status": "PENDING",
+  "verification_status": "UNDER_REVIEW",
+  "status_display": "Under Review",
+  "phone_verified": true,
+  "email_verified": true,
+  "fully_verified": false,
+  "phone_number": "+260971234567",
+  "email": "john@example.com",
+  "document_type": "NRC_FRONT",
+  "document_number": "123456/78/1",
   "submitted_at": "2026-08-07T10:00:00Z",
   "reviewed_at": null,
   "rejection_reason": null,
-  "document_types": ["NRC_FRONT", "NRC_BACK", "SELFIE"],
-  "message": "Your verification is pending review."
+  "message": "Documents submitted. Waiting for admin review.",
+  "next_step": "admin_review"
 }
 ```
 
----
-
-## 2.4 Get Verification History
-
-**`GET /verification/history/`**
-
-Gets verification submission history.
-
-**Authentication:** Required (User)
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "count": 2,
-  "results": [
-    {
-      "id": 1,
-      "status": "VERIFIED",
-      "submitted_at": "2026-08-07T10:00:00Z",
-      "reviewed_at": "2026-08-07T10:05:00Z",
-      "rejection_reason": null,
-      "document_count": 3
-    }
-  ]
-}
-```
+**Verification Statuses:**
+| Status | Description |
+|--------|-------------|
+| `NOT_SUBMITTED` | Verification not started |
+| `PENDING` | Phone/email verification pending |
+| `UNDER_REVIEW` | Documents submitted, awaiting admin review |
+| `VERIFIED` | Fully verified ✅ |
+| `REJECTED` | Documents rejected |
+| `EXPIRED` | Verification expired |
 
 ---
 
-## 2.5 Admin: List Pending Verifications
+## 2.7 Admin: List Pending Verifications
 
-**`GET /admin/verifications/pending/`**
+**`GET /api/admin/verifications/pending/`**
 
 Lists all pending verifications for admin review.
 
@@ -695,13 +1063,13 @@ Authorization: Bearer <admin_token>
         "id": 2,
         "full_name": "John Banda",
         "email": "john@example.com",
-        "phone_number": "0971234567",
+        "phone_number": "+260971234567",
         "account_status": "ACTIVE",
         "is_verified": false
       },
       "document_type": "NRC_FRONT",
       "document_number": "123456/78/1",
-      "status": "PENDING",
+      "status": "UNDER_REVIEW",
       "submitted_at": "2026-08-07T10:00:00Z",
       "document_count": 3
     }
@@ -711,55 +1079,9 @@ Authorization: Bearer <admin_token>
 
 ---
 
-## 2.6 Admin: View Verification Detail
+## 2.8 Admin: Approve/Reject Verification
 
-**`GET /admin/verifications/{id}/`**
-
-Gets detailed verification information.
-
-**Authentication:** Required (Admin)
-
-**Request Headers:**
-```http
-Authorization: Bearer <admin_token>
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "id": 1,
-  "user": {
-    "id": 2,
-    "full_name": "John Banda",
-    "email": "john@example.com",
-    "phone_number": "0971234567",
-    "account_status": "ACTIVE",
-    "is_verified": false
-  },
-  "document_type": "NRC_FRONT",
-  "document_number": "123456/78/1",
-  "status": "PENDING",
-  "submitted_at": "2026-08-07T10:00:00Z",
-  "reviewed_at": null,
-  "rejection_reason": null,
-  "documents": [
-    {
-      "id": 1,
-      "document_type": "NRC_FRONT",
-      "file_path": "/media/verification/nrc_front.jpg",
-      "file_name": "nrc_front.jpg",
-      "uploaded_at": "2026-08-07T10:00:01Z"
-    }
-  ],
-  "verification_notes": null
-}
-```
-
----
-
-## 2.7 Admin: Review Verification
-
-**`POST /admin/verifications/{id}/review/`**
+**`POST /api/admin/verifications/{id}/review/`**
 
 Approves or rejects a verification request.
 
@@ -799,38 +1121,13 @@ Content-Type: application/json
 
 ---
 
-## 2.8 Admin: Get Verification Stats
-
-**`GET /admin/verifications/stats/`**
-
-Gets verification statistics for admin dashboard.
-
-**Authentication:** Required (Admin)
-
-**Request Headers:**
-```http
-Authorization: Bearer <admin_token>
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "pending": 0,
-  "verified": 1,
-  "rejected": 0,
-  "total": 1
-}
-```
-
----
-
 # Module 3: Jobs
 
 ## 3.1 Create Job
 
-**`POST /jobs/create/`**
+**`POST /api/jobs/create/`**
 
-Creates a new job posting. Automatically generates map URLs from GPS coordinates.
+Creates a new job posting. Auto-generates map URLs from GPS coordinates.
 
 **Authentication:** Required (Client, Verified)
 
@@ -868,23 +1165,18 @@ Content-Type: application/json
 | `budget` | decimal | Yes | Job budget (> 0) |
 | `category_id` | integer | Yes | Job category ID |
 | **Location Fields** | | | |
-| `general_location` | string | No | Area/neighborhood (auto-filled from GPS if not provided) |
-| `latitude` | decimal | No | Auto-detected from device GPS |
-| `longitude` | decimal | No | Auto-detected from device GPS |
-| **Timing Fields (Optional)** | | | |
+| `general_location` | string | No | Area/neighborhood (auto-filled from GPS) |
+| `latitude` | decimal | No | Auto-detected from GPS |
+| `longitude` | decimal | No | Auto-detected from GPS |
+| **Timing Fields** | | | |
 | `job_date` | date | No | Date job needs to be done |
 | `job_time` | time | No | Time job should start |
 | `timeframe` | string | No | `MORNING`, `AFTERNOON`, `EVENING`, `ANYTIME` |
 | `is_flexible` | boolean | No | Can worker choose time? Default: true |
 | `duration_hours` | decimal | No | Estimated duration in hours |
 | `urgency` | string | No | `IMMEDIATE`, `URGENT`, `NORMAL`, `FLEXIBLE` |
-| **Skills (Optional)** | | | |
-| `required_skills` | array | No | List of skill IDs (only for skilled jobs) |
-
-**Note:** 
-- The search radius is **fixed at 1km** (system default)
-- `map_url` and `directions_url` are auto-generated from GPS coordinates
-- `general_location` is auto-filled from GPS using OpenStreetMap if not provided
+| **Skills** | | | |
+| `required_skills` | array | No | List of skill IDs |
 
 **Success Response (201 Created):**
 ```json
@@ -904,9 +1196,8 @@ Content-Type: application/json
     "exact_location": "",
     "map_url": "https://www.google.com/maps/place/-15.3875,28.3412",
     "directions_url": "https://www.google.com/maps/dir/?api=1&destination=-15.3875,28.3412",
-    "place_id": "",
-    "latitude": "-15.3875",
-    "longitude": "28.3412",
+    "latitude": "-15.38750000",
+    "longitude": "28.34120000",
     "search_radius_km": 1.0,
     "job_date": "2026-08-20",
     "job_time": "14:30:00",
@@ -934,24 +1225,12 @@ Content-Type: application/json
   "error": "Budget must be greater than zero."
 }
 ```
-```json
-// 400 Bad Request
-{
-  "error": "Duration cannot exceed 24 hours."
-}
-```
-```json
-// 400 Bad Request
-{
-  "error": "Job date cannot be in the past."
-}
-```
 
 ---
 
 ## 3.2 List Open Jobs
 
-**`GET /jobs/`**
+**`GET /api/jobs/`**
 
 Lists all open jobs available for workers.
 
@@ -999,7 +1278,7 @@ Authorization: Bearer <access_token>
 
 ## 3.3 Get Job Details (Client/Admin)
 
-**`GET /jobs/{id}/`**
+**`GET /api/jobs/{id}/`**
 
 Gets detailed job information with full access.
 
@@ -1027,9 +1306,8 @@ Gets detailed job information with full access.
     "exact_location": "Plot 15, Kamwala Road",
     "map_url": "https://www.google.com/maps/place/-15.3875,28.3412",
     "directions_url": "https://www.google.com/maps/dir/?api=1&destination=-15.3875,28.3412",
-    "place_id": "ChIJxxxxxxxxxxxx",
-    "latitude": "-15.3875",
-    "longitude": "28.3412",
+    "latitude": "-15.38750000",
+    "longitude": "28.34120000",
     "search_radius_km": 1.0,
     "job_date": "2026-08-20",
     "job_time": "14:30:00",
@@ -1053,7 +1331,7 @@ Gets detailed job information with full access.
 
 ## 3.4 Get Job Details (Worker - Conditional Disclosure)
 
-**`GET /jobs/{id}/worker/`**
+**`GET /api/jobs/{id}/worker/`**
 
 Gets job details for a worker with **CONDITIONAL DISCLOSURE**.
 
@@ -1061,14 +1339,14 @@ Gets job details for a worker with **CONDITIONAL DISCLOSURE**.
 
 | **Before Assignment** | **After Assignment** |
 |----------------------|---------------------|
-| `general_location` |  `general_location` |
-| `latitude`/`longitude` | `latitude`/`longitude` |
-| `exact_location` | `exact_location` |
-| `map_url` | `map_url` |
-| `directions_url` | `directions_url` |
-| `place_id` | `place_id` |
-| `client_name` | `client_name` |
-| `client_phone` | `client_phone` |
+| `general_location` ✅ | `general_location` ✅ |
+| `latitude`/`longitude` ✅ | `latitude`/`longitude` ✅ |
+| `exact_location` ❌ | `exact_location` ✅ |
+| `map_url` ❌ | `map_url` ✅ |
+| `directions_url` ❌ | `directions_url` ✅ |
+| `place_id` ❌ | `place_id` ✅ |
+| `client_name` ❌ | `client_name` ✅ |
+| `client_phone` ❌ | `client_phone` ✅ |
 | `can_view_full_details: false` | `can_view_full_details: true` |
 
 **Authentication:** Required (Worker, Verified)
@@ -1100,9 +1378,8 @@ Authorization: Bearer <access_token>
     "exact_location": null,
     "map_url": null,
     "directions_url": null,
-    "place_id": null,
-    "latitude": "-15.3875",
-    "longitude": "28.3412",
+    "latitude": "-15.38750000",
+    "longitude": "28.34120000",
     "search_radius_km": 1.0,
     "job_date": "2026-08-20",
     "job_time": "14:30:00",
@@ -1115,14 +1392,12 @@ Authorization: Bearer <access_token>
     "job_display_date": "August 20, 2026",
     "job_display_time": "2:30 PM",
     "is_urgent": true,
-    "application_status": null,
     "assignment_status": null,
     "assigned_at": null,
     "can_view_full_details": false
   },
   "can_view_full_details": false,
-  "assignment_status": null,
-  "application_status": null
+  "assignment_status": null
 }
 ```
 
@@ -1143,9 +1418,8 @@ Authorization: Bearer <access_token>
     "exact_location": "Plot 15, Kamwala Road",
     "map_url": "https://www.google.com/maps/place/-15.3875,28.3412",
     "directions_url": "https://www.google.com/maps/dir/?api=1&destination=-15.3875,28.3412",
-    "place_id": "ChIJxxxxxxxxxxxx",
-    "latitude": "-15.3875",
-    "longitude": "28.3412",
+    "latitude": "-15.38750000",
+    "longitude": "28.34120000",
     "search_radius_km": 1.0,
     "job_date": "2026-08-20",
     "job_time": "14:30:00",
@@ -1158,14 +1432,12 @@ Authorization: Bearer <access_token>
     "job_display_date": "August 20, 2026",
     "job_display_time": "2:30 PM",
     "is_urgent": true,
-    "application_status": "ACCEPTED",
     "assignment_status": "ACTIVE",
     "assigned_at": "2026-08-07T10:15:00Z",
     "can_view_full_details": true
   },
   "can_view_full_details": true,
-  "assignment_status": "ACTIVE",
-  "application_status": "ACCEPTED"
+  "assignment_status": "ACTIVE"
 }
 ```
 
@@ -1185,137 +1457,9 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 3.5 Update Job
+## 3.5 Apply for Job
 
-**`PUT /jobs/{id}/update/`**
-
-Updates a job posting. If GPS coordinates change, map URLs are auto-regenerated.
-
-**Authentication:** Required (Client who owns the job)
-
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Job ID |
-
-**Request Body (Partial Updates Allowed):**
-```json
-{
-  "title": "Updated Plumbing Repair",
-  "budget": 600.00,
-  "latitude": -15.3900,
-  "longitude": 28.3450
-}
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "message": "Job updated successfully!",
-  "job": {
-    "id": 1,
-    "title": "Updated Plumbing Repair",
-    "budget": "600.00",
-    "latitude": "-15.3900",
-    "longitude": "28.3450",
-    "map_url": "https://www.google.com/maps/place/-15.3900,28.3450",
-    "directions_url": "https://www.google.com/maps/dir/?api=1&destination=-15.3900,28.3450",
-    "is_urgent": true,
-    "status": "OPEN",
-    "status_display": "Open"
-  }
-}
-```
-
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "You don't have permission to update this job."
-}
-```
-```json
-// 400 Bad Request
-{
-  "error": "Cannot update a completed job."
-}
-```
-
----
-
-## 3.6 Delete Job
-
-**`DELETE /jobs/{id}/delete/`**
-
-Soft deletes a job.
-
-**Authentication:** Required (Client who owns the job)
-
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Job ID |
-
-**Success Response (200 OK):**
-```json
-{
-  "message": "Job deleted successfully!"
-}
-```
-
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "Cannot delete a completed job."
-}
-```
-
----
-
-## 3.7 Cancel Job
-
-**`POST /jobs/{id}/cancel/`**
-
-Cancels a job.
-
-**Authentication:** Required (Client who owns the job)
-
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Job ID |
-
-**Request Body:** (empty)
-```json
-{}
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "message": "Job cancelled successfully!",
-  "job": {
-    "id": 1,
-    "status": "CANCELLED",
-    "status_display": "Cancelled"
-  }
-}
-```
-
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "Cannot cancel a completed job."
-}
-```
-
----
-
-## 3.8 Apply for Job
-
-**`POST /jobs/{id}/apply/`**
+**`POST /api/jobs/{id}/apply/`**
 
 Applies for a job. Worker must be within 1km of the job location.
 
@@ -1350,15 +1494,15 @@ Applies for a job. Worker must be within 1km of the job location.
 
 **Error Responses:**
 ```json
-// 400 Bad Request - Already applied
+// 400 Bad Request - Outside radius
 {
-  "error": "You have already applied for this job."
+  "error": "You must be within 1km of the job location to apply. Please move closer to the job area and try again."
 }
 ```
 ```json
-// 400 Bad Request - Worker busy
+// 400 Bad Request - Already applied
 {
-  "error": "You are currently busy with another job."
+  "error": "You have already applied for this job."
 }
 ```
 ```json
@@ -1373,163 +1517,12 @@ Applies for a job. Worker must be within 1km of the job location.
   "error": "You cannot apply to a job you created."
 }
 ```
-```json
-// 400 Bad Request - Outside radius
-{
-  "error": "You must be within 1km of the job location to apply. Please move closer to the job area and try again."
-}
-```
 
 ---
 
-## 3.9 List Job Applications
+## 3.6 Assign Worker
 
-**`GET /jobs/{id}/applications/`**
-
-Lists all applications for a job (newest first).
-
-**Authentication:** Required (Client who owns the job)
-
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Job ID |
-
-**Success Response (200 OK):**
-```json
-{
-  "count": 5,
-  "results": [
-    {
-      "id": 1,
-      "job_title": "Plumbing Repair Needed",
-      "worker_name": "John Banda",
-      "status": "PENDING",
-      "status_display": "Pending",
-      "applied_at": "2026-08-07T10:05:00Z"
-    },
-    {
-      "id": 2,
-      "job_title": "Plumbing Repair Needed",
-      "worker_name": "Mary Mwansa",
-      "status": "PENDING",
-      "status_display": "Pending",
-      "applied_at": "2026-08-07T09:30:00Z"
-    }
-  ]
-}
-```
-
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "You don't have permission to view applications for this job."
-}
-```
-
----
-
-## 3.10 Get Pending Applications
-
-**`GET /jobs/{id}/applications/pending/`**
-
-Gets only pending applications for a job (newest first).
-
-**Authentication:** Required (Client who owns the job)
-
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Job ID |
-
-**Success Response (200 OK):**
-```json
-{
-  "count": 3,
-  "results": [
-    {
-      "id": 1,
-      "job_title": "Plumbing Repair Needed",
-      "worker_name": "John Banda",
-      "status": "PENDING",
-      "status_display": "Pending",
-      "applied_at": "2026-08-07T10:05:00Z"
-    }
-  ]
-}
-```
-
----
-
-## 3.11 Update Application Status
-
-**`PATCH /applications/{id}/status/`**
-
-Accepts or rejects an application.
-
-**Authentication:** Required (Client who owns the job)
-
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Application ID |
-
-**Request Body:**
-```json
-{
-  "status": "accept"
-}
-```
-or
-```json
-{
-  "status": "reject"
-}
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "message": "Application accepted successfully!",
-  "application": {
-    "id": 1,
-    "status": "ACCEPTED",
-    "status_display": "Accepted"
-  }
-}
-```
-or
-```json
-{
-  "message": "Application rejected successfully!",
-  "application": {
-    "id": 1,
-    "status": "REJECTED",
-    "status_display": "Rejected"
-  }
-}
-```
-
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "Status must be 'accept' or 'reject'"
-}
-```
-```json
-// 400 Bad Request
-{
-  "error": "Cannot accept application for a ASSIGNED job."
-}
-```
-
----
-
-## 3.12 Assign Worker
-
-**`POST /jobs/{id}/assign/`**
+**`POST /api/jobs/{id}/assign/`**
 
 Assigns a worker to a job. **This grants the worker full access to location details.**
 
@@ -1560,10 +1553,7 @@ Assigns a worker to a job. **This grants the worker full access to location deta
     "assigned_by": 1,
     "assigned_by_name": "Smart Mbuzi",
     "status": "ACTIVE",
-    "status_display": "Active",
-    "assigned_at": "2026-08-07T10:15:00Z",
-    "completed_at": null,
-    "cancelled_at": null
+    "assigned_at": "2026-08-07T10:15:00Z"
   },
   "job": {
     "id": 1,
@@ -1574,31 +1564,11 @@ Assigns a worker to a job. **This grants the worker full access to location deta
 }
 ```
 
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "Worker is not available."
-}
-```
-```json
-// 400 Bad Request
-{
-  "error": "Worker is already assigned to another job."
-}
-```
-```json
-// 400 Bad Request
-{
-  "error": "Worker has not applied for this job."
-}
-```
-
 ---
 
-## 3.13 Worker Mark Complete
+## 3.7 Worker Mark Complete
 
-**`POST /jobs/{id}/mark-complete/`**
+**`POST /api/jobs/{id}/mark-complete/`**
 
 Worker marks the job as complete (pending client confirmation).
 
@@ -1626,29 +1596,15 @@ Worker marks the job as complete (pending client confirmation).
 }
 ```
 
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "Cannot mark a job with status 'ASSIGNED' as complete."
-}
-```
-```json
-// 400 Bad Request
-{
-  "error": "You are not assigned to this job."
-}
-```
-
 ---
 
-## 3.14 Client Confirm Complete
+## 3.8 Client Confirm Complete
 
-**`POST /jobs/{id}/confirm/`**
+**`POST /api/jobs/{id}/confirm/`**
 
 Client confirms the job is complete.
 
-**Authentication:** Required (Client who owns the job)
+**Authentication:** Required (Client, Verified)
 
 **Path Parameters:**
 | Parameter | Type | Description |
@@ -1673,25 +1629,11 @@ Client confirms the job is complete.
 }
 ```
 
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "Cannot confirm a job with status 'OPEN'."
-}
-```
-```json
-// 400 Bad Request
-{
-  "error": "You don't have permission to confirm this job."
-}
-```
-
 ---
 
-## 3.15 My Jobs
+## 3.9 My Jobs
 
-**`GET /my-jobs/`**
+**`GET /api/my-jobs/`**
 
 Gets jobs posted by or assigned to the authenticated user.
 
@@ -1711,11 +1653,7 @@ Gets jobs posted by or assigned to the authenticated user.
       "general_location": "Kamwala, Lusaka",
       "status": "OPEN",
       "status_display": "Open",
-      "posted_at": "2026-08-07T10:00:00Z",
-      "search_radius_km": 1.0,
-      "is_urgent": true,
-      "urgency_display": "Urgent (Within 3 days)",
-      "job_display_date": "August 20, 2026"
+      "posted_at": "2026-08-07T10:00:00Z"
     }
   ]
 }
@@ -1723,9 +1661,9 @@ Gets jobs posted by or assigned to the authenticated user.
 
 ---
 
-## 3.16 My Applications
+## 3.10 My Applications
 
-**`GET /my-applications/`**
+**`GET /api/my-applications/`**
 
 Gets all applications made by the authenticated worker.
 
@@ -1752,11 +1690,9 @@ Gets all applications made by the authenticated worker.
 
 # Module 4: Matching (Location-Based)
 
-The Matching module handles location-based filtering using a **fixed 1km radius**.
-
 ## 4.1 Find Nearby Jobs
 
-**`GET /matching/nearby/`**
+**`GET /api/matching/nearby/`**
 
 Finds jobs within 1km of the worker's location.
 
@@ -1792,7 +1728,8 @@ Authorization: Bearer <access_token>
         "job_date": "2026-08-20",
         "is_flexible": false,
         "duration_hours": "2.5",
-        "posted_at": "2026-08-19T10:00:00Z"
+        "posted_at": "2026-08-19T10:00:00Z",
+        "is_urgent": true
       },
       "distance_km": 0.45,
       "distance_display": "450m"
@@ -1801,13 +1738,17 @@ Authorization: Bearer <access_token>
 }
 ```
 
-**Note:** Jobs outside the radius are **NOT shown** to the worker.
+**Smart Location Saving:**
+- Location is only saved when:
+  1. User moves more than **50 meters**, OR
+  2. More than **30 seconds** have passed since last save
+- This reduces database writes by ~50-70%
 
 ---
 
-## 4.2 Count Nearby Jobs
+## 4.2 Find Nearby Jobs Count
 
-**`GET /matching/nearby/count/`**
+**`GET /api/matching/nearby/count/`**
 
 Gets the count of jobs within the worker's radius.
 
@@ -1835,7 +1776,7 @@ Authorization: Bearer <access_token>
 
 ## 4.3 Get Nearby Applicants
 
-**`GET /matching/jobs/{id}/applicants/nearby/`**
+**`GET /api/matching/jobs/{id}/applicants/nearby/`**
 
 Gets applicants who are within 1km of the job location.
 
@@ -1885,19 +1826,11 @@ Authorization: Bearer <access_token>
 }
 ```
 
-**Error Responses:**
-```json
-// 403 Forbidden - Not the job owner
-{
-  "error": "You don't have permission to view applicants for this job."
-}
-```
-
 ---
 
 ## 4.4 Get All Applicants
 
-**`GET /matching/jobs/{id}/applicants/`**
+**`GET /api/matching/jobs/{id}/applicants/`**
 
 Gets ALL applicants for a job (without distance filtering).
 
@@ -1949,19 +1882,11 @@ Authorization: Bearer <access_token>
 }
 ```
 
-**Error Responses:**
-```json
-// 403 Forbidden - Not the job owner
-{
-  "error": "You don't have permission to view applicants for this job."
-}
-```
-
 ---
 
-## 4.5 Geocoding: Reverse Geocode
+## 4.5 Reverse Geocode
 
-**`GET /matching/geocode/reverse/`**
+**`GET /api/matching/geocode/reverse/`**
 
 Converts GPS coordinates to a human-readable address.
 
@@ -1992,25 +1917,11 @@ Authorization: Bearer <access_token>
 }
 ```
 
-**Error Responses:**
-```json
-// 400 Bad Request
-{
-  "error": "lat and lng parameters are required"
-}
-```
-```json
-// 404 Not Found
-{
-  "error": "Could not find location for these coordinates"
-}
-```
-
 ---
 
-## 4.6 Geocoding: Search Location
+## 4.6 Search Location
 
-**`GET /matching/geocode/search/`**
+**`GET /api/matching/geocode/search/`**
 
 Searches for a location by name.
 
@@ -2044,32 +1955,127 @@ Authorization: Bearer <access_token>
 }
 ```
 
-**Error Responses:**
+---
+
+# Module 5: WebSocket
+
+## 5.1 WebSocket Connection
+
+**`ws://localhost:8000/ws/notifications/?token=<access_token>`**
+
+Real-time notifications and location updates via WebSocket.
+
+**Connection:**
+```javascript
+const token = 'YOUR_ACCESS_TOKEN';
+const ws = new WebSocket(`ws://localhost:8000/ws/notifications/?token=${token}`);
+```
+
+---
+
+## 5.2 Send Location (Every 10 seconds)
+
+```javascript
+ws.send(JSON.stringify({
+    type: 'location_update',
+    latitude: -15.3875,
+    longitude: 28.3412,
+    accuracy: 10
+}));
+```
+
+---
+
+## 5.3 Receive Nearby Jobs (Auto-pushed)
+
 ```json
-// 400 Bad Request
 {
-  "error": "q parameter is required"
+  "type": "nearby_jobs_updated",
+  "jobs": [
+    {
+      "id": 5,
+      "title": "Plumbing Repair",
+      "description": "Fix leaking pipe in kitchen",
+      "budget": "500.00",
+      "general_location": "Kamwala, Lusaka",
+      "category": "Plumbing",
+      "urgency": "URGENT",
+      "distance_km": 0.45,
+      "distance_display": "450m",
+      "posted_at": "2026-08-19T10:00:00Z",
+      "is_urgent": true
+    }
+  ],
+  "count": 3,
+  "radius_km": 1.0,
+  "message": "📍 Found 3 jobs near you!",
+  "timestamp": "2026-08-29T10:00:00Z"
 }
 ```
 
 ---
 
-# Module 5: Reviews
+## 5.4 Set Search Radius
 
-The Reviews module allows clients to review workers after job completion. Reviews are **one-sided** (clients review workers) and **job-specific** (tied to a specific completed job).
+```javascript
+ws.send(JSON.stringify({
+    type: 'set_search_radius',
+    radius: 5.0  // 5km
+}));
+```
 
-## 5.1 Create Review
+---
+
+## 5.5 Manual Refresh
+
+```javascript
+ws.send(JSON.stringify({
+    type: 'refresh_nearby_jobs',
+    radius: 1.0
+}));
+```
+
+---
+
+## 5.6 Get Nearby Workers (Client)
+
+```javascript
+ws.send(JSON.stringify({
+    type: 'get_nearby_workers',
+    radius: 5.0
+}));
+```
+
+**Response:**
+```json
+{
+  "type": "nearby_workers",
+  "data": [
+    {
+      "id": 123,
+      "name": "John Doe",
+      "latitude": -15.3850,
+      "longitude": 28.3390,
+      "distance_km": 0.45,
+      "distance_display": "450m",
+      "hourly_rate": "75.00",
+      "rating": 4.5,
+      "verified": true
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+# Module 6: Reviews
+
+## 6.1 Create Review
 
 **`POST /api/reviews/create/`**
 
-Creates a review for a worker.
-
-** KEY FEATURES:**
-- One-sided: Only clients can review workers
-- Job-specific: Reviews are tied to a specific completed job
-- 0-5 rating: 0 = "Did Not Complete", 1-5 = Quality rating
-- No self-review: Clients cannot review themselves
-- One review per job per client
+Creates a review for a worker. Only clients can review workers.
 
 **Authentication:** Required (Client)
 
@@ -2094,7 +2100,7 @@ Content-Type: application/json
 |-------|------|----------|-------------|
 | `job_id` | integer | Yes | ID of the completed job |
 | `reviewee_id` | integer | Yes | ID of the worker being reviewed |
-| `rating` | integer | Yes | Rating 0-5 (0 = Did Not Complete) |
+| `rating` | integer | Yes | Rating 0-5 |
 | `comment` | string | No | Review comment |
 | `job_completed` | boolean | Yes | Did the worker actually complete the job? |
 
@@ -2107,15 +2113,6 @@ Content-Type: application/json
 | `3` | Good |
 | `4` | Very Good |
 | `5` | Excellent |
-
-**Validation Rules:**
-- Job must be **COMPLETED**
-- Only the **client** who posted the job can review
-- The **reviewee** must be the assigned worker
-- Client cannot review **themselves**
-- One review **per client per job**
-- If `rating = 0`, `job_completed` must be `false`
-- If `job_completed = false`, `rating` must be `0`
 
 **Success Response (201 Created):**
 ```json
@@ -2133,59 +2130,14 @@ Content-Type: application/json
     "rating_display": "5 - Excellent",
     "comment": "Excellent work! Fixed everything quickly and professionally.",
     "job_completed": true,
-    "created_at": "2026-08-22T10:30:00Z",
-    "updated_at": "2026-08-22T10:30:00Z"
+    "created_at": "2026-08-22T10:30:00Z"
   }
-}
-```
-
-**Error Responses:**
-```json
-// 400 Bad Request - Job not completed
-{
-  "error": "Cannot review a job with status 'OPEN'. Only completed jobs can be reviewed."
-}
-```
-```json
-// 400 Bad Request - Not the client
-{
-  "error": "Only the client who posted this job can review it."
-}
-```
-```json
-// 400 Bad Request - Wrong worker
-{
-  "error": "The worker you are trying to review was not assigned to this job."
-}
-```
-```json
-// 400 Bad Request - Self-review
-{
-  "error": "You cannot review yourself."
-}
-```
-```json
-// 400 Bad Request - Already reviewed
-{
-  "error": "You have already reviewed this job."
-}
-```
-```json
-// 400 Bad Request - Rating mismatch
-{
-  "error": "If you give a 0 rating, please indicate that the job was not completed."
-}
-```
-```json
-// 404 Not Found
-{
-  "error": "Job not found."
 }
 ```
 
 ---
 
-## 5.2 Get Worker Reviews
+## 6.2 Get Worker Reviews
 
 **`GET /api/reviews/worker/{worker_id}/`**
 
@@ -2197,55 +2149,6 @@ Gets all reviews for a specific worker.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `worker_id` | integer | Worker's user ID |
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "count": 5,
-  "results": [
-    {
-      "id": 1,
-      "job_title": "Plumbing Repair",
-      "rating": 5,
-      "rating_display": "5 - Excellent",
-      "comment": "Excellent work! Fixed everything quickly.",
-      "job_completed": true,
-      "reviewer_name": "John Client",
-      "created_at": "2026-08-22T10:30:00Z"
-    },
-    {
-      "id": 2,
-      "job_title": "Electrical Wiring",
-      "rating": 4,
-      "rating_display": "4 - Very Good",
-      "comment": "Good work, but arrived a bit late.",
-      "job_completed": true,
-      "reviewer_name": "Mary Client",
-      "created_at": "2026-08-20T10:30:00Z"
-    }
-  ]
-}
-```
-
----
-
-## 5.3 Get My Reviews (Worker)
-
-**`GET /api/reviews/my-reviews/`**
-
-Gets all reviews for the authenticated worker.
-
-**Authentication:** Required (Worker)
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-```
 
 **Success Response (200 OK):**
 ```json
@@ -2268,18 +2171,42 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 5.4 Get My Reviews Given (Client)
+## 6.3 Get My Reviews (Worker)
+
+**`GET /api/reviews/my-reviews/`**
+
+Gets all reviews for the authenticated worker.
+
+**Authentication:** Required (Worker)
+
+**Success Response (200 OK):**
+```json
+{
+  "count": 5,
+  "results": [
+    {
+      "id": 1,
+      "job_title": "Plumbing Repair",
+      "rating": 5,
+      "rating_display": "5 - Excellent",
+      "comment": "Excellent work!",
+      "job_completed": true,
+      "reviewer_name": "John Client",
+      "created_at": "2026-08-22T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 6.4 Get My Reviews Given (Client)
 
 **`GET /api/reviews/my-reviews-given/`**
 
 Gets all reviews given by the authenticated client.
 
 **Authentication:** Required (Client)
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-```
 
 **Success Response (200 OK):**
 ```json
@@ -2302,7 +2229,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 5.5 Get Worker Rating Stats
+## 6.5 Get Worker Rating Stats
 
 **`GET /api/reviews/stats/{worker_id}/`**
 
@@ -2310,16 +2237,6 @@ Gets rating statistics for a worker.
 
 **Authentication:** Required (Any authenticated user)
 
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `worker_id` | integer | Worker's user ID |
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
 **Success Response (200 OK):**
 ```json
 {
@@ -2336,125 +2253,6 @@ Authorization: Bearer <access_token>
     "4": 5,
     "5": 7
   }
-}
-```
-
-**Response Fields:**
-| Field | Type | Description |
-|-------|------|-------------|
-| `average_rating` | float | Overall average rating (0-5) |
-| `total_reviews` | integer | Total number of reviews |
-| `completed_jobs` | integer | Number of jobs marked as completed |
-| `incomplete_jobs` | integer | Number of jobs marked as incomplete |
-| `completion_rate` | float | Percentage of jobs completed |
-| `rating_distribution` | object | Count of each rating (0-5) |
-
----
-
-## 5.6 Get My Rating Stats (Worker)
-
-**`GET /api/reviews/my-stats/`**
-
-Gets rating statistics for the authenticated worker.
-
-**Authentication:** Required (Worker)
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "average_rating": 4.5,
-  "total_reviews": 15,
-  "completed_jobs": 14,
-  "incomplete_jobs": 1,
-  "completion_rate": 93.3,
-  "rating_distribution": {
-    "0": 0,
-    "1": 0,
-    "2": 1,
-    "3": 2,
-    "4": 5,
-    "5": 7
-  }
-}
-```
-
----
-
-## 5.7 Get Job Reviews
-
-**`GET /api/reviews/job/{job_id}/`**
-
-Gets all reviews for a specific job.
-
-**Authentication:** Required (Any authenticated user)
-
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `job_id` | integer | Job ID |
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "count": 2,
-  "results": [
-    {
-      "id": 1,
-      "rating": 5,
-      "rating_display": "5 - Excellent",
-      "comment": "Excellent work!",
-      "job_completed": true,
-      "reviewer_name": "John Client",
-      "created_at": "2026-08-22T10:30:00Z"
-    }
-  ]
-}
-```
-
----
-
-## 5.8 Get Unrated Jobs (Client)
-
-**`GET /api/reviews/unrated-jobs/`**
-
-Gets all completed jobs that the client hasn't reviewed yet.
-
-**Authentication:** Required (Client)
-
-**Request Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "count": 2,
-  "message": "You have unrated jobs. Please review them before posting new jobs.",
-  "results": [
-    {
-      "job_id": 5,
-      "job_title": "Plumbing Repair",
-      "worker_name": "Jane Worker",
-      "completed_at": "2026-08-22T10:00:00Z"
-    },
-    {
-      "job_id": 8,
-      "job_title": "Electrical Wiring",
-      "worker_name": "John Worker",
-      "completed_at": "2026-08-20T10:00:00Z"
-    }
-  ]
 }
 ```
 
@@ -2464,14 +2262,13 @@ Authorization: Bearer <access_token>
 
 | Endpoint | Rate Limit | Time Window |
 |----------|------------|-------------|
-| `/auth/register/` | 5 requests | 1 hour |
-| `/auth/login/` | 10 requests | 1 minute |
-| `/auth/refresh/` | 20 requests | 1 minute |
-| `/auth/forgot-password/` | 3 requests | 1 hour |
-| `/jobs/create/` | 10 requests | 1 minute |
-| `/jobs/{id}/apply/` | 10 requests | 1 minute |
-| `/matching/nearby/` | 30 requests | 1 minute |
-| `/reviews/create/` | 10 requests | 1 minute |
+| `/api/auth/register/` | 5 requests | 1 hour |
+| `/api/auth/login/` | 10 requests | 1 minute |
+| `/api/auth/refresh/` | 20 requests | 1 minute |
+| `/api/auth/forgot-password/` | 3 requests | 1 hour |
+| `/api/jobs/create/` | 10 requests | 1 minute |
+| `/api/jobs/{id}/apply/` | 10 requests | 1 minute |
+| `/api/reviews/create/` | 10 requests | 1 minute |
 
 **Rate Limit Response (429):**
 ```json
@@ -2485,33 +2282,115 @@ Authorization: Bearer <access_token>
 
 ---
 
-## Conditional Disclosure Summary
+# WebSocket Events Summary
 
-| **Field** | **Before Assignment** | **After Assignment** |
-|-----------|----------------------|---------------------|
-| `general_location` | Visible | Visible |
-| `latitude`/`longitude` | Visible | Visible |
-| `exact_location` | Hidden | Visible |
-| `map_url` | Hidden | Visible |
-| `directions_url` | Hidden | Visible |
-| `place_id` | Hidden | Visible |
-| `client_name` | Hidden | Visible |
-| `client_phone` | Hidden | Visible |
+| Event | Sender | Purpose |
+|-------|--------|---------|
+| `location_update` | Both | Send current location |
+| `nearby_jobs_updated` | Backend | Push updated job list to worker |
+| `nearby_jobs_initial` | Backend | Initial job list on connect |
+| `set_search_radius` | Worker | Change search radius |
+| `refresh_nearby_jobs` | Worker | Manual refresh |
+| `get_nearby_workers` | Client | Get nearby workers |
+| `nearby_worker_update` | Backend | Worker location update to client |
+| `new_job_notification` | Backend | New job broadcast to workers |
+| `notification_read` | Both | Mark notification as read |
+| `mark_all_read` | Both | Mark all notifications as read |
+| `ping` / `pong` | Both | Keep connection alive |
+
+---
+
+# Conditional Disclosure Summary
+
+| Field | Before Assignment | After Assignment |
+|-------|-------------------|------------------|
+| `general_location` | ✅ Visible | ✅ Visible |
+| `latitude`/`longitude` | ✅ Visible | ✅ Visible |
+| `exact_location` | ❌ Hidden | ✅ Visible |
+| `map_url` | ❌ Hidden | ✅ Visible |
+| `directions_url` | ❌ Hidden | ✅ Visible |
+| `place_id` | ❌ Hidden | ✅ Visible |
+| `client_name` | ❌ Hidden | ✅ Visible |
+| `client_phone` | ❌ Hidden | ✅ Visible |
 | `can_view_full_details` | `false` | `true` |
 
 ---
 
-## Review System Summary
+# Smart Location Saving (WebSocket)
 
-| **Feature** | **Implementation** |
-|-------------|-------------------|
-| **Who can review?** | Only clients |
-| **Who gets reviewed?** | Only workers |
-| **Job-specific** | Reviews tied to specific jobs |
-| **Rating scale** | 0-5 (0 = Did Not Complete) |
-| **Self-review** | Blocked by validation |
-| **One review per job** | Unique constraint on (job, reviewer) |
-| **Completion tracking** | `job_completed` flag |
-| **Rating stats** | Average, distribution, completion rate |
+| Threshold | Value |
+|-----------|-------|
+| MIN_DISTANCE_CHANGE_METERS | 50 meters |
+| MIN_TIME_CHANGE_SECONDS | 30 seconds |
+
+Location is only saved when:
+1. User moves more than 50 meters, OR
+2. More than 30 seconds have passed since last save
+
+This reduces database writes by ~50-70%.
 
 ---
+
+# Complete API Reference Table
+
+| Module | Endpoint | Method | Role | Description |
+|--------|----------|--------|------|-------------|
+| **Accounts** | `/api/auth/register/` | POST | Any | Register user |
+| | `/api/auth/login/` | POST | Any | Login user |
+| | `/api/auth/add-role/` | POST | Any | Add role to user |
+| | `/api/auth/switch-role/` | POST | Any | Switch role |
+| | `/api/auth/roles/` | GET | Any | Get user roles |
+| | `/api/auth/refresh/` | POST | Any | Refresh token |
+| | `/api/auth/logout/` | POST | Any | Logout |
+| | `/api/auth/me/` | GET | Any | Get current user |
+| | `/api/auth/change-password/` | POST | Any | Change password |
+| | `/api/auth/forgot-password/` | POST | Any | Forgot password |
+| | `/api/auth/reset-password/` | POST | Any | Reset password |
+| | `/api/auth/verify-email/` | POST | Any | Verify email |
+| | `/api/auth/resend-verification/` | POST | Any | Resend verification |
+| | `/api/profile/` | GET | Any | Get profile |
+| | `/api/profile/update/` | PUT | Any | Update profile |
+| | `/api/profile/location/` | PUT | Any | Update location |
+| | `/api/profile/phone/` | PUT | Any | Update phone |
+| **Verification** | `/api/verification/phone/send-otp/` | POST | Any | Send phone OTP |
+| | `/api/verification/phone/verify-otp/` | POST | Any | Verify phone OTP |
+| | `/api/verification/email/send/` | POST | Any | Send email verification |
+| | `/api/verification/email/verify/` | GET | Any | Verify email |
+| | `/api/verification/documents/submit/` | POST | Any | Submit documents |
+| | `/api/verification/status/` | GET | Any | Get verification status |
+| | `/api/admin/verifications/pending/` | GET | Admin | List pending |
+| | `/api/admin/verifications/{id}/review/` | POST | Admin | Approve/reject |
+| **Jobs** | `/api/jobs/` | GET | Worker | List open jobs |
+| | `/api/jobs/create/` | POST | Client | Create job |
+| | `/api/jobs/{id}/` | GET | Client | Get job details |
+| | `/api/jobs/{id}/update/` | PUT | Client | Update job |
+| | `/api/jobs/{id}/delete/` | DELETE | Client | Delete job |
+| | `/api/jobs/{id}/cancel/` | POST | Client | Cancel job |
+| | `/api/jobs/{id}/worker/` | GET | Worker | Worker job details |
+| | `/api/jobs/{id}/apply/` | POST | Worker | Apply for job |
+| | `/api/jobs/{id}/assign/` | POST | Client | Assign worker |
+| | `/api/jobs/{id}/mark-complete/` | POST | Worker | Mark complete |
+| | `/api/jobs/{id}/confirm/` | POST | Client | Confirm complete |
+| | `/api/my-applications/` | GET | Worker | My applications |
+| | `/api/my-jobs/` | GET | Both | My jobs |
+| | `/api/my-open-jobs/` | GET | Client | My open jobs |
+| | `/api/my-active-jobs/` | GET | Worker | My active jobs |
+| | `/api/jobs/{id}/applications/` | GET | Client | Job applications |
+| | `/api/jobs/{id}/applications/pending/` | GET | Client | Pending applications |
+| | `/api/applications/{id}/status/` | PATCH | Client | Update application |
+| | `/api/jobs/search/` | GET | Worker | Search jobs |
+| | `/api/jobs/filter/` | GET | Worker | Filter jobs |
+| **Matching** | `/api/matching/nearby/` | GET | Worker | Nearby jobs |
+| | `/api/matching/nearby/count/` | GET | Worker | Nearby jobs count |
+| | `/api/matching/jobs/{id}/applicants/nearby/` | GET | Client | Nearby applicants |
+| | `/api/matching/jobs/{id}/applicants/` | GET | Client | All applicants |
+| | `/api/matching/geocode/reverse/` | GET | Both | Reverse geocode |
+| | `/api/matching/geocode/search/` | GET | Both | Search location |
+| **Reviews** | `/api/reviews/create/` | POST | Client | Create review |
+| | `/api/reviews/worker/{id}/` | GET | Both | Worker reviews |
+| | `/api/reviews/my-reviews/` | GET | Worker | My reviews |
+| | `/api/reviews/my-reviews-given/` | GET | Client | Reviews given |
+| | `/api/reviews/stats/{id}/` | GET | Both | Rating stats |
+
+---
+

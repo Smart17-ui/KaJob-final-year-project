@@ -1,6 +1,6 @@
 # apps/identity_verification/services/admin_verification_service.py
+
 import logging
-from unittest import result
 from django.db import transaction
 from django.utils import timezone
 from typing import Dict, Any, List, Optional
@@ -33,7 +33,7 @@ class AdminVerificationService:
         Get all pending verifications for admin review.
         """
         pending = self.verification_repo.get_pending_verifications()
-    
+        
         result = []
         for verification in pending:
             result.append({
@@ -44,16 +44,17 @@ class AdminVerificationService:
                     'email': verification.user.email,
                     'phone_number': verification.user.phone_number,
                     'account_status': verification.user.account_status,
-                    'is_verified': verification.user.is_verified,  # ✅ Added this
+                    'is_verified': verification.user.is_verified,
                 },
                 'document_type': verification.document_type,
                 'document_number': verification.document_number,
                 'status': verification.verification_status,
-                'submitted_at': verification.submitted_at,
+                'status_display': verification.get_verification_status_display(),
+                'submitted_at': verification.submitted_at.isoformat() if verification.submitted_at else None,
                 'document_count': verification.documents.count(),
             })
-    
-        return  result
+        
+        return result
     
     # ============================================
     # GET VERIFICATION DETAIL
@@ -73,11 +74,12 @@ class AdminVerificationService:
             documents.append({
                 'id': doc.id,
                 'document_type': doc.document_type,
+                'document_type_display': doc.get_document_type_display(),
                 'file_path': doc.file_path,
                 'file_name': doc.file_name,
                 'file_size': doc.file_size,
                 'mime_type': doc.mime_type,
-                'uploaded_at': doc.uploaded_at,
+                'uploaded_at': doc.uploaded_at.isoformat() if doc.uploaded_at else None,
             })
         
         return {
@@ -91,10 +93,12 @@ class AdminVerificationService:
                 'is_verified': verification.user.is_verified,
             },
             'document_type': verification.document_type,
+            'document_type_display': verification.get_document_type_display(),
             'document_number': verification.document_number,
             'status': verification.verification_status,
-            'submitted_at': verification.submitted_at,
-            'reviewed_at': verification.reviewed_at,
+            'status_display': verification.get_verification_status_display(),
+            'submitted_at': verification.submitted_at.isoformat() if verification.submitted_at else None,
+            'reviewed_at': verification.reviewed_at.isoformat() if verification.reviewed_at else None,
             'rejection_reason': verification.rejection_reason,
             'documents': documents,
             'verification_notes': verification.verification_notes,
@@ -134,14 +138,20 @@ class AdminVerificationService:
             }
         )
         
-        # ✅ Simple logging instead of notifications (for now)
         logger.info(f"Verification approved for user {verification.user.email} (ID: {verification.id})")
         
         # Send email notification
-        self.email_service.send_verification_approved_email(verification.user)
+        try:
+            self.email_service.send_verification_approved_email(verification.user)
+        except Exception as e:
+            logger.error(f"Failed to send approval email: {str(e)}")
         
         return {
-            'verification': verification,
+            'verification': {
+                'id': verification.id,
+                'status': verification.verification_status,
+                'status_display': verification.get_verification_status_display(),
+            },
             'message': f'Verification for {verification.user.full_name} has been approved.',
         }
     
@@ -185,14 +195,20 @@ class AdminVerificationService:
             }
         )
         
-        # ✅ Simple logging instead of notifications (for now)
         logger.info(f"Verification rejected for user {verification.user.email} (ID: {verification.id})")
         
         # Send email notification
-        self.email_service.send_verification_rejected_email(verification.user, reason)
+        try:
+            self.email_service.send_verification_rejected_email(verification.user, reason)
+        except Exception as e:
+            logger.error(f"Failed to send rejection email: {str(e)}")
         
         return {
-            'verification': verification,
+            'verification': {
+                'id': verification.id,
+                'status': verification.verification_status,
+                'status_display': verification.get_verification_status_display(),
+            },
             'message': f'Verification for {verification.user.full_name} has been rejected.',
         }
     
