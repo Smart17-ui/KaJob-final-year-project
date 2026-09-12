@@ -131,6 +131,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
+    'drf_spectacular',
+    'django_filters'
+    #'drf_spectacular_sidecar',
 ]
 
 # ============================================
@@ -375,6 +378,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    #rest settings for drf spectacular
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
@@ -570,6 +575,32 @@ CHANNEL_LAYERS = {
 }
 
 WEBSOCKET_URL = '/ws/'
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Ka Job API',
+    'DESCRIPTION': '''
+        REST API for the platform.
+
+        This API provides functionality for:
+        - User authentication and account management
+        - User profiles
+        - Worker profiles
+        - Client profiles
+        - Worker discovery
+        - Jobs and applications
+        - Matching
+        - Identity verification
+        - Reviews
+        - Notifications
+        - Reports
+        - Analytics
+        - Audit
+    ''',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+
 
 
 # ============================================
