@@ -16,7 +16,6 @@ from apps.accounts.serializers import (
     ResetPasswordSerializer,
     VerifyEmailSerializer,
     UserSerializer,
-    # 🆕 Import role serializers
     AddRoleSerializer,
     SwitchRoleSerializer,
     RoleResponseSerializer,
@@ -30,7 +29,7 @@ auth_service = AuthService()
 
 
 # ============================================
-# EXISTING VIEWS (Keep as-is)
+# EXISTING VIEWS
 # ============================================
 
 class RegisterView(APIView):
@@ -62,7 +61,26 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     """
-    User login endpoint with role selection.
+    POST /api/auth/login/
+    User login endpoint with AUTO-DETECTED role.
+    
+    Request:
+        { "email": "...", "password": "..." }
+    
+    Response:
+        {
+            "message": "Login successful",
+            "user": {...},
+            "tokens": {...},
+            "detected_role": "WORKER",
+            "redirect_to": "/worker/dashboard",
+            "available_roles": ["WORKER", "CLIENT"]
+        }
+    
+    Role is auto-detected by priority:
+    - ADMIN   → /admin/dashboard
+    - WORKER  → /worker/dashboard   (also for "worker + client" users)
+    - CLIENT  → /client/dashboard
     """
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
@@ -75,15 +93,15 @@ class LoginView(APIView):
             result = auth_service.login_user(
                 serializer.validated_data['email'],
                 serializer.validated_data['password'],
-                role=serializer.validated_data.get('role'),
-                request=request
+                request=request,
             )
             
             return Response({
                 'message': 'Login successful',
                 'user': UserSerializer(result['user']).data,
                 'tokens': result['tokens'],
-                'selected_role': result['selected_role'],
+                'detected_role': result['detected_role'],
+                'redirect_to': result['redirect_to'],
                 'available_roles': result['available_roles'],
             }, status=status.HTTP_200_OK)
             
@@ -268,7 +286,7 @@ class ResendVerificationView(APIView):
 
 
 # ============================================
-# 🆕 ROLE MANAGEMENT VIEWS
+# ROLE MANAGEMENT VIEWS
 # ============================================
 
 class AddRoleView(APIView):
@@ -280,9 +298,7 @@ class AddRoleView(APIView):
     ✅ Verification status carries over!
     
     Request Body:
-        {
-            "role": "WORKER"  # or "CLIENT" or "ADMIN"
-        }
+        { "role": "WORKER" }
     
     Response:
         {
@@ -324,9 +340,7 @@ class SwitchRoleView(APIView):
     Switch between roles.
     
     Request Body:
-        {
-            "role": "WORKER"  # or "CLIENT" or "ADMIN"
-        }
+        { "role": "WORKER" }
     
     Response:
         {

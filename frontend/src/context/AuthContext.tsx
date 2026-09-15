@@ -20,6 +20,11 @@ import {
   clearAuth,
 } from "@/shared/auth";
 
+interface LoginResult {
+  user: User;
+  redirectTo: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
@@ -27,7 +32,7 @@ interface AuthContextType {
   login: (
     email: string,
     password: string
-  ) => Promise<User>;
+  ) => Promise<LoginResult>;
 
   logout: () => Promise<void>;
 }
@@ -57,34 +62,35 @@ export function AuthProvider({
     );
 
   /* =========================
-     LOGIN
+     LOGIN (auto-detect role)
   ========================= */
 
   async function login(
     email: string,
     password: string
-  ): Promise<User> {
+  ): Promise<LoginResult> {
+    // ✅ Send only email + password — backend auto-detects role
     const data = await loginUser({
       email,
       password,
-      role: "CLIENT",
     });
 
-    /*
-     * Save authentication data
-     * returned by the backend.
-     */
+    // ✅ Save auth with the auto-detected role
     saveAuth(
       data.tokens.access,
       data.tokens.refresh,
       data.user,
-      data.selected_role
+      data.detected_role
     );
 
     setUser(data.user);
     setIsLoggedIn(true);
 
-    return data.user;
+    // ✅ Return redirect target from backend
+    return {
+      user: data.user,
+      redirectTo: data.redirect_to,
+    };
   }
 
   /* =========================
@@ -96,22 +102,13 @@ export function AuthProvider({
       getRefreshToken();
 
     try {
-      /*
-       * Only call the backend logout
-       * endpoint if we have a refresh token.
-       */
       if (refreshToken) {
         await logoutUser(
           refreshToken
         );
       }
     } finally {
-      /*
-       * Always clear local authentication,
-       * even if the backend logout request fails.
-       */
       clearAuth();
-
       setUser(null);
       setIsLoggedIn(false);
     }

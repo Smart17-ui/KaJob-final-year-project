@@ -1,4 +1,5 @@
 # infrastructure/middleware/rate_limit_middleware.py
+
 import time
 import math
 import logging
@@ -25,56 +26,91 @@ class RateLimitMiddleware:
     - Automatic cleanup of old entries
     - Different limits for different user types
     - Cache support (Redis) for distributed rate limiting
+    - 🆕 DEBUG mode with very high limits for development
     """
     
-    # Rate limits: {path_prefix: (max_requests, time_window_seconds)}
-    RATE_LIMITS = {
+    # ============================================
+    # 🔒 PRODUCTION RATE LIMITS (strict)
+    # ============================================
+    PRODUCTION_LIMITS = {
         # Authentication endpoints (stricter)
-        '/api/auth/register/': (5, 3600),       # 5 requests per hour
-        '/api/auth/login/': (10, 60),           # 10 requests per minute
-        '/api/auth/refresh/': (20, 60),         # 20 requests per minute
-        '/api/auth/forgot-password/': (3, 3600), # 3 requests per hour
-        '/api/auth/reset-password/': (5, 3600),  # 5 requests per hour
-        '/api/auth/verify-email/': (5, 3600),    # 5 requests per hour
-        '/api/auth/resend-verification/': (3, 3600), # 3 requests per hour
+        '/api/auth/register/': (5, 3600),
+        '/api/auth/login/': (10, 60),
+        '/api/auth/refresh/': (20, 60),
+        '/api/auth/forgot-password/': (3, 3600),
+        '/api/auth/reset-password/': (5, 3600),
+        '/api/auth/verify-email/': (5, 3600),
+        '/api/auth/resend-verification/': (3, 3600),
         
         # Job endpoints
-        '/api/jobs/': (50, 60),                  # 50 requests per minute
-        '/api/jobs/create/': (10, 60),           # 10 requests per minute
-        '/api/jobs/apply/': (10, 60),            # 10 requests per minute
-        '/api/jobs/search/': (30, 60),           # 30 requests per minute
+        '/api/jobs/': (50, 60),
+        '/api/jobs/create/': (10, 60),
+        '/api/jobs/apply/': (10, 60),
+        '/api/jobs/search/': (30, 60),
         
         # Report endpoints
-        '/api/reports/': (20, 60),               # 20 requests per minute
-        '/api/reports/create/': (5, 60),         # 5 requests per minute
+        '/api/reports/': (20, 60),
+        '/api/reports/create/': (5, 60),
         
-        # Admin endpoints (stricter)
-        '/api/admin/': (20, 60),                 # 20 requests per minute
-        '/api/admin/users/': (10, 60),           # 10 requests per minute
-        '/api/admin/reports/': (10, 60),         # 10 requests per minute
-        '/api/admin/stats/': (5, 60),            # 5 requests per minute
+        # Admin endpoints
+        '/api/admin/': (60, 60),
+        '/api/admin/users/': (60, 60),
+        '/api/admin/reports/': (60, 60),
+        '/api/admin/stats/': (60, 60),
+        
+        # Verification endpoints (NEW — was missing!)
+        '/api/verifications/': (60, 60),
+        '/api/verification/': (60, 60),
+        
+        # User endpoints (NEW — was missing!)
+        '/api/users/': (60, 60),
+        '/api/profile/': (60, 60),
         
         # Matching endpoints
-        '/api/matching/': (20, 60),              # 20 requests per minute
-        '/api/matching/nearby/': (20, 60),       # 20 requests per minute
+        '/api/matching/': (20, 60),
+        '/api/matching/nearby/': (20, 60),
         
         # Review endpoints
-        '/api/reviews/': (30, 60),               # 30 requests per minute
-        '/api/reviews/create/': (10, 60),        # 10 requests per minute
+        '/api/reviews/': (30, 60),
+        '/api/reviews/create/': (10, 60),
+        
+        # Analytics endpoints
+        '/api/analytics/': (60, 60),
+        
+        # Logs endpoints
+        '/api/logs/': (60, 60),
+        
+        # Default
+        '__default__': (60, 60),
+    }
+    
+    # ============================================
+    # 🔓 DEVELOPMENT RATE LIMITS (very high)
+    # ============================================
+    DEVELOPMENT_LIMITS = {
+        '__default__': (100000, 60),  # Effectively unlimited for dev
     }
     
     # Fallback rate limit (when Redis/DB is down)
     FALLBACK_RATE_LIMITS = {
-        '/api/auth/login/': (3, 60),             # Stricter fallback
-        '/api/auth/register/': (2, 3600),
-        '/api/admin/': (5, 60),
-        'default': (10, 60),                     # Default fallback
+        '/api/auth/login/': (30, 60),
+        '/api/auth/register/': (10, 3600),
+        '/api/admin/': (100, 60),
+        '__default__': (100, 60),
     }
     
     def __init__(self, get_response):
         self.get_response = get_response
-        self.requests = defaultdict(list)  # {identifier: [timestamps]}
+        self.requests = defaultdict(list)
         self.is_cache_available = True
+        
+        # 🆕 Use DEVELOPMENT limits when DEBUG is True
+        if settings.DEBUG:
+            self.RATE_LIMITS = self.DEVELOPMENT_LIMITS
+            logger.info("🔓 RateLimitMiddleware: DEVELOPMENT mode (high limits)")
+        else:
+            self.RATE_LIMITS = self.PRODUCTION_LIMITS
+            logger.info("🔒 RateLimitMiddleware: PRODUCTION mode (strict limits)")
     
     def __call__(self, request):
         # Check if rate limiting should apply
@@ -103,7 +139,6 @@ class RateLimitMiddleware:
                     request, max_requests, time_window, identifier, result
                 )
             if result and result.get('count') is not None:
-                # Request allowed, increment count
                 self.increment_cache_counter(identifier, time_window)
         
         # Clean old requests (in-memory fallback)
@@ -124,17 +159,24 @@ class RateLimitMiddleware:
     
     def should_rate_limit(self, request):
         """Determine if rate limiting should apply to this request."""
-        # Only rate limit API endpoints
-        if request.path.startswith('/api/'):
-            return True
-        
-        # Don't rate limit admin UI
+        # Don't rate limit any static or admin UI paths
         if request.path.startswith('/admin/'):
             return False
-        
-        # Don't rate limit static/media
-        if request.path.startswith('/static/') or request.path.startswith('/media/'):
+        if request.path.startswith('/static/'):
             return False
+        if request.path.startswith('/media/'):
+            return False
+        if request.path.startswith('/api/schema/'):
+            return False
+        if request.path.startswith('/api/docs/'):
+            return False
+        
+        # Only rate limit API endpoints
+        if request.path.startswith('/api/'):
+            # 🆕 In DEBUG mode, skip OPTIONS requests (CORS preflight)
+            if settings.DEBUG and request.method == 'OPTIONS':
+                return False
+            return True
         
         return False
     
@@ -142,33 +184,32 @@ class RateLimitMiddleware:
         """Get the rate limit for a given request."""
         path = request.path
         
-        # Check for specific path matches
-        for prefix, limit in self.RATE_LIMITS.items():
+        # Check for specific path matches (longest prefix first)
+        for prefix in sorted(self.RATE_LIMITS.keys(), key=len, reverse=True):
+            if prefix == '__default__':
+                continue
             if path.startswith(prefix):
-                return limit
+                return self.RATE_LIMITS[prefix]
         
-        # Default rate limit for any API endpoint not explicitly defined
-        if path.startswith('/api/'):
-            return (30, 60)  # 30 requests per minute
-        
-        return None
+        # Default rate limit
+        return self.RATE_LIMITS.get('__default__', (60, 60))
     
     def get_fallback_rate_limit(self, request):
         """Get fallback rate limit when primary storage is unavailable."""
         path = request.path
-        for prefix, limit in self.FALLBACK_RATE_LIMITS.items():
+        for prefix in sorted(self.FALLBACK_RATE_LIMITS.keys(), key=len, reverse=True):
+            if prefix == '__default__':
+                continue
             if path.startswith(prefix):
-                return limit
+                return self.FALLBACK_RATE_LIMITS[prefix]
         
-        return self.FALLBACK_RATE_LIMITS.get('default', (10, 60))
+        return self.FALLBACK_RATE_LIMITS.get('__default__', (100, 60))
     
     def get_client_identifier(self, request):
         """Get a unique identifier for the client."""
-        # For authenticated users, use user ID
         if hasattr(request, 'user') and request.user.is_authenticated:
             return f"user_{request.user.id}"
         
-        # For anonymous users, use IP address
         ip = self.get_client_ip(request)
         return f"ip_{ip}"
     
@@ -182,19 +223,14 @@ class RateLimitMiddleware:
         return ip
     
     def check_rate_limit_with_cache(self, identifier, max_requests, time_window):
-        """
-        Check rate limit using cache (Redis).
-        Returns dict with count and if limit exceeded.
-        """
+        """Check rate limit using cache."""
         try:
             cache_key = f"rate_limit_{identifier}"
             now = time.time()
             
-            # Get current count from cache
             cached_data = cache.get(cache_key)
             if cached_data:
                 count, timestamp = cached_data
-                # Check if within time window
                 if now - timestamp < time_window:
                     count += 1
                 else:
@@ -204,17 +240,13 @@ class RateLimitMiddleware:
                 count = 1
                 timestamp = now
             
-            # Check if limit exceeded
             limit_exceeded = count > max_requests
-            
-            # Store in cache with expiry
             cache.set(cache_key, (count, timestamp), time_window + 60)
             
             return {
                 'count': count,
                 'limit_exceeded': limit_exceeded
             }
-            
         except Exception as e:
             logger.warning(f"Cache error in rate limiting: {e}")
             self.is_cache_available = False
@@ -241,13 +273,10 @@ class RateLimitMiddleware:
         ]
     
     def create_rate_limit_response(self, request, max_requests, time_window, identifier, result=None):
-        """Create a rate limit exceeded response with Retry-After header."""
+        """Create a rate limit exceeded response."""
         count = result.get('count', len(self.requests[identifier])) if result else len(self.requests[identifier])
-        
-        # Calculate wait time
         wait_time = self.calculate_wait_time(identifier, time_window)
         
-        # Log the rate limit violation
         logger.warning(
             f"Rate limit exceeded for {identifier} on {request.path} "
             f"({count}/{max_requests} requests in {time_window}s) "
@@ -259,52 +288,37 @@ class RateLimitMiddleware:
             'retry_after': int(wait_time),
             'max_requests': max_requests,
             'time_window': time_window,
-            'remaining': max_requests - count,
+            'remaining': max(0, max_requests - count),
         }, status=429)
         
-        # Add rate limit headers
         response['Retry-After'] = str(int(wait_time))
         response['X-RateLimit-Limit'] = str(max_requests)
-        response['X-RateLimit-Remaining'] = str(max_requests - count)
+        response['X-RateLimit-Remaining'] = str(max(0, max_requests - count))
         response['X-RateLimit-Reset'] = str(int(time.time() + wait_time))
         
         return response
     
     def calculate_wait_time(self, identifier, time_window):
-        """
-        Calculate the wait time using exponential backoff with jitter.
-        
-        Formula: wait_time = base_wait * (2 ^ attempts) + random_jitter
-        """
-        # Count recent attempts
+        """Calculate wait time using exponential backoff with jitter."""
         recent_attempts = len(self.requests.get(identifier, []))
         
-        # Base wait time (exponential backoff)
-        base_wait = 10  # 10 seconds base
+        # 🆕 In dev, keep wait time short
+        if settings.DEBUG:
+            return 5
+        
+        base_wait = 10
         exponential_wait = base_wait * (2 ** min(recent_attempts, 5))
-        
-        # Add jitter (randomness) to prevent thundering herd
         jitter = random.uniform(0, 5)
-        
-        # Calculate final wait time
         wait_time = exponential_wait + jitter
-        
-        # Cap at time_window
         wait_time = min(wait_time, time_window)
-        
-        # Ensure minimum wait time
         wait_time = max(wait_time, 5)
         
         return wait_time
     
     def auto_cleanup(self):
-        """
-        Clean up old entries to prevent memory leaks.
-        Should be called periodically (e.g., via Celery beat).
-        """
+        """Clean up old entries."""
         now = time.time()
         for identifier in list(self.requests.keys()):
-            # Remove entries older than 1 hour
             self.requests[identifier] = [
                 timestamp for timestamp in self.requests[identifier]
                 if timestamp > now - 3600

@@ -9,6 +9,8 @@ class RegisterSerializer(serializers.Serializer):
     """
     Serializer for user registration.
     
+    Role is REQUIRED at registration (user must choose Worker or Client).
+    
     Used by: RegisterView (POST /api/auth/register/)
     """
     first_name = serializers.CharField(max_length=100, required=True)
@@ -52,19 +54,14 @@ class RegisterSerializer(serializers.Serializer):
 
 class LoginSerializer(serializers.Serializer):
     """
-    Serializer for user login with role selection.
+    Serializer for user login.
+    
+    ✅ NO ROLE FIELD — Role is auto-detected after authentication.
     
     Used by: LoginView (POST /api/auth/login/)
     """
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True)
-    role = serializers.ChoiceField(
-        choices=[RoleType.WORKER, RoleType.CLIENT],
-        required=False,
-        allow_blank=True,
-        allow_null=True,
-        help_text="Optional: Specify role to login as (WORKER or CLIENT)"
-    )
     
     def validate_email(self, value):
         """Normalize email to lowercase for case-insensitive login."""
@@ -186,7 +183,8 @@ class AuthResponseSerializer(serializers.Serializer):
         child=serializers.CharField(),
         required=False
     )
-    selected_role = serializers.CharField(required=False, allow_null=True)
+    detected_role = serializers.CharField(required=False, allow_null=True)
+    redirect_to = serializers.CharField(required=False, allow_null=True)
 
 
 class LogoutResponseSerializer(serializers.Serializer):
@@ -201,25 +199,3 @@ class TokenResponseSerializer(serializers.Serializer):
     Serializer for token refresh response.
     """
     access = serializers.CharField()
-
-class UpdatePhoneSerializer(serializers.Serializer):
-    """
-    Serializer for updating phone number.
-    
-    Used by: UpdatePhoneNumberView (PUT /api/auth/profile/phone/)
-    """
-    phone_number = serializers.CharField(max_length=20, required=True)
-    
-    def validate_phone_number(self, value):
-        """
-        Validate and normalize phone number.
-        """
-        from apps.identity_verification.services import VerificationService
-        
-        verification_service = VerificationService()
-        result = verification_service.validate_phone_number(value)
-        
-        if not result['is_valid']:
-            raise serializers.ValidationError(result['error'])
-        
-        return result['normalized']

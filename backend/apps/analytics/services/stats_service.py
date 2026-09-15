@@ -17,73 +17,120 @@ logger = logging.getLogger(__name__)
 class StatsService:
     """
     Service for calculating platform statistics.
-    """
     
+    FIXED: Uses custom User model fields:
+    - account_status (not is_active)
+    - user_roles__role__name (not role)
+    - created_at (not date_joined)
+    - deleted_at for soft deletes
+    """
+
     @classmethod
     def calculate_daily_stats(cls, date=None):
         """Calculate statistics for a specific day."""
         if date is None:
             date = timezone.now().date()
+
+        start_date = timezone.make_aware(
+            datetime.combine(date, datetime.min.time())
+        )
+        end_date = timezone.make_aware(
+            datetime.combine(date, datetime.max.time())
+        )
+
+        # ============================================
+        # USER STATS (Fixed: use account_status + user_roles)
+        # ============================================
         
-        start_date = datetime.combine(date, datetime.min.time())
-        end_date = datetime.combine(date, datetime.max.time())
-        
-        # User Stats
-        total_users = User.objects.filter(is_active=True).count()
+        # Total active users (excludes soft-deleted)
+        total_users = User.objects.filter(
+            account_status='ACTIVE',
+            deleted_at__isnull=True
+        ).count()
+
+        # Workers via roles relationship
         total_workers = User.objects.filter(
-            Q(role='WORKER') | Q(role='BOTH'),
-            is_active=True
-        ).count()
+            user_roles__role__name='WORKER',
+            deleted_at__isnull=True
+        ).distinct().count()
+
+        # Clients via roles relationship
         total_clients = User.objects.filter(
-            Q(role='CLIENT') | Q(role='BOTH'),
-            is_active=True
+            user_roles__role__name='CLIENT',
+            deleted_at__isnull=True
+        ).distinct().count()
+
+        # Both roles
+        total_both = User.objects.filter(
+            user_roles__role__name='WORKER',
+            deleted_at__isnull=True
+        ).filter(
+            user_roles__role__name='CLIENT'
+        ).distinct().count()
+
+        # Verified users
+        verified_users = User.objects.filter(
+            is_verified=True,
+            account_status='ACTIVE',
+            deleted_at__isnull=True
         ).count()
-        total_both = User.objects.filter(role='BOTH', is_active=True).count()
-        verified_users = User.objects.filter(is_verified=True, is_active=True).count()
+
+        # Active today (users who logged in today)
         active_users = User.objects.filter(
             last_login__range=[start_date, end_date],
-            is_active=True
+            deleted_at__isnull=True
         ).count()
-        
-        # New Users
+
+        # New users (created today)
         new_users = User.objects.filter(
-            date_joined__range=[start_date, end_date],
-            is_active=True
+            created_at__range=[start_date, end_date],
+            deleted_at__isnull=True
         ).count()
+
         new_workers = User.objects.filter(
-            date_joined__range=[start_date, end_date],
-            role__in=['WORKER', 'BOTH'],
-            is_active=True
-        ).count()
+            created_at__range=[start_date, end_date],
+            user_roles__role__name='WORKER',
+            deleted_at__isnull=True
+        ).distinct().count()
+
         new_clients = User.objects.filter(
-            date_joined__range=[start_date, end_date],
-            role__in=['CLIENT', 'BOTH'],
-            is_active=True
+            created_at__range=[start_date, end_date],
+            user_roles__role__name='CLIENT',
+            deleted_at__isnull=True
+        ).distinct().count()
+
+        # ============================================
+        # JOB STATS
+        # ============================================
+        total_jobs = Job.objects.filter(deleted_at__isnull=True).count()
+        jobs_created = Job.objects.filter(
+            created_at__range=[start_date, end_date],
+            deleted_at__isnull=True
         ).count()
-        
-        # Job Stats
-        total_jobs = Job.objects.count()
-        jobs_created = Job.objects.filter(created_at__range=[start_date, end_date]).count()
         jobs_completed = Job.objects.filter(
             completed_at__range=[start_date, end_date],
-            status='COMPLETED'
+            status='COMPLETED',
+            deleted_at__isnull=True
         ).count()
         jobs_cancelled = Job.objects.filter(
             status='CANCELLED',
-            updated_at__range=[start_date, end_date]
+            updated_at__range=[start_date, end_date],
+            deleted_at__isnull=True
         ).count()
-        open_jobs = Job.objects.filter(status='OPEN').count()
-        assigned_jobs = Job.objects.filter(status='ASSIGNED').count()
-        in_progress_jobs = Job.objects.filter(status='IN_PROGRESS').count()
-        
-        # Review Stats
+        open_jobs = Job.objects.filter(status='OPEN', deleted_at__isnull=True).count()
+        assigned_jobs = Job.objects.filter(status='ASSIGNED', deleted_at__isnull=True).count()
+        in_progress_jobs = Job.objects.filter(status='IN_PROGRESS', deleted_at__isnull=True).count()
+
+        # ============================================
+        # REVIEW STATS
+        # ============================================
         total_reviews = Review.objects.count()
         reviews_created = Review.objects.filter(
             created_at__range=[start_date, end_date]
         ).count()
         avg_rating = Review.objects.aggregate(avg=Avg('rating'))['avg'] or 0
-        
-        # Rating Distribution
+
+        # Rating distribution
         rating_distribution = {}
         for i in range(0, 6):
             count = Review.objects.filter(
@@ -91,16 +138,20 @@ class StatsService:
                 created_at__range=[start_date, end_date]
             ).count()
             rating_distribution[str(i)] = count
-        
-        # Visit Stats
+
+        # ============================================
+        # VISIT STATS
+        # ============================================
         total_page_views = AuditLog.objects.filter(
             created_at__range=[start_date, end_date]
         ).count()
         unique_visitors = AuditLog.objects.filter(
             created_at__range=[start_date, end_date]
         ).values('user_id').distinct().count()
-        
-        # Create or update daily stats
+
+        # ============================================
+        # CREATE OR UPDATE DAILY STATS
+        # ============================================
         stats, created = DailyStats.objects.update_or_create(
             date=date,
             defaults={
@@ -128,42 +179,43 @@ class StatsService:
                 'unique_visitors': unique_visitors,
             }
         )
-        
+
         logger.info(f"Daily stats calculated for {date}")
         return stats
-    
+
     @classmethod
     def calculate_all_stats(cls):
         """Calculate stats for today and ensure historical data exists."""
         today = timezone.now().date()
-        
+
         # Calculate for today
         cls.calculate_daily_stats(today)
-        
+
         # Calculate for the last 30 days if missing
         for i in range(1, 31):
             date = today - timedelta(days=i)
             if not DailyStats.objects.filter(date=date).exists():
                 cls.calculate_daily_stats(date)
-        
+
         # Calculate weekly stats for the last 4 weeks
         today_weekday = today.weekday()
         for i in range(4):
             week_start = today - timedelta(days=today_weekday + (i * 7))
             week_stats = WeeklyStats.objects.filter(week_start=week_start)
             if not week_stats.exists():
-                # Calculate daily stats for the week first
+                # Ensure daily stats exist first
                 for j in range(7):
                     date = week_start + timedelta(days=j)
                     if not DailyStats.objects.filter(date=date).exists():
                         cls.calculate_daily_stats(date)
+                
                 # Aggregate weekly stats
                 weekly_stats = DailyStats.objects.filter(
                     date__gte=week_start,
                     date__lt=week_start + timedelta(days=7)
                 )
                 if weekly_stats.exists():
-                    WeekStats.objects.update_or_create(
+                    WeeklyStats.objects.update_or_create(
                         week_start=week_start,
                         defaults={
                             'week_end': week_start + timedelta(days=6),
@@ -178,13 +230,12 @@ class StatsService:
                             'unique_visitors': sum(stat.unique_visitors for stat in weekly_stats),
                         }
                     )
-        
+
         # Calculate monthly stats for the last 12 months
         for i in range(12):
             month = today.replace(day=1) - timedelta(days=30 * i)
             month = month.replace(day=1)
             if not MonthlyStats.objects.filter(month=month).exists():
-                # Aggregate weekly stats for the month
                 month_weekly_stats = WeeklyStats.objects.filter(
                     week_start__gte=month,
                     week_start__lt=month.replace(day=28) + timedelta(days=4)
@@ -204,5 +255,5 @@ class StatsService:
                             'unique_visitors': sum(stat.unique_visitors for stat in month_weekly_stats),
                         }
                     )
-        
+
         logger.info("All stats calculated successfully")

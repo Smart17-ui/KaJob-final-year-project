@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from datetime import datetime, timedelta
 from django.utils import timezone
+from django.db.models import Avg
 
 from apps.analytics.services import AnalyticsService
 from apps.analytics.serializers import (
@@ -34,7 +35,7 @@ class UserActivityView(APIView):
         except ValueError:
             days = 7
         
-        days = min(days, 30)  # Limit to 30 days
+        days = min(days, 30)
         
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days)
@@ -78,7 +79,6 @@ class UserActivitySummaryView(APIView):
             user_id, start_date, end_date
         )
         
-        # Calculate summary
         total_page_views = sum(a.page_views for a in activities)
         total_jobs_viewed = sum(a.jobs_viewed for a in activities)
         total_jobs_applied = sum(a.jobs_applied for a in activities)
@@ -86,11 +86,9 @@ class UserActivitySummaryView(APIView):
         total_reviews_given = sum(a.reviews_given for a in activities)
         total_reviews_received = sum(a.reviews_received for a in activities)
         
-        # Calculate averages
         days_with_activity = len(activities)
         avg_page_views = round(total_page_views / days_with_activity, 1) if days_with_activity > 0 else 0
         
-        # Get last activity
         last_activity = activities[0] if activities else None
         
         return Response({
@@ -143,7 +141,6 @@ class TopUsersView(APIView):
         from apps.analytics.models import UserActivity
         from django.db.models import Sum, Count
         
-        # Get top users by page views
         top_users = UserActivity.objects.filter(
             date__gte=start_date,
             date__lte=end_date
@@ -170,44 +167,90 @@ class TopUsersView(APIView):
 
 class PlatformStatsView(APIView):
     """
-    GET /api/analytics/platform-stats/
+    GET /api/admin/platform-stats/
     Get comprehensive platform statistics (Admin only).
+    
+    FIXED: Uses correct User model fields:
+    - account_status (not is_active)
+    - user_roles__role__name (not is_worker/is_client booleans)
+    - deleted_at for soft delete filtering
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
     
     def get(self, request):
         from django.contrib.auth import get_user_model
+        from django.db.models import Avg
         from apps.jobs.models import Job
         from apps.reviews.models import Review
         
         User = get_user_model()
         
-        # User Stats
-        total_users = User.objects.filter(is_active=True).count()
-        workers = User.objects.filter(role='WORKER', is_active=True).count()
-        clients = User.objects.filter(role='CLIENT', is_active=True).count()
-        both_roles = User.objects.filter(role='BOTH', is_active=True).count()
-        verified_users = User.objects.filter(is_verified=True, is_active=True).count()
+        # ============================================
+        # USER STATS
+        # ============================================
         
-        # Job Stats
-        total_jobs = Job.objects.count()
-        open_jobs = Job.objects.filter(status='OPEN').count()
-        assigned_jobs = Job.objects.filter(status='ASSIGNED').count()
-        in_progress = Job.objects.filter(status='IN_PROGRESS').count()
-        completed_jobs = Job.objects.filter(status='COMPLETED').count()
-        cancelled_jobs = Job.objects.filter(status='CANCELLED').count()
+        # Total users (all non-deleted)
+        total_users = User.objects.filter(
+            deleted_at__isnull=True
+        ).count()
         
-        # Review Stats
+        # Active users (account_status = ACTIVE)
+        active_users = User.objects.filter(
+            account_status='ACTIVE',
+            deleted_at__isnull=True
+        ).count()
+        
+        # Workers: users with WORKER role
+        workers = User.objects.filter(
+            user_roles__role__name='WORKER',
+            deleted_at__isnull=True
+        ).distinct().count()
+        
+        # Clients: users with CLIENT role
+        clients = User.objects.filter(
+            user_roles__role__name='CLIENT',
+            deleted_at__isnull=True
+        ).distinct().count()
+        
+        # Both roles: users with WORKER AND CLIENT role
+        both_roles = User.objects.filter(
+            user_roles__role__name='WORKER',
+            deleted_at__isnull=True
+        ).filter(
+            user_roles__role__name='CLIENT'
+        ).distinct().count()
+        
+        # Verified users
+        verified_users = User.objects.filter(
+            is_verified=True,
+            deleted_at__isnull=True
+        ).count()
+        
+        # ============================================
+        # JOB STATS
+        # ============================================
+        total_jobs = Job.objects.filter(deleted_at__isnull=True).count()
+        open_jobs = Job.objects.filter(status='OPEN', deleted_at__isnull=True).count()
+        assigned_jobs = Job.objects.filter(status='ASSIGNED', deleted_at__isnull=True).count()
+        in_progress = Job.objects.filter(status='IN_PROGRESS', deleted_at__isnull=True).count()
+        completed_jobs = Job.objects.filter(status='COMPLETED', deleted_at__isnull=True).count()
+        cancelled_jobs = Job.objects.filter(status='CANCELLED', deleted_at__isnull=True).count()
+        
+        # ============================================
+        # REVIEW STATS
+        # ============================================
         total_reviews = Review.objects.count()
         avg_rating = Review.objects.aggregate(avg=Avg('rating'))['avg'] or 0
         
-        # Rating distribution
+        # Rating distribution (0-5 stars)
         rating_distribution = {}
         for i in range(0, 6):
             count = Review.objects.filter(rating=i).count()
             rating_distribution[str(i)] = count
         
-        # Daily stats (last 7 days)
+        # ============================================
+        # DAILY STATS (last 7 days)
+        # ============================================
         today = timezone.now().date()
         week_ago = today - timedelta(days=7)
         
@@ -225,14 +268,18 @@ class PlatformStatsView(APIView):
                 'unique_visitors': stat.unique_visitors,
             })
         
+        # ============================================
+        # RESPONSE
+        # ============================================
         return Response({
             'users': {
                 'total': total_users,
+                'active': active_users,
                 'workers': workers,
                 'clients': clients,
                 'both_roles': both_roles,
                 'verified': verified_users,
-                'active_today': daily_stats[-1].active_users if daily_stats else 0,
+                'active_today': daily_stats.last().active_users if daily_stats.exists() else 0,
             },
             'jobs': {
                 'total': total_jobs,
@@ -241,11 +288,14 @@ class PlatformStatsView(APIView):
                 'in_progress': in_progress,
                 'completed': completed_jobs,
                 'cancelled': cancelled_jobs,
-                'completion_rate': round((completed_jobs / total_jobs * 100) if total_jobs > 0 else 0, 1),
+                'completion_rate': round(
+                    (completed_jobs / total_jobs * 100) if total_jobs > 0 else 0,
+                    1
+                ),
             },
             'reviews': {
                 'total': total_reviews,
-                'average_rating': round(avg_rating, 1),
+                'average_rating': round(float(avg_rating), 1),
                 'rating_distribution': rating_distribution,
             },
             'daily_summary': daily_summary,

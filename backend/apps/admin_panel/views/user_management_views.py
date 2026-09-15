@@ -18,20 +18,25 @@ class AdminUserListView(APIView):
     """
     GET /api/admin/users/
     Get all users with optional filters (Admin only).
+    
+    FIXED: Now reads `status` and `role` query params.
+    - Removed legacy `is_active` filter (uses `status`/`account_status`)
+    - Added `status` filter for account_status
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def get(self, request):
         filters = {
             'role': request.query_params.get('role'),
+            'status': request.query_params.get('status'),           # ✅ ADDED
             'is_verified': request.query_params.get('is_verified'),
-            'is_active': request.query_params.get('is_active'),
             'search': request.query_params.get('search'),
         }
-        filters = {k: v for k, v in filters.items() if v is not None}
-        
+        # Remove empty/None filters
+        filters = {k: v for k, v in filters.items() if v is not None and v != ''}
+
         users = admin_service.get_all_users(filters)
-        
+
         return Response({
             'count': len(users),
             'results': AdminUserListSerializer(users, many=True).data,
@@ -44,7 +49,7 @@ class AdminUserDetailView(APIView):
     Get user details (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def get(self, request, user_id):
         try:
             user = admin_service.get_user_detail(user_id)
@@ -64,10 +69,10 @@ class AdminUserSuspendView(APIView):
     Suspend a user (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def post(self, request, user_id):
         reason = request.data.get('reason', 'No reason provided')
-        
+
         try:
             result = admin_service.suspend_user(request.user, user_id, reason)
             return Response(result, status=status.HTTP_200_OK)
@@ -84,7 +89,7 @@ class AdminUserActivateView(APIView):
     Activate a suspended user (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def post(self, request, user_id):
         try:
             result = admin_service.activate_user(request.user, user_id)

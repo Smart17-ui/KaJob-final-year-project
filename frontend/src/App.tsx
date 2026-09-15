@@ -1,3 +1,5 @@
+// frontend/src/App.tsx
+
 import { useEffect, useState } from "react";
 
 import {
@@ -72,6 +74,12 @@ import WorkerSettings from "@/pages/dashboard/worker/Settings";
 ========================= */
 
 import ChangePassword from "./pages/logIn/ChangePassword";
+
+/* =========================
+   ADMIN PANEL ROUTES
+========================= */
+
+import { AdminRoutes } from "@/features/admin/routes";
 
 /* =========================
    SHARED TYPES
@@ -282,6 +290,9 @@ function App() {
     ) ||
     location.pathname.startsWith(
       "/worker/dashboard"
+    ) ||
+    location.pathname.startsWith(
+      "/admin"
     );
 
   /* =========================
@@ -444,12 +455,7 @@ function App() {
             }
           />
 
-          {/* =========================
-              CLIENT APPLICATIONS
-
-              URL:
-              /client/dashboard/applications
-          ========================= */}
+          {/* CLIENT APPLICATIONS */}
 
           <Route
             path="applications"
@@ -652,6 +658,15 @@ function App() {
           />
 
         </Route>
+
+        {/* ==================================================
+            ADMIN PANEL
+        ================================================== */}
+
+        <Route
+          path="/admin/*"
+          element={<AdminRoutes />}
+        />
 
       </Routes>
 
