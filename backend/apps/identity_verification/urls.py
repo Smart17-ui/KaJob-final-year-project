@@ -14,6 +14,7 @@ from apps.identity_verification.views import (
     AdminVerificationDetailView,
     AdminReviewVerificationView,
     AdminVerificationStatsView,
+    VerificationDocumentUploadView,
 )
 
 app_name = 'identity_verification'
@@ -40,4 +41,11 @@ urlpatterns = [
     path('admin/verifications/<int:verification_id>/', AdminVerificationDetailView.as_view(), name='admin-verification-detail'),
     path('admin/verifications/<int:verification_id>/review/', AdminReviewVerificationView.as_view(), name='admin-review-verification'),
     path('admin/verifications/stats/', AdminVerificationStatsView.as_view(), name='admin-verification-stats'),
+
+    path(
+        "verification/documents/upload/",
+        VerificationDocumentUploadView.as_view(),
+        name="verification-document-upload",
+    ),
+
 ]

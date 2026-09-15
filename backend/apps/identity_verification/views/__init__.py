@@ -4,7 +4,7 @@
 from .phone_views import SendPhoneOTPView, VerifyPhoneOTPView
 
 # Email Verification Views
-from .email_views import SendEmailVerificationView, VerifyEmailView, ResendEmailVerificationView  # Add this
+from .email_views import SendEmailVerificationView, VerifyEmailView, ResendEmailVerificationView
 
 # Verification Views
 from .verification_views import SubmitVerificationView, VerificationStatusView, VerificationHistoryView
@@ -17,21 +17,26 @@ from .admin_verification_views import (
     AdminVerificationStatsView,
 )
 
+# 🆕 Document Upload
+from .verification_document import VerificationDocumentUploadView
+
 __all__ = [
-    # Phone Verification
+    # Phone
     'SendPhoneOTPView',
     'VerifyPhoneOTPView',
-    # Email Verification
+    # Email
     'SendEmailVerificationView',
     'VerifyEmailView',
-    'ResendEmailVerificationView',  # Add this
-    # User Verification
+    'ResendEmailVerificationView',
+    # User
     'SubmitVerificationView',
     'VerificationStatusView',
     'VerificationHistoryView',
-    # Admin Verification
+    # Admin
     'AdminPendingVerificationsView',
     'AdminVerificationDetailView',
     'AdminReviewVerificationView',
     'AdminVerificationStatsView',
+    # 🆕 Upload
+    'VerificationDocumentUploadView',
 ]
