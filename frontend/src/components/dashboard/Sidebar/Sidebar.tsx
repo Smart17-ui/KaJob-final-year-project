@@ -37,6 +37,7 @@ const Sidebar = ({
       ? "/client/dashboard"
       : "/worker/dashboard";
 
+
   /* =========================
      CLIENT NAVIGATION
   ========================= */
@@ -74,6 +75,7 @@ const Sidebar = ({
     },
   ];
 
+
   /* =========================
      WORKER NAVIGATION
   ========================= */
@@ -87,7 +89,7 @@ const Sidebar = ({
     },
     {
       name: "Find Jobs",
-      path: `${dashboardPath}/jobs`,
+      path: `${dashboardPath}/find-jobs`,
       icon: BriefcaseIcon,
       description: "Browse opportunities",
     },
@@ -99,7 +101,7 @@ const Sidebar = ({
     },
     {
       name: "My Work",
-      path: `${dashboardPath}/my-jobs`,
+      path: `${dashboardPath}/my-work`,
       icon: BriefcaseIcon,
       description: "Active assignments",
     },
@@ -111,11 +113,16 @@ const Sidebar = ({
     },
   ];
 
+
   /* =========================
      SELECT NAVIGATION
   ========================= */
 
-  const navigation = role === "CLIENT" ? clientLinks : workerLinks;
+  const navigation =
+    role === "CLIENT"
+      ? clientLinks
+      : workerLinks;
+
 
   /* =========================
      LOGOUT
@@ -131,6 +138,7 @@ const Sidebar = ({
     onClose?.();
   }
 
+
   /* =========================
      RENDER
   ========================= */
@@ -138,6 +146,7 @@ const Sidebar = ({
   return (
     <>
       {/* OVERLAY - Mobile & Tablet */}
+
       {isOpen && (
         <div
           onClick={onClose}
@@ -154,7 +163,9 @@ const Sidebar = ({
         />
       )}
 
+
       {/* SIDEBAR DRAWER */}
+
       <aside
         className={`
           fixed
@@ -173,7 +184,9 @@ const Sidebar = ({
           lg:shadow-none
         `}
       >
+
         {/* HEADER - Close Button */}
+
         <div
           className="
             flex
@@ -186,17 +199,28 @@ const Sidebar = ({
             px-5
           "
         >
+
           {/* Logo/Branding Space */}
+
           <div className="flex items-center gap-2">
+
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600">
-              <span className="text-xs font-bold text-white">KJ</span>
+
+              <span className="text-xs font-bold text-white">
+                KJ
+              </span>
+
             </div>
+
             <span className="hidden text-sm font-semibold text-slate-900 sm:block">
               KaJob
             </span>
+
           </div>
 
+
           {/* Close Button - Mobile Only */}
+
           <button
             type="button"
             onClick={onClose}
@@ -214,40 +238,61 @@ const Sidebar = ({
             "
             aria-label="Close navigation menu"
           >
+
             <XMarkIcon className="h-5 w-5" />
+
           </button>
+
         </div>
 
+
         {/* WORKSPACE SECTION */}
+
         <div className="border-b border-slate-100 px-5 py-4">
+
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Workspace
           </p>
+
           <p className="mt-2 text-sm font-semibold text-slate-900">
-            {role === "CLIENT" ? "Client" : "Worker"}
+            {role === "CLIENT"
+              ? "Client"
+              : "Worker"}
           </p>
+
           <p className="mt-1 text-xs text-slate-500">
             {role === "CLIENT"
               ? "Post and manage jobs"
               : "Find and apply to jobs"}
           </p>
+
         </div>
 
+
         {/* MAIN NAVIGATION */}
+
         <nav className="flex-1 overflow-y-auto px-4 py-5">
+
           <p className="mb-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
             Menu
           </p>
 
           <div className="space-y-1">
+
             {navigation.map((item) => {
-              const Icon = item.icon;
+
+              const Icon =
+                item.icon;
 
               return (
+
                 <NavLink
                   key={item.name}
                   to={item.path}
-                  end={item.path === dashboardPath}
+                  end={
+                    item.path ===
+                    dashboardPath
+                  }
                   onClick={onClose}
                   className={({ isActive }) =>
                     `
@@ -268,14 +313,20 @@ const Sidebar = ({
                   }
                   title={item.description}
                 >
+
                   {({ isActive }) => (
+
                     <>
+
                       {/* Active Indicator */}
+
                       {isActive && (
                         <div className="absolute left-0 top-0 bottom-0 w-1 rounded-r-lg bg-gradient-to-b from-emerald-400 to-emerald-600" />
                       )}
 
+
                       {/* Icon */}
+
                       <Icon
                         className={`
                           h-5 w-5
@@ -289,27 +340,47 @@ const Sidebar = ({
                         `}
                       />
 
-                      {/* Label */}
-                      <span className="flex-1">{item.name}</span>
 
-                      {/* Badge Indicator (Optional - for new items) */}
-                      {item.path.includes("applications") && (
+                      {/* Label */}
+
+                      <span className="flex-1">
+                        {item.name}
+                      </span>
+
+
+                      {/* Badge Indicator */}
+
+                      {item.path.includes(
+                        "applications"
+                      ) && (
                         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
                           3
                         </span>
                       )}
+
                     </>
+
                   )}
+
                 </NavLink>
+
               );
+
             })}
+
           </div>
+
         </nav>
 
+
         {/* BOTTOM SECTION - Actions */}
+
         <div className="flex-shrink-0 border-t border-slate-100 bg-gradient-to-t from-slate-50 to-transparent p-4">
+
           {/* Switch Role Button */}
+
           {onSwitchRole && (
+
             <button
               type="button"
               onClick={() => {
@@ -331,12 +402,20 @@ const Sidebar = ({
                 focus:outline-none focus:ring-2 focus:ring-emerald-500
               "
             >
+
               <SparklesIcon className="h-5 w-5 text-emerald-600" />
-              <span>Switch Role</span>
+
+              <span>
+                Switch Role
+              </span>
+
             </button>
+
           )}
 
+
           {/* Logout Button */}
+
           <button
             type="button"
             onClick={handleLogout}
@@ -354,10 +433,17 @@ const Sidebar = ({
               focus:outline-none focus:ring-2 focus:ring-red-500
             "
           >
+
             <ArrowRightOnRectangleIcon className="h-5 w-5 text-slate-400 transition-colors group-hover:text-red-500" />
-            <span>Sign out</span>
+
+            <span>
+              Sign out
+            </span>
+
           </button>
+
         </div>
+
       </aside>
     </>
   );

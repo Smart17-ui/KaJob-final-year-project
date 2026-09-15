@@ -1,3 +1,85 @@
+export type Job = {
+  id: number;
+
+  title: string;
+  description: string;
+
+  budget: string;
+
+  general_location: string;
+
+  category_name: string | null;
+
+  status: string;
+
+  urgency: string;
+  urgency_display: string;
+
+  job_date: string | null;
+
+  is_flexible: boolean;
+
+  duration_hours: string | null;
+
+  posted_at: string;
+
+  /*
+   * Exact coordinates are NOT returned by the
+   * worker matching endpoint.
+   *
+   * They are optional here because other components,
+   * such as JobMap, may use this type.
+   */
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+
+  /*
+   * Optional fields used by existing components.
+   */
+  timeframe?: string | null;
+  timeframe_display?: string | null;
+  is_urgent?: boolean;
+
+  /*
+   * Distance information is added by the frontend
+   * when converting a NearbyJob response into a Job.
+   *
+   * These are optional because normal Job responses
+   * do not necessarily contain distance information.
+   */
+  distance_km?: number;
+  distance_display?: string;
+};
+
+
+/**
+ * A job returned by the location-based matching endpoint.
+ *
+ * GET /api/matching/nearby/
+ */
+export type NearbyJob = {
+  job: Job;
+
+  distance_km: number;
+
+  distance_display: string;
+};
+
+
+/**
+ * Response from the location-based matching endpoint.
+ *
+ * GET /api/matching/nearby/?radius=1.0
+ */
+export type NearbyJobsResponse = {
+  count: number;
+
+  radius_km: number;
+
+  results: NearbyJob[];
+};
+
+
 export type MyJob = {
   id: number;
   title: string;
@@ -23,10 +105,12 @@ export type MyJob = {
   duration_hours?: string | null;
 };
 
+
 export type MyJobsResponse = {
   count: number;
   results: MyJob[];
 };
+
 
 /**
  * Review for a specific job
@@ -41,6 +125,7 @@ export type JobReview = {
   created_at: string;
 };
 
+
 /**
  * Reviews response
  *
@@ -50,6 +135,7 @@ export type JobReviewsResponse = {
   count: number;
   results: JobReview[];
 };
+
 
 /**
  * Cancel job response
@@ -66,6 +152,7 @@ export type CancelJobResponse = {
   };
 };
 
+
 /**
  * Delete job response
  *
@@ -75,11 +162,13 @@ export type DeleteJobResponse = {
   message: string;
 };
 
+
 export type Timeframe =
   | "MORNING"
   | "AFTERNOON"
   | "EVENING"
   | "ANYTIME";
+
 
 export type Urgency =
   | "IMMEDIATE"
@@ -87,15 +176,18 @@ export type Urgency =
   | "NORMAL"
   | "FLEXIBLE";
 
+
 export type CategoryOption = {
   id: number;
   name: string;
 };
 
+
 export type SkillOption = {
   id: number;
   name: string;
 };
+
 
 export type JobForm = {
   title: string;
@@ -118,6 +210,7 @@ export type JobForm = {
   requiredSkills: number[];
 };
 
+
 export type FormErrors = {
   title?: string;
   description?: string;
@@ -128,6 +221,7 @@ export type FormErrors = {
   durationHours?: string;
   location?: string;
 };
+
 
 export type CreateJobData = {
   title: string;
@@ -149,6 +243,7 @@ export type CreateJobData = {
   urgency?: Urgency;
   required_skills?: number[];
 };
+
 
 export type CreateJobResponse = {
   message: string;

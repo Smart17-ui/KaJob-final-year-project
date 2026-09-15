@@ -64,12 +64,12 @@ const DashboardTabs = ({ role }: DashboardTabsProps) => {
           },
           {
             name: "Find Jobs",
-            path: `${basePath}/jobs`,
+            path: `${basePath}/find-jobs`,
             icon: BriefcaseIcon,
           },
           {
-            name: "My Jobs",
-            path: `${basePath}/my-jobs`,
+            name: "My Work",
+            path: `${basePath}/my-work`,
             icon: BriefcaseIcon,
           },
           {

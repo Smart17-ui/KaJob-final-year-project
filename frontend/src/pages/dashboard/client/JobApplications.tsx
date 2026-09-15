@@ -5,6 +5,8 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   FunnelIcon,
+  StarIcon,
+  UserCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 
@@ -29,8 +31,6 @@ import {
 
 import ApplicationCard from "../../../components/application/ApplicationCard";
 
-import WorkerDetailsCard from "@/components/application/WorkerDetailsCard";
-
 import type {
   JobApplication,
 } from "../../../shared/types/application";
@@ -38,12 +38,6 @@ import type {
 import type {
   MyJob,
 } from "../../../shared/types/job";
-
-/*
- * =========================
- * FILTER
- * =========================
- */
 
 type ApplicationFilter =
   | "ALL"
@@ -120,13 +114,6 @@ const JobApplications = () => {
    * =========================
    * LOAD APPLICATIONS
    * =========================
-   *
-   * We first get the client's
-   * jobs and locate the selected
-   * job.
-   *
-   * Then we fetch applications
-   * for only that job.
    */
 
   const loadApplications = async () => {
@@ -153,19 +140,11 @@ const JobApplications = () => {
         );
       }
 
-      /*
-       * Get client's jobs.
-       */
-
       const jobsResponse =
         await getMyJobs();
 
       const jobs =
         jobsResponse.results || [];
-
-      /*
-       * Find the selected job.
-       */
 
       const selectedJob =
         jobs.find(
@@ -182,20 +161,10 @@ const JobApplications = () => {
 
       setJob(selectedJob);
 
-      /*
-       * Get applications for
-       * this job only.
-       */
-
       const response =
         await getJobApplications(
           parsedJobId
         );
-
-      /*
-       * Make sure the job title
-       * is available to the card.
-       */
 
       const jobApplications =
         response.results.map(
@@ -206,10 +175,6 @@ const JobApplications = () => {
               selectedJob.title,
           })
         );
-
-      /*
-       * Newest applications first.
-       */
 
       jobApplications.sort(
         (a, b) =>
@@ -241,12 +206,6 @@ const JobApplications = () => {
     }
   };
 
-  /*
-   * =========================
-   * LOAD WHEN PAGE OPENS
-   * =========================
-   */
-
   useEffect(() => {
     loadApplications();
   }, [jobId]);
@@ -275,11 +234,6 @@ const JobApplications = () => {
             status
           );
 
-        /*
-         * Update application in
-         * the main list.
-         */
-
         setApplications(
           (currentApplications) =>
             currentApplications.map(
@@ -304,9 +258,8 @@ const JobApplications = () => {
         );
 
         /*
-         * Also update the selected
-         * worker if their profile
-         * is currently open.
+         * Keep the worker modal
+         * status synchronized.
          */
 
         setSelectedWorker(
@@ -556,9 +509,7 @@ const JobApplications = () => {
   return (
     <div className="space-y-8">
 
-      {/* =========================
-          BACK
-      ========================= */}
+      {/* BACK */}
 
       <button
         type="button"
@@ -574,9 +525,7 @@ const JobApplications = () => {
         Back to Applications
       </button>
 
-      {/* =========================
-          JOB HEADER
-      ========================= */}
+      {/* JOB HEADER */}
 
       <section>
 
@@ -609,13 +558,9 @@ const JobApplications = () => {
 
       </section>
 
-      {/* =========================
-          STATISTICS
-      ========================= */}
+      {/* STATISTICS */}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
-        {/* PENDING */}
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
 
@@ -643,8 +588,6 @@ const JobApplications = () => {
 
         </div>
 
-        {/* ACCEPTED */}
-
         <div className="rounded-xl border border-slate-200 bg-white p-5">
 
           <div className="flex items-center gap-4">
@@ -670,8 +613,6 @@ const JobApplications = () => {
           </div>
 
         </div>
-
-        {/* REJECTED */}
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
 
@@ -701,9 +642,7 @@ const JobApplications = () => {
 
       </section>
 
-      {/* =========================
-          ACTION ERROR
-      ========================= */}
+      {/* ACTION ERROR */}
 
       {actionError && (
         <section className="rounded-xl border border-red-200 bg-red-50 p-4">
@@ -740,9 +679,7 @@ const JobApplications = () => {
         </section>
       )}
 
-      {/* =========================
-          FILTERS
-      ========================= */}
+      {/* FILTERS */}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
 
@@ -788,13 +725,9 @@ const JobApplications = () => {
 
       </section>
 
-      {/* =========================
-          APPLICATIONS
-      ========================= */}
+      {/* APPLICATIONS */}
 
       <section className="rounded-xl border border-slate-200 bg-white">
-
-        {/* HEADER */}
 
         <div className="border-b border-slate-100 px-5 py-4">
 
@@ -812,8 +745,6 @@ const JobApplications = () => {
           </p>
 
         </div>
-
-        {/* LIST */}
 
         <div className="divide-y divide-slate-100">
 
@@ -889,38 +820,353 @@ const JobApplications = () => {
       </section>
 
       {/* =========================
-          WORKER DETAILS
+          WORKER DETAILS MODAL
       ========================= */}
 
       {selectedWorker && (
-        <WorkerDetailsCard
-          application={
-            selectedWorker
-          }
-          onClose={() =>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-6"
+          onClick={() =>
             setSelectedWorker(null)
           }
-          onAccept={(
-            applicationId
-          ) =>
-            handleApplicationStatus(
-              applicationId,
-              "accept"
-            )
-          }
-          onReject={(
-            applicationId
-          ) =>
-            handleApplicationStatus(
-              applicationId,
-              "reject"
-            )
-          }
-          isUpdating={
-            actionApplicationId ===
-            selectedWorker.id
-          }
-        />
+        >
+
+          <div
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+
+            {/* MODAL HEADER */}
+
+            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+
+              <div>
+
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                  Worker Profile
+                </p>
+
+                <h2 className="mt-1 text-xl font-bold text-slate-900">
+                  {selectedWorker.worker_name}
+                </h2>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedWorker(null)
+                }
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close worker details"
+              >
+                <XCircleIcon className="h-6 w-6" />
+              </button>
+
+            </div>
+
+            {/* PROFILE */}
+
+            <div className="space-y-6 px-6 py-6">
+
+              {/* PROFILE SUMMARY */}
+
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-emerald-50">
+
+                  <UserCircleIcon className="h-12 w-12 text-emerald-600" />
+
+                </div>
+
+                <div className="min-w-0">
+
+                  <h3 className="text-lg font-bold text-slate-900">
+                    {selectedWorker.worker_name}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Applicant for{" "}
+                    {selectedWorker.job_title}
+                  </p>
+
+                  <div className="mt-2">
+
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        selectedWorker.status ===
+                        "ACCEPTED"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : selectedWorker.status ===
+                              "REJECTED"
+                            ? "bg-red-50 text-red-700"
+                            : "bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {
+                        selectedWorker.status_display
+                      }
+                    </span>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* STATS */}
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+                <div className="rounded-xl bg-slate-50 p-4">
+
+                  <div className="flex items-center gap-2">
+
+                    <StarIcon className="h-5 w-5 text-amber-500" />
+
+                    <p className="text-xs font-medium text-slate-500">
+                      Rating
+                    </p>
+
+                  </div>
+
+                  <p className="mt-2 text-lg font-bold text-slate-900">
+
+                    {selectedWorker
+                      .worker_profile
+                      ?.average_rating ??
+                      "No rating"}
+
+                    {selectedWorker
+                      .worker_profile
+                      ?.average_rating !=
+                      null && (
+                      <span className="ml-1 text-sm font-medium text-slate-500">
+                        / 5
+                      </span>
+                    )}
+
+                  </p>
+
+                </div>
+
+                <div className="rounded-xl bg-slate-50 p-4">
+
+                  <p className="text-xs font-medium text-slate-500">
+                    Jobs completed
+                  </p>
+
+                  <p className="mt-2 text-lg font-bold text-slate-900">
+                    {
+                      selectedWorker
+                        .worker_profile
+                        ?.jobs_completed ??
+                      0
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-xl bg-slate-50 p-4">
+
+                  <p className="text-xs font-medium text-slate-500">
+                    Hourly rate
+                  </p>
+
+                  <p className="mt-2 text-lg font-bold text-slate-900">
+
+                    {selectedWorker
+                      .worker_profile
+                      ?.hourly_rate
+                      ? `K${selectedWorker.worker_profile.hourly_rate}`
+                      : "Not specified"}
+
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* BIO */}
+
+              <div>
+
+                <h3 className="text-sm font-semibold text-slate-900">
+                  About the worker
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+
+                  {selectedWorker
+                    .worker_profile
+                    ?.bio ||
+                    "This worker has not added a bio yet."}
+
+                </p>
+
+              </div>
+
+              {/* SKILLS */}
+
+              <div>
+
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Skills
+                </h3>
+
+                {selectedWorker
+                  .worker_profile
+                  ?.skills?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+
+                    {selectedWorker.worker_profile.skills.map(
+                      (skill) => (
+                        <span
+                          key={skill}
+                          className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700"
+                        >
+                          {skill}
+                        </span>
+                      )
+                    )}
+
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-500">
+                    No skills have been added yet.
+                  </p>
+                )}
+
+              </div>
+
+              {/* AVAILABILITY */}
+
+              <div>
+
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Availability
+                </h3>
+
+                <div className="mt-2">
+
+                  <span className="inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                    {selectedWorker
+                      .worker_profile
+                      ?.availability_status ||
+                      "Not specified"}
+                  </span>
+
+                </div>
+
+              </div>
+
+              {/* APPLICATION INFO */}
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Application information
+                </h3>
+
+                <div className="mt-3 space-y-2 text-sm">
+
+                  <div className="flex justify-between gap-4">
+
+                    <span className="text-slate-500">
+                      Applied
+                    </span>
+
+                    <span className="font-medium text-slate-700">
+                      {new Date(
+                        selectedWorker.applied_at
+                      ).toLocaleDateString()}
+                    </span>
+
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+
+                    <span className="text-slate-500">
+                      Status
+                    </span>
+
+                    <span className="font-medium text-slate-700">
+                      {
+                        selectedWorker.status_display
+                      }
+                    </span>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* MODAL FOOTER */}
+
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:justify-end">
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedWorker(null)
+                }
+                className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+
+              {selectedWorker.status ===
+                "PENDING" && (
+                <>
+                  <button
+                    type="button"
+                    disabled={
+                      actionApplicationId ===
+                      selectedWorker.id
+                    }
+                    onClick={() =>
+                      handleApplicationStatus(
+                        selectedWorker.id,
+                        "reject"
+                      )
+                    }
+                    className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={
+                      actionApplicationId ===
+                      selectedWorker.id
+                    }
+                    onClick={() =>
+                      handleApplicationStatus(
+                        selectedWorker.id,
+                        "accept"
+                      )
+                    }
+                    className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {actionApplicationId ===
+                    selectedWorker.id
+                      ? "Updating..."
+                      : "Accept Worker"}
+                  </button>
+                </>
+              )}
+
+            </div>
+
+          </div>
+
+        </div>
       )}
 
     </div>

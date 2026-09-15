@@ -1,54 +1,85 @@
 import {
   BriefcaseIcon,
-  MapPinIcon,
   ClockIcon,
+  MapPinIcon,
 } from "@heroicons/react/24/outline";
 
 import { useNavigate } from "react-router-dom";
 
 import type { Job } from "@/shared/types/job";
 
-type JobCardProps = {
-  job: Job;
+
+type JobWithDistance = Job & {
+  distance_km?: number;
+  distance_display?: string;
 };
 
-const formatBudget = (budget: string | number) => {
-  const amount = Number(budget);
 
-  if (Number.isNaN(amount)) {
+type JobCardProps = {
+  job: JobWithDistance;
+};
+
+
+const formatBudget = (
+  budget: string | number
+) => {
+
+  const amount =
+    Number(budget);
+
+  if (
+    Number.isNaN(amount)
+  ) {
     return `K${budget}`;
   }
 
   return `K${amount.toLocaleString()}`;
 };
 
-const formatPostedDate = (dateString?: string) => {
+
+const formatPostedDate = (
+  dateString?: string
+) => {
+
   if (!dateString) {
     return "Recently posted";
   }
 
-  const date = new Date(dateString);
+  const date =
+    new Date(dateString);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Recently posted";
   }
 
-  const now = new Date();
+  const now =
+    new Date();
 
   const difference =
-    now.getTime() - date.getTime();
+    now.getTime() -
+    date.getTime();
 
-  const minutes = Math.floor(
-    difference / (1000 * 60)
-  );
+  const minutes =
+    Math.floor(
+      difference /
+        (1000 * 60)
+    );
 
-  const hours = Math.floor(
-    difference / (1000 * 60 * 60)
-  );
+  const hours =
+    Math.floor(
+      difference /
+        (1000 * 60 * 60)
+    );
 
-  const days = Math.floor(
-    difference / (1000 * 60 * 60 * 24)
-  );
+  const days =
+    Math.floor(
+      difference /
+        (1000 * 60 * 60 * 24)
+    );
 
   if (minutes < 1) {
     return "Just now";
@@ -56,31 +87,45 @@ const formatPostedDate = (dateString?: string) => {
 
   if (minutes < 60) {
     return `${minutes} minute${
-      minutes === 1 ? "" : "s"
+      minutes === 1
+        ? ""
+        : "s"
     } ago`;
   }
 
   if (hours < 24) {
     return `${hours} hour${
-      hours === 1 ? "" : "s"
+      hours === 1
+        ? ""
+        : "s"
     } ago`;
   }
 
   if (days < 7) {
     return `${days} day${
-      days === 1 ? "" : "s"
+      days === 1
+        ? ""
+        : "s"
     } ago`;
   }
 
   return date.toLocaleDateString();
 };
 
-const JobCard = ({ job }: JobCardProps) => {
-  const navigate = useNavigate();
 
-  const timeframe =
-    job.timeframe_display ||
-    job.timeframe;
+const JobCard = ({
+  job,
+}: JobCardProps) => {
+
+  const navigate =
+    useNavigate();
+
+  const nearbyJob =
+    job as JobWithDistance;
+
+  const urgency =
+    job.urgency_display ||
+    job.urgency;
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
@@ -98,6 +143,7 @@ const JobCard = ({ job }: JobCardProps) => {
             <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
 
           </div>
+
 
           {/* TITLE */}
 
@@ -118,19 +164,23 @@ const JobCard = ({ job }: JobCardProps) => {
             </div>
 
             <span className="mt-1 inline-block rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-              {job.category_name || "General"}
+              {job.category_name ||
+                "General"}
             </span>
 
           </div>
 
         </div>
 
+
         {/* BUDGET */}
 
         <div className="sm:text-right">
 
           <p className="text-lg font-bold text-emerald-600">
-            {formatBudget(job.budget)}
+            {formatBudget(
+              job.budget
+            )}
           </p>
 
           <p className="text-xs text-slate-400">
@@ -141,11 +191,14 @@ const JobCard = ({ job }: JobCardProps) => {
 
       </div>
 
+
       {/* DESCRIPTION */}
 
       <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-600">
-        {job.description || "No description provided."}
+        {job.description ||
+          "No description provided."}
       </p>
+
 
       {/* DETAILS */}
 
@@ -165,6 +218,22 @@ const JobCard = ({ job }: JobCardProps) => {
           </div>
         )}
 
+
+        {/* DISTANCE */}
+
+        {nearbyJob.distance_display && (
+          <div className="flex items-center gap-1.5 font-semibold text-emerald-600">
+
+            <MapPinIcon className="h-4 w-4" />
+
+            <span>
+              {nearbyJob.distance_display}
+            </span>
+
+          </div>
+        )}
+
+
         {/* POSTED */}
 
         <div className="flex items-center gap-1.5">
@@ -172,12 +241,15 @@ const JobCard = ({ job }: JobCardProps) => {
           <ClockIcon className="h-4 w-4" />
 
           <span>
-            {formatPostedDate(job.posted_at)}
+            {formatPostedDate(
+              job.posted_at
+            )}
           </span>
 
         </div>
 
       </div>
+
 
       {/* BOTTOM */}
 
@@ -187,9 +259,15 @@ const JobCard = ({ job }: JobCardProps) => {
 
         <div className="flex flex-wrap gap-2">
 
-          {timeframe && (
+          {urgency && (
             <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
-              {timeframe}
+              {urgency}
+            </span>
+          )}
+
+          {job.is_flexible && (
+            <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+              Flexible
             </span>
           )}
 
@@ -200,6 +278,7 @@ const JobCard = ({ job }: JobCardProps) => {
           )}
 
         </div>
+
 
         {/* BUTTON */}
 
@@ -220,5 +299,6 @@ const JobCard = ({ job }: JobCardProps) => {
     </article>
   );
 };
+
 
 export default JobCard;

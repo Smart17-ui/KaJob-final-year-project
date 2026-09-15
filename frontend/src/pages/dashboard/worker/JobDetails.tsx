@@ -1,338 +1,247 @@
-import {
-  ArrowLeftIcon,
-  BriefcaseIcon,
-  ClockIcon,
-  MapPinIcon,
-  CheckCircleIcon,
-} from "@heroicons/react/24/outline";
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
-type Job = {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  location: string;
-  distance: string;
-  budget: string;
-  jobType: "One-time" | "Short-term" | "Long-term";
-  posted: string;
-  requirements: string[];
-  duration: string;
-};
+// Authentication
+import Login from "@/pages/logIn";
+import Register from "@/pages/register";
 
-const jobs: Job[] = [
-  {
-    id: 1,
-    title: "House Cleaning",
-    description:
-      "Looking for someone to clean a three-bedroom house and organize the rooms. The job involves general cleaning, sweeping, mopping, dusting, and organizing the rooms.",
-    category: "Cleaning",
-    location: "Roma, Lusaka",
-    distance: "2.4 km away",
-    budget: "K250",
-    jobType: "One-time",
-    posted: "2 hours ago",
-    duration: "1 day",
-    requirements: [
-      "Previous cleaning experience",
-      "Must be reliable and punctual",
-      "Bring your own basic cleaning equipment",
-      "Able to complete the work within one day",
-    ],
-  },
-  {
-    id: 2,
-    title: "Garden Maintenance",
-    description:
-      "Need someone to clean the garden, trim the grass and remove unwanted weeds. The worker should leave the garden clean and well maintained.",
-    category: "Gardening",
-    location: "Woodlands, Lusaka",
-    distance: "3.1 km away",
-    budget: "K180",
-    jobType: "One-time",
-    posted: "5 hours ago",
-    duration: "1 day",
-    requirements: [
-      "Experience with garden maintenance",
-      "Ability to use basic gardening tools",
-      "Must be physically fit",
-    ],
-  },
-  {
-    id: 3,
-    title: "Moving Assistance",
-    description:
-      "Looking for two people to help move furniture and boxes to a new house. The work will involve loading, transporting and unloading household items.",
-    category: "Moving",
-    location: "Chilenje, Lusaka",
-    distance: "4.7 km away",
-    budget: "K400",
-    jobType: "Short-term",
-    posted: "1 day ago",
-    duration: "2 days",
-    requirements: [
-      "Able to lift heavy items",
-      "Previous moving experience is an advantage",
-      "Must be available for two days",
-    ],
-  },
-  {
-    id: 4,
-    title: "Painting Assistant",
-    description:
-      "Need assistance with painting the interior walls of a small house. The worker will help prepare surfaces and apply paint to the walls.",
-    category: "Construction",
-    location: "Ibex Hill, Lusaka",
-    distance: "5.2 km away",
-    budget: "K350",
-    jobType: "Short-term",
-    posted: "1 day ago",
-    duration: "3 days",
-    requirements: [
-      "Basic painting knowledge",
-      "Attention to detail",
-      "Must be reliable",
-      "Previous painting experience is preferred",
-    ],
-  },
-];
+// Dashboard layout
+import DashboardLayout from "@/components/dashboard/DashboardLayout/DashboardLayout";
 
-const JobDetails = () => {
-  const navigate = useNavigate();
-  const { jobId } = useParams();
+// Client dashboard pages
+import ClientDashboard from "@/pages/dashboard/client/ClientDashboard";
+import MyJobs from "@/pages/dashboard/client/MyJobs";
+import ClientJobDetails from "@/pages/dashboard/client/JobDetails";
+import PostJob from "@/pages/dashboard/client/PostJob";
+import Applications from "@/pages/dashboard/client/Applications";
+import JobApplications from "@/pages/dashboard/client/JobApplications";
+import Messages from "@/pages/dashboard/client/Messages";
+import Analytics from "@/pages/dashboard/client/Analytics";
 
-  const job = jobs.find((job) => job.id === Number(jobId));
+// Worker dashboard pages
+import WorkerDashboard from "@/pages/dashboard/worker/WorkerDashboard";
+import FindJobs from "@/pages/dashboard/worker/FindJobs";
+import WorkerJobDetails from "@/pages/dashboard/worker/JobDetails";
+import MyApplications from "@/pages/dashboard/worker/MyApplications";
+import MyWork from "@/pages/dashboard/worker/MyWork";
+import WorkerMessages from "@/pages/dashboard/worker/Messages";
+import Performance from "@/pages/dashboard/worker/Performance";
 
-  if (!job) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-            <BriefcaseIcon className="h-7 w-7 text-slate-400" />
-          </div>
 
-          <h2 className="mt-4 text-lg font-semibold text-slate-900">
-            Job not found
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            This job may no longer be available.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => navigate("/worker/find-jobs")}
-            className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
-          >
-            <ArrowLeftIcon className="h-4 w-4" />
-            Back to Find Jobs
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+function App() {
   return (
-    <div className="space-y-6">
+    <Routes>
 
-      {/* BACK BUTTON */}
-      <button
-        type="button"
-        onClick={() => navigate("/worker/find-jobs")}
-        className="flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-emerald-600"
+      {/* =========================
+          PUBLIC / AUTH ROUTES
+         ========================= */}
+
+      <Route
+        path="/"
+        element={
+          <Navigate
+            to="/login"
+            replace
+          />
+        }
+      />
+
+      <Route
+        path="/login"
+        element={
+          <Login />
+        }
+      />
+
+      <Route
+        path="/register"
+        element={
+          <Register />
+        }
+      />
+
+
+      {/* =========================
+          CLIENT DASHBOARD
+         ========================= */}
+
+      <Route
+        path="/client/dashboard"
+        element={
+          <DashboardLayout />
+        }
       >
-        <ArrowLeftIcon className="h-4 w-4" />
-        Back to Find Jobs
-      </button>
 
-      {/* JOB HEADER */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
+        {/* Dashboard home */}
 
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <Route
+          index
+          element={
+            <ClientDashboard />
+          }
+        />
 
-          <div className="flex gap-4">
 
-            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50">
-              <BriefcaseIcon className="h-7 w-7 text-emerald-600" />
-            </div>
+        {/* My Jobs */}
 
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                {job.title}
-              </h1>
+        <Route
+          path="jobs"
+          element={
+            <MyJobs />
+          }
+        />
 
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
 
-                <div className="flex items-center gap-1.5">
-                  <MapPinIcon className="h-4 w-4" />
-                  {job.location}
-                </div>
+        {/* Job details */}
 
-                <div className="flex items-center gap-1.5">
-                  <ClockIcon className="h-4 w-4" />
-                  {job.posted}
-                </div>
+        <Route
+          path="jobs/:jobId"
+          element={
+            <ClientJobDetails />
+          }
+        />
 
-              </div>
-            </div>
 
-          </div>
+        {/* Post a Job */}
 
-          <div className="sm:text-right">
-            <p className="text-2xl font-bold text-emerald-600">
-              {job.budget}
-            </p>
+        <Route
+          path="post-job"
+          element={
+            <PostJob />
+          }
+        />
 
-            <p className="text-sm text-slate-400">
-              Budget
-            </p>
-          </div>
 
-        </div>
+        {/* =========================
+            APPLICATIONS
+           ========================= */}
 
-      </section>
+        {/* All jobs posted by the client */}
 
-      {/* MAIN CONTENT */}
-      <div className="grid gap-6 lg:grid-cols-3">
+        <Route
+          path="applications"
+          element={
+            <Applications />
+          }
+        />
 
-        {/* LEFT CONTENT */}
-        <div className="space-y-6 lg:col-span-2">
 
-          {/* DESCRIPTION */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6">
+        {/* Applications for one specific job */}
 
-            <h2 className="text-lg font-semibold text-slate-900">
-              Job Description
-            </h2>
+        <Route
+          path="applications/:jobId"
+          element={
+            <JobApplications />
+          }
+        />
 
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              {job.description}
-            </p>
 
-          </section>
+        {/* Messages */}
 
-          {/* REQUIREMENTS */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <Route
+          path="messages"
+          element={
+            <Messages />
+          }
+        />
 
-            <h2 className="text-lg font-semibold text-slate-900">
-              Requirements
-            </h2>
 
-            <div className="mt-4 space-y-3">
+        {/* Analytics */}
 
-              {job.requirements.map((requirement, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-3"
-                >
-                  <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600" />
+        <Route
+          path="analytics"
+          element={
+            <Analytics />
+          }
+        />
 
-                  <p className="text-sm text-slate-600">
-                    {requirement}
-                  </p>
-                </div>
-              ))}
+      </Route>
 
-            </div>
 
-          </section>
+      {/* =========================
+          WORKER DASHBOARD
+         ========================= */}
 
-        </div>
+      <Route
+        path="/worker/dashboard"
+        element={
+          <DashboardLayout />
+        }
+      >
 
-        {/* RIGHT SIDEBAR */}
-        <aside className="space-y-6">
+        {/* Dashboard home */}
 
-          {/* JOB DETAILS */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <Route
+          index
+          element={
+            <WorkerDashboard />
+          }
+        />
 
-            <h2 className="text-lg font-semibold text-slate-900">
-              Job Details
-            </h2>
 
-            <div className="mt-5 space-y-5">
+        {/* Find Jobs */}
 
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Category
-                </p>
+        <Route
+          path="find-jobs"
+          element={
+            <FindJobs />
+          }
+        />
 
-                <p className="mt-1 text-sm font-medium text-slate-700">
-                  {job.category}
-                </p>
-              </div>
 
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Job Type
-                </p>
+        {/* Worker Job Details */}
 
-                <p className="mt-1 text-sm font-medium text-slate-700">
-                  {job.jobType}
-                </p>
-              </div>
+        <Route
+          path="jobs/:jobId"
+          element={
+            <WorkerJobDetails />
+          }
+        />
 
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Location
-                </p>
 
-                <p className="mt-1 text-sm font-medium text-slate-700">
-                  {job.location}
-                </p>
-              </div>
+        {/* My Applications */}
 
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Distance
-                </p>
+        <Route
+          path="applications"
+          element={
+            <MyApplications />
+          }
+        />
 
-                <p className="mt-1 text-sm font-medium text-slate-700">
-                  {job.distance}
-                </p>
-              </div>
 
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Duration
-                </p>
+        {/* My Work */}
 
-                <p className="mt-1 text-sm font-medium text-slate-700">
-                  {job.duration}
-                </p>
-              </div>
+        <Route
+          path="my-work"
+          element={
+            <MyWork />
+          }
+        />
 
-            </div>
 
-          </section>
+        {/* Messages */}
 
-          {/* APPLY */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <Route
+          path="messages"
+          element={
+            <WorkerMessages />
+          }
+        />
 
-            <h2 className="text-base font-semibold text-slate-900">
-              Interested in this job?
-            </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              Submit your application to let the client know you are
-              interested in this job.
-            </p>
+        {/* Performance */}
 
-            <button
-              type="button"
-              className="mt-5 w-full rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
-            >
-              Apply for Job
-            </button>
+        <Route
+          path="performance"
+          element={
+            <Performance />
+          }
+        />
 
-          </section>
+      </Route>
 
-        </aside>
-
-      </div>
-
-    </div>
+    </Routes>
   );
-};
+}
 
-export default JobDetails;
+
+export default App;
