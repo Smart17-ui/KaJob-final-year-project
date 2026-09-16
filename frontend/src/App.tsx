@@ -51,6 +51,7 @@ import Analytics from "@/pages/dashboard/client/Analytics";
 // =========================
 import WorkerDashboard from "@/pages/dashboard/worker/WorkerDashboard";
 import FindJobs from "@/pages/dashboard/worker/FindJobs";
+import WorkerJobDetails from "@/pages/dashboard/worker/JobDetails";
 import MyApplications from "@/pages/dashboard/worker/MyApplications";
 import MyWork from "@/pages/dashboard/worker/MyWork";
 import WorkerMessages from "@/pages/dashboard/worker/Messages";
@@ -74,11 +75,17 @@ function getUserDashboard() {
    * always respect that selection.
    */
 
-  if (selectedRole === "CLIENT" && user.is_client) {
+  if (
+    selectedRole === "CLIENT" &&
+    user.is_client
+  ) {
     return "/client/dashboard";
   }
 
-  if (selectedRole === "WORKER" && user.is_worker) {
+  if (
+    selectedRole === "WORKER" &&
+    user.is_worker
+  ) {
     return "/worker/dashboard";
   }
 
@@ -86,7 +93,10 @@ function getUserDashboard() {
    * User only has CLIENT role.
    */
 
-  if (user.is_client && !user.is_worker) {
+  if (
+    user.is_client &&
+    !user.is_worker
+  ) {
     return "/client/dashboard";
   }
 
@@ -94,7 +104,10 @@ function getUserDashboard() {
    * User only has WORKER role.
    */
 
-  if (user.is_worker && !user.is_client) {
+  if (
+    user.is_worker &&
+    !user.is_client
+  ) {
     return "/worker/dashboard";
   }
 
@@ -104,7 +117,10 @@ function getUserDashboard() {
    * Default to CLIENT.
    */
 
-  if (user.is_client && user.is_worker) {
+  if (
+    user.is_client &&
+    user.is_worker
+  ) {
     return "/client/dashboard";
   }
 
@@ -116,42 +132,57 @@ function getUserDashboard() {
    ========================================================= */
 
 function PublicLandingPage() {
-  const [selectedPage, setSelectedPage] = useState<SelectedPage>(
-    SelectedPage.Home
-  );
+  const [selectedPage, setSelectedPage] =
+    useState<SelectedPage>(
+      SelectedPage.Home
+    );
 
-  const [isTopOfPage, setIsTopOfPage] = useState(true);
-
-  const dashboard = getUserDashboard();
-
-  /*
-   * Logged-in users should never see the
-   * public landing page.
-   */
-
-  if (dashboard) {
-    return <Navigate to={dashboard} replace />;
-  }
+  const [isTopOfPage, setIsTopOfPage] =
+    useState(true);
 
   /*
-   * Detect whether the user is at the top
-   * of the landing page so the Navbar can
-   * change its background.
+   * IMPORTANT:
+   * Hooks must always run before any conditional return.
    */
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsTopOfPage(window.scrollY === 0);
+      setIsTopOfPage(
+        window.scrollY === 0
+      );
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener(
+      "scroll",
+      handleScroll
+    );
 
     handleScroll();
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener(
+        "scroll",
+        handleScroll
+      );
     };
   }, []);
+
+  const dashboard =
+    getUserDashboard();
+
+  /*
+   * Logged-in users should never see
+   * the public landing page.
+   */
+
+  if (dashboard) {
+    return (
+      <Navigate
+        to={dashboard}
+        replace
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-white">
@@ -170,13 +201,21 @@ function PublicLandingPage() {
       ========================= */}
 
       <main>
-        <Home setSelectedPage={setSelectedPage} />
+        <Home
+          setSelectedPage={setSelectedPage}
+        />
 
-        <HowItWorks setSelectedPage={setSelectedPage} />
+        <HowItWorks
+          setSelectedPage={setSelectedPage}
+        />
 
-        <About setSelectedPage={setSelectedPage} />
+        <About
+          setSelectedPage={setSelectedPage}
+        />
 
-        <ContactUs setSelectedPage={setSelectedPage} />
+        <ContactUs
+          setSelectedPage={setSelectedPage}
+        />
       </main>
     </div>
   );
@@ -191,7 +230,8 @@ function PublicAuthRoute({
 }: {
   children: React.ReactNode;
 }) {
-  const dashboard = getUserDashboard();
+  const dashboard =
+    getUserDashboard();
 
   /*
    * Already logged in?
@@ -199,7 +239,12 @@ function PublicAuthRoute({
    */
 
   if (dashboard) {
-    return <Navigate to={dashboard} replace />;
+    return (
+      <Navigate
+        to={dashboard}
+        replace
+      />
+    );
   }
 
   return <>{children}</>;
@@ -221,7 +266,12 @@ function ProtectedDashboard({
    */
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    return (
+      <Navigate
+        to="/"
+        replace
+      />
+    );
   }
 
   /*
@@ -229,10 +279,19 @@ function ProtectedDashboard({
    * but does not have the CLIENT role.
    */
 
-  if (role === "CLIENT" && !user.is_client) {
-    const dashboard = getUserDashboard();
+  if (
+    role === "CLIENT" &&
+    !user.is_client
+  ) {
+    const dashboard =
+      getUserDashboard();
 
-    return <Navigate to={dashboard || "/"} replace />;
+    return (
+      <Navigate
+        to={dashboard || "/"}
+        replace
+      />
+    );
   }
 
   /*
@@ -240,10 +299,19 @@ function ProtectedDashboard({
    * but does not have the WORKER role.
    */
 
-  if (role === "WORKER" && !user.is_worker) {
-    const dashboard = getUserDashboard();
+  if (
+    role === "WORKER" &&
+    !user.is_worker
+  ) {
+    const dashboard =
+      getUserDashboard();
 
-    return <Navigate to={dashboard || "/"} replace />;
+    return (
+      <Navigate
+        to={dashboard || "/"}
+        replace
+      />
+    );
   }
 
   /*
@@ -251,7 +319,8 @@ function ProtectedDashboard({
    * are accessing the currently selected role.
    */
 
-  const selectedRole = getSelectedRole();
+  const selectedRole =
+    getSelectedRole();
 
   if (
     user.is_client &&
@@ -271,6 +340,11 @@ function ProtectedDashboard({
     );
   }
 
+  /*
+   * The dashboard layout contains the navigation
+   * and renders the nested dashboard page through Outlet.
+   */
+
   return <DashboardLayout />;
 }
 
@@ -281,18 +355,21 @@ function ProtectedDashboard({
 function App() {
   return (
     <Routes>
+
       {/* =====================================================
           PUBLIC LANDING PAGE
-         ===================================================== */}
+      ===================================================== */}
 
       <Route
         path="/"
-        element={<PublicLandingPage />}
+        element={
+          <PublicLandingPage />
+        }
       />
 
       {/* =====================================================
           LOGIN
-         ===================================================== */}
+      ===================================================== */}
 
       <Route
         path="/login"
@@ -323,7 +400,7 @@ function App() {
 
       {/* =====================================================
           FORGOT PASSWORD
-         ===================================================== */}
+      ===================================================== */}
 
       <Route
         path="/forgot-password"
@@ -336,7 +413,7 @@ function App() {
 
       {/* =====================================================
           REGISTER
-         ===================================================== */}
+      ===================================================== */}
 
       <Route
         path="/register"
@@ -367,93 +444,134 @@ function App() {
 
       {/* =====================================================
           CLIENT DASHBOARD
-         ===================================================== */}
+      ===================================================== */}
 
       <Route
         path="/client/dashboard"
         element={
-          <ProtectedDashboard role="CLIENT" />
+          <ProtectedDashboard
+            role="CLIENT"
+          />
         }
       >
+
         {/* Dashboard home */}
 
         <Route
           index
-          element={<ClientDashboard />}
+          element={
+            <ClientDashboard />
+          }
         />
 
         {/* My Jobs */}
 
         <Route
           path="jobs"
-          element={<MyJobs />}
+          element={
+            <MyJobs />
+          }
         />
 
         {/* Job details */}
 
         <Route
           path="jobs/:jobId"
-          element={<ClientJobDetails />}
+          element={
+            <ClientJobDetails />
+          }
         />
 
-        {/* Post a Job */}
+        {/* =================================================
+            POST A JOB
+
+            Unverified clients can enter this page.
+            PostJob.tsx handles the verification check.
+        ================================================= */}
 
         <Route
           path="post-job"
-          element={<PostJob />}
+          element={
+            <PostJob />
+          }
         />
 
         {/* Applications */}
 
         <Route
           path="applications"
-          element={<Applications />}
+          element={
+            <Applications />
+          }
         />
 
         {/* Applications for a specific job */}
 
         <Route
           path="applications/:jobId"
-          element={<JobApplications />}
+          element={
+            <JobApplications />
+          }
         />
 
         {/* Messages */}
 
         <Route
           path="messages"
-          element={<Messages />}
+          element={
+            <Messages />
+          }
         />
 
         {/* Analytics */}
 
         <Route
           path="analytics"
-          element={<Analytics />}
+          element={
+            <Analytics />
+          }
         />
+
       </Route>
 
       {/* =====================================================
           WORKER DASHBOARD
-         ===================================================== */}
+      ===================================================== */}
 
       <Route
         path="/worker/dashboard"
         element={
-          <ProtectedDashboard role="WORKER" />
+          <ProtectedDashboard
+            role="WORKER"
+          />
         }
       >
+
         {/* Dashboard home */}
 
         <Route
           index
-          element={<WorkerDashboard />}
+          element={
+            <WorkerDashboard />
+          }
         />
 
         {/* Find Jobs */}
 
         <Route
           path="find-jobs"
-          element={<FindJobs />}
+          element={
+            <FindJobs />
+          }
+        />
+
+        {/* Worker Job Details */}
+
+        <Route
+          path="jobs/:jobId"
+          element={
+            <WorkerJobDetails />
+          }
         />
 
         {/* Backward compatibility */}
@@ -472,39 +590,54 @@ function App() {
 
         <Route
           path="applications"
-          element={<MyApplications />}
+          element={
+            <MyApplications />
+          }
         />
 
         {/* My Work */}
 
         <Route
           path="my-work"
-          element={<MyWork />}
+          element={
+            <MyWork />
+          }
         />
 
         {/* Messages */}
 
         <Route
           path="messages"
-          element={<WorkerMessages />}
+          element={
+            <WorkerMessages />
+          }
         />
 
         {/* Performance */}
 
         <Route
           path="performance"
-          element={<Performance />}
+          element={
+            <Performance />
+          }
         />
+
       </Route>
 
       {/* =====================================================
           FALLBACK
-         ===================================================== */}
+      ===================================================== */}
 
       <Route
         path="*"
-        element={<Navigate to="/" replace />}
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
       />
+
     </Routes>
   );
 }

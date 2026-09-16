@@ -1,4 +1,5 @@
 import type {
+  JobApplication,
   JobApplicationsResponse,
   UpdateApplicationStatusResponse,
 } from "../../shared/types/application";
@@ -74,10 +75,87 @@ export async function getJobApplications(
 
 /*
  * =========================
+ * APPLY FOR JOB
+ * =========================
+ *
+ * POST /api/jobs/{jobId}/apply/
+ *
+ * The authenticated worker applies
+ * for the selected job.
+ *
+ * No application data is required
+ * in the request body.
+ */
+
+export async function applyForJob(
+  jobId: number
+): Promise<{
+  message: string;
+  application: JobApplication;
+}> {
+  const accessToken =
+    localStorage.getItem("access_token");
+
+  if (!accessToken) {
+    throw new Error(
+      "You are not authenticated. Please log in."
+    );
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/jobs/${jobId}/apply/`,
+    {
+      method: "POST",
+
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({}),
+    }
+  );
+
+  let result: any = null;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      "The server returned an invalid response."
+    );
+  }
+
+  if (!response.ok) {
+    if (result?.error) {
+      throw new Error(
+        result.error
+      );
+    }
+
+    if (result?.detail) {
+      throw new Error(
+        result.detail
+      );
+    }
+
+    throw new Error(
+      "Failed to apply for this job."
+    );
+  }
+
+  return result as {
+    message: string;
+    application: JobApplication;
+  };
+}
+
+/*
+ * =========================
  * UPDATE APPLICATION STATUS
  * =========================
  *
- * PATCH /api/applications/{id}/status/
+ * PATCH /api/jobs/applications/{id}/status/
  *
  * Accept or reject an application.
  *
@@ -100,7 +178,7 @@ export async function updateApplicationStatus(
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/applications/${applicationId}/status/`,
+    `${API_BASE_URL}/jobs/applications/${applicationId}/status/`,
     {
       method: "PATCH",
 

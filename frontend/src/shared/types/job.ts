@@ -1,195 +1,24 @@
-export type Job = {
-  id: number;
-
-  title: string;
-  description: string;
-
-  budget: string;
-
-  general_location: string;
-
-  category_name: string | null;
-
-  status: string;
-
-  urgency: string;
-  urgency_display: string;
-
-  job_date: string | null;
-
-  is_flexible: boolean;
-
-  duration_hours: string | null;
-
-  posted_at: string;
-
-  /*
-   * Exact coordinates are NOT returned by the
-   * worker matching endpoint.
-   *
-   * They are optional here because other components,
-   * such as JobMap, may use this type.
-   */
-  latitude?: number | string | null;
-  longitude?: number | string | null;
-
-  /*
-   * Optional fields used by existing components.
-   */
-  timeframe?: string | null;
-  timeframe_display?: string | null;
-  is_urgent?: boolean;
-
-  /*
-   * Distance information is added by the frontend
-   * when converting a NearbyJob response into a Job.
-   *
-   * These are optional because normal Job responses
-   * do not necessarily contain distance information.
-   */
-  distance_km?: number;
-  distance_display?: string;
-};
-
-
-/**
- * A job returned by the location-based matching endpoint.
- *
- * GET /api/matching/nearby/
- */
-export type NearbyJob = {
-  job: Job;
-
-  distance_km: number;
-
-  distance_display: string;
-};
-
-
-/**
- * Response from the location-based matching endpoint.
- *
- * GET /api/matching/nearby/?radius=1.0
- */
-export type NearbyJobsResponse = {
-  count: number;
-
-  radius_km: number;
-
-  results: NearbyJob[];
-};
-
-
-export type MyJob = {
-  id: number;
-  title: string;
-  budget: string;
-
-  client_name: string;
-  category_name: string;
-
-  general_location: string;
-
-  status: string;
-  status_display: string;
-
-  posted_at: string;
-
-  search_radius_km: number;
-
-  is_urgent: boolean;
-  urgency_display: string;
-
-  job_display_date: string;
-
-  duration_hours?: string | null;
-};
-
-
-export type MyJobsResponse = {
-  count: number;
-  results: MyJob[];
-};
-
-
-/**
- * Review for a specific job
- */
-export type JobReview = {
-  id: number;
-  rating: number;
-  rating_display: string;
-  comment: string;
-  job_completed: boolean;
-  reviewer_name: string;
-  created_at: string;
-};
-
-
-/**
- * Reviews response
- *
- * GET /api/reviews/job/{job_id}/
- */
-export type JobReviewsResponse = {
-  count: number;
-  results: JobReview[];
-};
-
-
-/**
- * Cancel job response
- *
- * POST /api/jobs/{job_id}/cancel/
- */
-export type CancelJobResponse = {
-  message: string;
-
-  job: {
-    id: number;
-    status: string;
-    status_display: string;
-  };
-};
-
-
-/**
- * Delete job response
- *
- * DELETE /api/jobs/{job_id}/delete/
- */
-export type DeleteJobResponse = {
-  message: string;
-};
-
-
-export type Timeframe =
-  | "MORNING"
-  | "AFTERNOON"
-  | "EVENING"
-  | "ANYTIME";
-
-
 export type Urgency =
   | "IMMEDIATE"
   | "URGENT"
   | "NORMAL"
   | "FLEXIBLE";
 
+export type JobStatus =
+  | "OPEN"
+  | "ASSIGNED"
+  | "IN_PROGRESS"
+  | "AWAITING_CONFIRMATION"
+  | "COMPLETED"
+  | "CANCELLED";
 
-export type CategoryOption = {
-  id: number;
-  name: string;
-};
+export type ApplicationStatus =
+  | "PENDING"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN";
 
-
-export type SkillOption = {
-  id: number;
-  name: string;
-};
-
-
-export type JobForm = {
+export interface JobForm {
   title: string;
   description: string;
   categoryId: string;
@@ -197,7 +26,7 @@ export type JobForm = {
 
   jobDate: string;
   jobTime: string;
-  timeframe: Timeframe;
+
   durationHours: string;
   urgency: Urgency;
   isFlexible: boolean;
@@ -207,96 +36,279 @@ export type JobForm = {
   longitude: number | null;
   locationAccuracy: number | null;
 
-  requiredSkills: number[];
-};
+  requiredSkills: string[];
+}
 
-
-export type FormErrors = {
+export interface FormErrors {
   title?: string;
   description?: string;
   categoryId?: string;
   budget?: string;
+
   jobDate?: string;
   jobTime?: string;
+
   durationHours?: string;
+  urgency?: string;
+
   location?: string;
-};
 
+  [key: string]: string | undefined;
+}
 
-export type CreateJobData = {
+// ============================================
+// CATEGORY
+// ============================================
+
+export interface JobCategory {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+// ============================================
+// JOB
+// ============================================
+
+export interface Job {
+  id: number;
+
+  title: string;
+  description: string;
+
+  budget: number | string;
+
+  category_id?: number;
+  category_name?: string;
+
+  general_location?: string;
+  exact_location?: string;
+
+  latitude?: number | null;
+  longitude?: number | null;
+  location_accuracy?: number | null;
+
+  job_date?: string | null;
+  job_time?: string | null;
+
+  duration_hours?: number | string | null;
+
+  urgency?: Urgency;
+  urgency_display?: string;
+
+  is_flexible?: boolean;
+
+  required_skills?: string[];
+
+  status: JobStatus;
+  status_display?: string;
+
+  client_id?: number;
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+
+  worker_id?: number | null;
+  worker_name?: string | null;
+
+  posted_at?: string;
+  updated_at?: string;
+
+  is_urgent?: boolean;
+
+  job_display_date?: string;
+
+  search_radius_km?: number;
+
+  map_url?: string | null;
+  directions_url?: string | null;
+  place_id?: string | null;
+
+  can_view_full_details?: boolean;
+}
+
+// ============================================
+// CREATE JOB
+// ============================================
+
+export interface CreateJobData {
   title: string;
   description: string;
   budget: number;
+
   category_id: number;
 
+  general_location: string;
+
+  latitude?: number | null;
+  longitude?: number | null;
+
+  job_date: string;
+  job_time?: string;
+
+  is_flexible: boolean;
+
+  duration_hours: number;
+
+  urgency: Urgency;
+
+  required_skills: string[];
+}
+
+// ============================================
+// UPDATE JOB
+// ============================================
+
+export interface UpdateJobData {
+  title?: string;
+  description?: string;
+  budget?: number;
+
+  category_id?: number;
+
   general_location?: string;
-  latitude?: number;
-  longitude?: number;
+
+  latitude?: number | null;
+  longitude?: number | null;
 
   job_date?: string;
   job_time?: string;
 
-  timeframe?: Timeframe;
   is_flexible?: boolean;
+
   duration_hours?: number;
 
   urgency?: Urgency;
-  required_skills?: number[];
+
+  required_skills?: string[];
+}
+
+// ============================================
+// JOB RESPONSES
+// ============================================
+
+export interface JobResponse {
+  message?: string;
+  job: Job;
+}
+
+export interface JobsResponse {
+  results?: Job[];
+  jobs?: Job[];
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+}
+
+// ============================================
+// WORKER JOB DETAILS
+// ============================================
+
+export interface WorkerJobResponse {
+  job: Job;
+
+  can_view_full_details: boolean;
+
+  assignment_status?: string | null;
+
+  application_status?: ApplicationStatus | null;
+}
+
+// ============================================
+// JOB APPLICATION
+// ============================================
+
+export interface JobApplication {
+  id: number;
+
+  jobId: number;
+  jobTitle?: string;
+
+  workerId?: number;
+  workerName?: string;
+
+  status: ApplicationStatus;
+  statusDisplay?: string;
+
+  appliedAt?: string;
+
+  jobAvailable?: boolean;
+}
+
+// ============================================
+// WORKER PROFILE
+// ============================================
+
+export interface Worker {
+  id: number;
+
+  full_name: string;
+
+  email?: string;
+  phone_number?: string;
+
+  bio?: string | null;
+
+  average_rating?: number | null;
+
+  jobs_completed?: number | null;
+
+  skills?: string[];
+
+  availability_status?: string | null;
+}
+
+// ============================================
+// CLIENT APPLICATION / APPLICANT
+// ============================================
+
+export interface ClientApplicant {
+  application_id: number;
+
+  application_status: ApplicationStatus;
+
+  applied_at?: string;
+
+  distance_km?: number | null;
+  distance_display?: string | null;
+
+  worker: Worker;
+}
+
+// ============================================
+// FILTERS
+// ============================================
+
+export interface JobFilters {
+  category?: number;
+  min_budget?: number;
+  max_budget?: number;
+  urgency?: Urgency;
+}
+
+// ============================================
+// JOB STATUS HELPERS
+// ============================================
+
+export const JOB_STATUS_LABELS: Record<
+  JobStatus,
+  string
+> = {
+  OPEN: "Open",
+  ASSIGNED: "Assigned",
+  IN_PROGRESS: "In Progress",
+  AWAITING_CONFIRMATION:
+    "Awaiting Confirmation",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
 };
 
-
-export type CreateJobResponse = {
-  message: string;
-
-  job: {
-    id: number;
-    title: string;
-    description: string;
-    budget: string;
-
-    client: number;
-    client_name: string;
-
-    category: number;
-    category_name: string;
-
-    assigned_worker_name: string | null;
-
-    general_location: string;
-    exact_location: string;
-
-    map_url: string;
-    directions_url: string;
-    place_id: string;
-
-    latitude: string;
-    longitude: string;
-
-    search_radius_km: number;
-
-    job_date: string | null;
-    job_time: string | null;
-
-    timeframe: string;
-    timeframe_display: string;
-
-    is_flexible: boolean;
-    duration_hours: string | null;
-
-    urgency: string;
-    urgency_display: string;
-
-    job_display_date: string;
-    job_display_time: string;
-
-    is_urgent: boolean;
-
-    status: string;
-    status_display: string;
-
-    posted_at: string;
-    completed_at: string | null;
-    created_at: string;
-    updated_at: string;
-  };
+export const APPLICATION_STATUS_LABELS: Record<
+  ApplicationStatus,
+  string
+> = {
+  PENDING: "Pending",
+  ACCEPTED: "Accepted",
+  REJECTED: "Rejected",
+  WITHDRAWN: "Withdrawn",
 };

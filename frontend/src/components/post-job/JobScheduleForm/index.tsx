@@ -1,7 +1,6 @@
 import type {
   FormErrors,
   JobForm,
-  Timeframe,
   Urgency,
 } from "../../types/job";
 
@@ -123,44 +122,6 @@ const JobScheduleForm = ({
               </p>
             )}
           </div>
-        </div>
-
-        {/* Timeframe */}
-        <div>
-          <label
-            htmlFor="timeframe"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
-            Time of day
-          </label>
-
-          <select
-            id="timeframe"
-            value={form.timeframe}
-            onChange={(event) =>
-              onChange(
-                "timeframe",
-                event.target.value as Timeframe
-              )
-            }
-            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-          >
-            <option value="ANYTIME">
-              Anytime
-            </option>
-
-            <option value="MORNING">
-              Morning (6AM - 12PM)
-            </option>
-
-            <option value="AFTERNOON">
-              Afternoon (12PM - 5PM)
-            </option>
-
-            <option value="EVENING">
-              Evening (5PM - 9PM)
-            </option>
-          </select>
         </div>
 
         {/* Duration + urgency */}

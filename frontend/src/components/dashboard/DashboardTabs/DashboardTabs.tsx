@@ -3,7 +3,6 @@ import {
   BriefcaseIcon,
   PlusCircleIcon,
   DocumentTextIcon,
-  ChatBubbleLeftRightIcon,
   ChartBarIcon,
   TrophyIcon,
 } from "@heroicons/react/24/outline";
@@ -45,11 +44,6 @@ const DashboardTabs = ({ role }: DashboardTabsProps) => {
             icon: DocumentTextIcon,
           },
           {
-            name: "Messages",
-            path: `${basePath}/messages`,
-            icon: ChatBubbleLeftRightIcon,
-          },
-          {
             name: "Analytics",
             path: `${basePath}/analytics`,
             icon: ChartBarIcon,
@@ -76,11 +70,6 @@ const DashboardTabs = ({ role }: DashboardTabsProps) => {
             name: "Applications",
             path: `${basePath}/applications`,
             icon: DocumentTextIcon,
-          },
-          {
-            name: "Messages",
-            path: `${basePath}/messages`,
-            icon: ChatBubbleLeftRightIcon,
           },
           {
             name: "My Performance",

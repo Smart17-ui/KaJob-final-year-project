@@ -2,11 +2,10 @@ import apiClient from "./client";
 
 import type {
   CreateJobData,
-  Job,
-  JobsResponse,
   JobResponse,
-  WorkerJobResponse,
+  JobsResponse,
   UpdateJobData,
+  WorkerJobResponse,
 } from "../shared/types/job";
 
 // ============================================
@@ -109,12 +108,38 @@ export const completeJob = async (
 };
 
 // ============================================
+// WORKER MARKS WORK COMPLETE
+// POST /api/jobs/{job_id}/mark-complete/
+// ============================================
+//
+// The worker tells KaJob that the work is finished.
+// The job moves to AWAITING_CONFIRMATION.
+// The client must then confirm completion.
+
+export const markJobComplete = async (
+  jobId: number
+): Promise<JobResponse> => {
+  return apiClient(`/jobs/${jobId}/mark-complete/`, {
+    method: "POST",
+  });
+};
+
+// ============================================
 // GET MY JOBS
-// GET /api/my-jobs/
+// GET /api/jobs/my-jobs/
 // ============================================
 
 export const getMyJobs = async (): Promise<JobsResponse> => {
-  return apiClient("/my-jobs/");
+  return apiClient("/jobs/my-jobs/");
+};
+
+// ============================================
+// GET MY ACTIVE WORK
+// GET /api/jobs/my-active-jobs/
+// ============================================
+
+export const getMyActiveJobs = async (): Promise<JobsResponse> => {
+  return apiClient("/jobs/my-active-jobs/");
 };
 
 // ============================================

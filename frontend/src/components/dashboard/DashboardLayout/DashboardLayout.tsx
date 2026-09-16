@@ -9,7 +9,6 @@ import { useEffect, useState } from "react";
 import Sidebar from "../Sidebar/Sidebar";
 import TopBar from "../TopBar/TopBar";
 import DashboardTabs from "../DashboardTabs/DashboardTabs";
-import DashboardOverview from "../DashboardOverview/DashboardOverview";
 
 import {
   getCurrentUser,
@@ -209,16 +208,6 @@ const DashboardLayout = () => {
   }
 
   /* =========================
-     DASHBOARD PATH
-  ========================= */
-
-  const dashboardPath =
-    `/${role.toLowerCase()}/dashboard`;
-
-  const isDashboardHome =
-    location.pathname === dashboardPath;
-
-  /* =========================
      ROLE BUTTON TEXT
   ========================= */
 
@@ -341,13 +330,7 @@ const DashboardLayout = () => {
             lg:pt-[120px]
           "
         >
-
-          {isDashboardHome ? (
-            <DashboardOverview />
-          ) : (
-            <Outlet />
-          )}
-
+          <Outlet />
         </main>
 
       </div>
