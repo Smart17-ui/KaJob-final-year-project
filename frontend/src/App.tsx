@@ -261,6 +261,9 @@ function ProtectedDashboard({
   /*
    * If the user has BOTH roles, make sure they are accessing
    * the currently selected role.
+   *
+   * ADMIN users bypass this check — they can view both dashboards
+   * freely without being redirected.
    */
 
   const selectedRole = getSelectedRole();
@@ -269,7 +272,8 @@ function ProtectedDashboard({
     user.is_client &&
     user.is_worker &&
     selectedRole &&
-    selectedRole !== role
+    selectedRole !== role &&
+    selectedRole !== "ADMIN"        // 🆕 admins bypass the role check
   ) {
     return (
       <Navigate
