@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 
 from apps.common.permissions import IsAdmin, IsActiveUser
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
-from apps.reports.models import Report, Investigation, ReportEvidence
+from apps.reports.models import Report, Investigation
 
 
 class AdminReportListView(APIView):
@@ -17,23 +17,22 @@ class AdminReportListView(APIView):
     Get all reports with optional filters (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def get(self, request):
         reports = Report.objects.all().select_related('job', 'reporter', 'reported_user')
-        
+
         status_filter = request.query_params.get('status')
         if status_filter:
             reports = reports.filter(status=status_filter)
-        
+
         category_filter = request.query_params.get('category')
         if category_filter:
             reports = reports.filter(category=category_filter)
-        
+
         reports = reports.order_by('-submitted_at')
-        
-        # Use ReportListSerializer from reports app
+
         from apps.reports.serializers import ReportListSerializer
-        
+
         return Response({
             'count': len(reports),
             'results': ReportListSerializer(reports, many=True).data,
@@ -43,16 +42,16 @@ class AdminReportListView(APIView):
 class AdminReportDetailView(APIView):
     """
     GET /api/admin/reports/{id}/
-    Get report details with investigation and evidence (Admin only).
+    Get report details with investigation (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def get(self, request, report_id):
         try:
             report = Report.objects.select_related(
                 'job', 'reporter', 'reported_user'
             ).get(id=report_id)
-            
+
             from apps.reports.serializers import ReportDetailSerializer
             return Response({
                 'report': ReportDetailSerializer(report).data,
@@ -70,7 +69,7 @@ class AdminReportStartInvestigationView(APIView):
     Start investigation for a report (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def post(self, request, report_id):
         try:
             report = Report.objects.get(id=report_id)
@@ -79,29 +78,29 @@ class AdminReportStartInvestigationView(APIView):
                 {'error': 'Report not found.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         if report.status in ['UNDER_INVESTIGATION', 'RESOLVED', 'ESCALATED_TO_POLICE']:
             return Response(
                 {'error': f'Report is already {report.status}.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         if hasattr(report, 'investigation'):
             return Response(
                 {'error': 'Investigation already started for this report.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         investigation = Investigation.objects.create(
             report=report,
             admin=request.user,
             status='UNDER_INVESTIGATION',
             internal_notes=request.data.get('internal_notes', ''),
         )
-        
+
         report.status = 'UNDER_INVESTIGATION'
         report.save()
-        
+
         from apps.audit.services import AuditService
         audit_service = AuditService()
         audit_service.log_admin_action(
@@ -114,9 +113,9 @@ class AdminReportStartInvestigationView(APIView):
                 'category': report.category,
             }
         )
-        
+
         from apps.reports.serializers import InvestigationSerializer
-        
+
         return Response({
             'message': f'Investigation started for report {report.reference_number}.',
             'investigation': InvestigationSerializer(investigation).data,
@@ -129,17 +128,17 @@ class AdminReportResolveView(APIView):
     Resolve a report with a decision (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def post(self, request, report_id):
         decision = request.data.get('decision')
         decision_notes = request.data.get('decision_notes', '')
-        
+
         if not decision:
             return Response(
                 {'error': 'Decision is required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             report = Report.objects.get(id=report_id)
         except Report.DoesNotExist:
@@ -147,22 +146,42 @@ class AdminReportResolveView(APIView):
                 {'error': 'Report not found.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         if report.status != 'UNDER_INVESTIGATION':
             return Response(
                 {'error': 'Report must be under investigation to resolve.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         if not hasattr(report, 'investigation'):
             return Response(
                 {'error': 'No investigation found for this report.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        # Validate decision against policy BEFORE saving
+        from apps.common.policies import is_valid_decision, allowed_decisions_for
+        if not is_valid_decision(report.category, decision):
+            allowed = ", ".join(allowed_decisions_for(report.category))
+            return Response(
+                {'error': f'Decision "{decision}" is not allowed for category '
+                          f'"{report.category}". Allowed: {allowed}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         investigation = report.investigation
         investigation.complete(decision, decision_notes)
-        
+
+        # Apply disciplinary action
+        from apps.reports.services.disciplinary_service import DisciplinaryService
+        try:
+            DisciplinaryService.apply_decision(report, investigation, request.user)
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         from apps.audit.services import AuditService
         audit_service = AuditService()
         audit_service.log_admin_action(
@@ -176,9 +195,9 @@ class AdminReportResolveView(APIView):
                 'notes': decision_notes,
             }
         )
-        
+
         from apps.reports.serializers import ReportDetailSerializer
-        
+
         return Response({
             'message': f'Report {report.reference_number} has been resolved.',
             'report': ReportDetailSerializer(report).data,
@@ -188,28 +207,16 @@ class AdminReportResolveView(APIView):
 class AdminReportEvidenceView(APIView):
     """
     GET /api/admin/reports/{id}/evidence/
-    Get evidence for a report (Admin only).
+    Evidence has been removed. Kept as a stub so existing URLs don't break.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def get(self, request, report_id):
-        try:
-            report = Report.objects.get(id=report_id)
-        except Report.DoesNotExist:
-            return Response(
-                {'error': 'Report not found.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        evidence = ReportEvidence.objects.filter(report=report).order_by('-uploaded_at')
-        
-        from apps.reports.serializers import ReportEvidenceSerializer
-        
         return Response({
-            'report_id': report.id,
-            'reference_number': report.reference_number,
-            'count': len(evidence),
-            'results': ReportEvidenceSerializer(evidence, many=True).data,
+            'report_id': report_id,
+            'count': 0,
+            'results': [],
+            'message': 'Evidence is not enabled.',
         }, status=status.HTTP_200_OK)
 
 
@@ -219,29 +226,29 @@ class AdminReportStatsView(APIView):
     Get report statistics (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def get(self, request):
         from django.db.models import Count
-        
+
         total = Report.objects.count()
         pending = Report.objects.filter(status='PENDING').count()
         under_investigation = Report.objects.filter(status='UNDER_INVESTIGATION').count()
         resolved = Report.objects.filter(status='RESOLVED').count()
         escalated = Report.objects.filter(status='ESCALATED_TO_POLICE').count()
-        
+
         status_stats = Report.objects.values('status').annotate(
             count=Count('id')
         ).order_by('status')
-        
+
         category_stats = Report.objects.values('category').annotate(
             count=Count('id')
         ).order_by('-count')
-        
+
         from apps.reports.serializers import ReportListSerializer
         recent = Report.objects.select_related(
             'reporter', 'reported_user'
         ).order_by('-submitted_at')[:5]
-        
+
         return Response({
             'total': total,
             'pending': pending,

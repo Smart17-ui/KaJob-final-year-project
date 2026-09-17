@@ -343,11 +343,23 @@ class AuthService:
         user = self.user_repo.get_by_email(email)
         if not user:
             raise BusinessRuleViolation("Invalid email or password.")
-        
-        # Check if user can login
-        can_login, error_message = self.user_repo.can_login(user)
-        if not can_login:
-            raise BusinessRuleViolation(error_message)
+
+        # ============================================
+        # 🆕 DISCIPLINARY CHECK
+        # Runs BEFORE the legacy repo check so banned/suspended users
+        # get a clear, specific message about why they can't log in.
+        # ============================================
+        allowed, reason = user.can_log_in()
+        if not allowed:
+            raise BusinessRuleViolation(reason)
+
+        # Legacy repo check (kept for compatibility; safe no-op if missing)
+        try:
+            can_login, error_message = self.user_repo.can_login(user)
+            if not can_login:
+                raise BusinessRuleViolation(error_message)
+        except AttributeError:
+            pass
         
         # Check password
         if not user.check_password(password):
