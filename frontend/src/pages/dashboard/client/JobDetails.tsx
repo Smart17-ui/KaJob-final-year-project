@@ -22,8 +22,9 @@ import {
   useParams,
 } from "react-router-dom";
 
+import ConfirmationModal from "../../../components/pop/ConfirmationModal/ConfirmationModal";
+
 import {
-  cancelJob,
   deleteJob,
   getJobDetails,
   getJobReviews,
@@ -62,16 +63,8 @@ const JobDetails = () => {
   const [actionError, setActionError] =
     useState("");
 
-  const [isCancelling, setIsCancelling] =
-    useState(false);
-
   const [isDeleting, setIsDeleting] =
     useState(false);
-
-  const [
-    showCancelConfirm,
-    setShowCancelConfirm,
-  ] = useState(false);
 
   const [
     showDeleteConfirm,
@@ -102,6 +95,9 @@ const JobDetails = () => {
       case "IN_PROGRESS":
         return "In Progress";
 
+      case "AWAITING_CONFIRMATION":
+        return "Awaiting Confirmation";
+
       case "COMPLETED":
         return "Completed";
 
@@ -131,6 +127,9 @@ const JobDetails = () => {
 
       case "IN_PROGRESS":
         return "bg-purple-100 text-purple-700";
+
+      case "AWAITING_CONFIRMATION":
+        return "bg-orange-100 text-orange-700";
 
       case "COMPLETED":
         return "bg-blue-100 text-blue-700";
@@ -211,51 +210,6 @@ const JobDetails = () => {
 
   /*
    * =========================
-   * CANCEL JOB
-   * =========================
-   */
-
-  const handleCancelJob = async () => {
-    if (!job) {
-      return;
-    }
-
-    setIsCancelling(true);
-    setActionError("");
-
-    try {
-      const response =
-        await cancelJob(job.id);
-
-      setJob((currentJob) => {
-        if (!currentJob) {
-          return currentJob;
-        }
-
-        return {
-          ...currentJob,
-          status: response.job.status,
-          status_display:
-            response.job.status_display,
-        };
-      });
-
-      setShowCancelConfirm(false);
-    } catch (error) {
-      if (error instanceof Error) {
-        setActionError(error.message);
-      } else {
-        setActionError(
-          "Failed to cancel the job."
-        );
-      }
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
-  /*
-   * =========================
    * DELETE JOB
    * =========================
    */
@@ -270,6 +224,8 @@ const JobDetails = () => {
 
     try {
       await deleteJob(job.id);
+
+      setShowDeleteConfirm(false);
 
       navigate(
         "/client/dashboard/jobs"
@@ -485,8 +441,6 @@ const JobDetails = () => {
               <h1 className="text-2xl font-bold text-gray-900">
                 {job.title}
               </h1>
-
-              {/* STATUS */}
 
               <span
                 className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}
@@ -821,33 +775,12 @@ const JobDetails = () => {
               Manage this job.
             </p>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-
-              {/* CANCEL */}
+            <div className="mt-5">
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowCancelConfirm(
-                    true
-                  )
-                }
-                disabled={isCancelling}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-300 bg-yellow-50 px-5 py-3 text-sm font-semibold text-yellow-700 transition hover:bg-yellow-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <XMarkIcon className="h-5 w-5" />
-
-                Cancel Job
-              </button>
-
-              {/* DELETE */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowDeleteConfirm(
-                    true
-                  )
+                  setShowDeleteConfirm(true)
                 }
                 disabled={isDeleting}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -863,126 +796,22 @@ const JobDetails = () => {
         )}
 
       {/* =========================
-          CANCEL CONFIRMATION
-      ========================= */}
-
-      {showCancelConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-50">
-
-              <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
-
-            </div>
-
-            <h2 className="mt-4 text-lg font-semibold text-gray-900">
-              Cancel this job?
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Are you sure you want to cancel this job?
-              You won't be able to undo this action.
-            </p>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowCancelConfirm(
-                    false
-                  )
-                }
-                disabled={isCancelling}
-                className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-              >
-                Keep Job
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCancelJob}
-                disabled={isCancelling}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isCancelling && (
-                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                )}
-
-                {isCancelling
-                  ? "Cancelling..."
-                  : "Yes, Cancel Job"}
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* =========================
           DELETE CONFIRMATION
       ========================= */}
 
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-
-              <TrashIcon className="h-6 w-6 text-red-600" />
-
-            </div>
-
-            <h2 className="mt-4 text-lg font-semibold text-gray-900">
-              Delete this job?
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Are you sure you want to delete this job?
-              This job will be removed from your jobs.
-            </p>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowDeleteConfirm(
-                    false
-                  )
-                }
-                disabled={isDeleting}
-                className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-              >
-                Keep Job
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDeleteJob}
-                disabled={isDeleting}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isDeleting && (
-                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                )}
-
-                {isDeleting
-                  ? "Deleting..."
-                  : "Yes, Delete Job"}
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        title="Delete this job?"
+        message="Are you sure you want to delete this job? This action cannot be undone and the job will be removed from your jobs."
+        confirmLabel="Yes, Delete Job"
+        cancelLabel="Keep Job"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleDeleteJob}
+        onCancel={() =>
+          setShowDeleteConfirm(false)
+        }
+      />
 
     </div>
   );

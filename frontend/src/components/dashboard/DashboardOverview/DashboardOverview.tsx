@@ -15,11 +15,17 @@ import {
   getSelectedRole,
 } from "@/shared/auth";
 
-const DashboardOverview = () => {
-  const navigate = useNavigate();
 
-  const user = getCurrentUser();
-  const role = getSelectedRole();
+const DashboardOverview = () => {
+
+  const navigate =
+    useNavigate();
+
+  const user =
+    getCurrentUser();
+
+  const role =
+    getSelectedRole();
 
   const firstName =
     user?.first_name || "there";
@@ -29,6 +35,7 @@ const DashboardOverview = () => {
 
   const isClient =
     role === "CLIENT";
+
 
   return (
     <div className="min-h-full bg-slate-50">
@@ -73,11 +80,13 @@ const DashboardOverview = () => {
 
             </div>
 
+
             {/* =========================
                 POST JOB
             ========================= */}
 
             {isClient && (
+
               <button
                 type="button"
                 onClick={() =>
@@ -107,11 +116,13 @@ const DashboardOverview = () => {
                 Post a Job
 
               </button>
+
             )}
 
           </div>
 
         </div>
+
 
         {/* =====================================
             SEARCH
@@ -164,17 +175,20 @@ const DashboardOverview = () => {
 
         </div>
 
+
         {/* =====================================
             MAIN CONTENT
         ===================================== */}
 
         <div className="px-4 py-8 sm:px-6 lg:px-8">
 
+
           {/* =====================================
               WORKER VIEW
           ===================================== */}
 
           {isWorker && (
+
             <>
 
               {/* =========================
@@ -195,11 +209,16 @@ const DashboardOverview = () => {
 
                 </div>
 
+
+                {/* =========================
+                    VIEW ALL
+                ========================= */}
+
                 <button
                   type="button"
                   onClick={() =>
                     navigate(
-                      "/worker/dashboard/jobs"
+                      "/worker/dashboard/find-jobs"
                     )
                   }
                   className="
@@ -222,6 +241,7 @@ const DashboardOverview = () => {
 
               </div>
 
+
               {/* =========================
                   JOB PREVIEW CARDS
               ========================= */}
@@ -237,10 +257,11 @@ const DashboardOverview = () => {
                   urgency="Urgent"
                   onClick={() =>
                     navigate(
-                      "/worker/dashboard/jobs"
+                      "/worker/dashboard/find-jobs"
                     )
                   }
                 />
+
 
                 <JobPreviewCard
                   title="Electrical Installation"
@@ -251,10 +272,11 @@ const DashboardOverview = () => {
                   urgency="Normal"
                   onClick={() =>
                     navigate(
-                      "/worker/dashboard/jobs"
+                      "/worker/dashboard/find-jobs"
                     )
                   }
                 />
+
 
                 <JobPreviewCard
                   title="House Cleaning"
@@ -265,12 +287,13 @@ const DashboardOverview = () => {
                   urgency="Normal"
                   onClick={() =>
                     navigate(
-                      "/worker/dashboard/jobs"
+                      "/worker/dashboard/find-jobs"
                     )
                   }
                 />
 
               </div>
+
 
               {/* =========================
                   LOCATION STATUS
@@ -286,6 +309,7 @@ const DashboardOverview = () => {
 
                   </div>
 
+
                   <div className="flex-1">
 
                     <h3 className="text-sm font-semibold text-slate-900">
@@ -299,6 +323,7 @@ const DashboardOverview = () => {
 
                   </div>
 
+
                   <span className="hidden rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 sm:block">
                     Location enabled
                   </span>
@@ -308,13 +333,16 @@ const DashboardOverview = () => {
               </div>
 
             </>
+
           )}
+
 
           {/* =====================================
               CLIENT VIEW
           ===================================== */}
 
           {isClient && (
+
             <>
 
               {/* =========================
@@ -333,11 +361,13 @@ const DashboardOverview = () => {
 
               </div>
 
+
               {/* =========================
                   WORKSPACE CARDS
               ========================= */}
 
               <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+
 
                 {/* =========================
                     MY JOBS
@@ -354,6 +384,7 @@ const DashboardOverview = () => {
                   }
                 />
 
+
                 {/* =========================
                     APPLICATIONS
                 ========================= */}
@@ -364,10 +395,11 @@ const DashboardOverview = () => {
                   description="Review applications from workers who have applied to your jobs."
                   onClick={() =>
                     navigate(
-                      "/client/dashboard/jobs"
+                      "/client/dashboard/applications"
                     )
                   }
                 />
+
 
                 {/* =========================
                     MESSAGES
@@ -386,6 +418,7 @@ const DashboardOverview = () => {
 
               </div>
 
+
               {/* =========================
                   GET STARTED
               ========================= */}
@@ -400,6 +433,7 @@ const DashboardOverview = () => {
                   Post a job and let KaJob help you find suitable
                   workers based on location, skills and availability.
                 </p>
+
 
                 <button
                   type="button"
@@ -434,6 +468,7 @@ const DashboardOverview = () => {
               </div>
 
             </>
+
           )}
 
         </div>
@@ -459,6 +494,7 @@ interface JobPreviewCardProps {
   onClick: () => void;
 }
 
+
 const JobPreviewCard = ({
   title,
   category,
@@ -468,7 +504,9 @@ const JobPreviewCard = ({
   urgency,
   onClick,
 }: JobPreviewCardProps) => {
+
   return (
+
     <div
       className="
         group
@@ -498,6 +536,7 @@ const JobPreviewCard = ({
 
         </div>
 
+
         <span
           className={`
             rounded-full
@@ -516,6 +555,7 @@ const JobPreviewCard = ({
         </span>
 
       </div>
+
 
       {/* =========================
           JOB INFORMATION
@@ -541,6 +581,7 @@ const JobPreviewCard = ({
 
       </div>
 
+
       {/* =========================
           JOB META
       ========================= */}
@@ -559,6 +600,7 @@ const JobPreviewCard = ({
 
         </div>
 
+
         <div>
 
           <p className="text-xs text-slate-400">
@@ -570,6 +612,7 @@ const JobPreviewCard = ({
           </p>
 
         </div>
+
 
         <ArrowRightIcon
           className="
@@ -585,6 +628,7 @@ const JobPreviewCard = ({
       </div>
 
     </div>
+
   );
 };
 
@@ -602,13 +646,16 @@ interface WorkspaceCardProps {
   onClick: () => void;
 }
 
+
 const WorkspaceCard = ({
   icon: Icon,
   title,
   description,
   onClick,
 }: WorkspaceCardProps) => {
+
   return (
+
     <button
       type="button"
       onClick={onClick}
@@ -635,6 +682,7 @@ const WorkspaceCard = ({
 
         </div>
 
+
         <ArrowRightIcon
           className="
             h-5
@@ -648,6 +696,7 @@ const WorkspaceCard = ({
 
       </div>
 
+
       <h3 className="mt-5 text-base font-semibold text-slate-900">
         {title}
       </h3>
@@ -657,7 +706,9 @@ const WorkspaceCard = ({
       </p>
 
     </button>
+
   );
 };
+
 
 export default DashboardOverview;

@@ -90,7 +90,7 @@ export async function createJob(
 /**
  * Get jobs posted by the current user
  *
- * GET /api/my-jobs/
+ * GET /api/jobs/my-jobs/
  */
 export async function getMyJobs(): Promise<MyJobsResponse> {
   const accessToken =
@@ -103,7 +103,7 @@ export async function getMyJobs(): Promise<MyJobsResponse> {
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/my-jobs/`,
+    `${API_BASE_URL}/jobs/my-jobs/`,
     {
       method: "GET",
 
@@ -374,8 +374,8 @@ export async function cancelJob(
       method: "POST",
 
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
 
       body: JSON.stringify({}),

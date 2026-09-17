@@ -1,43 +1,58 @@
 // frontend/src/App.tsx
 
 import { useEffect, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 
-import {
-  Routes,
-  Route,
-  useLocation,
-  Navigate,
-} from "react-router-dom";
+/* =========================
+   PUBLIC LANDING PAGE
+========================= */
 
 import Navbar from "@/components/navbar";
-
 import Home from "@/components/home";
-import HowItWorks from "@/components/HowItWorks";
 import About from "@/components/about";
+import HowItWorks from "@/components/HowItWorks";
 import ContactUs from "@/components/ContactUs";
 import Footer from "@/components/footer";
 
+/* =========================
+   AUTHENTICATION
+========================= */
+
+// Login: single auto-role page (backend detects role)
 import Login from "@/pages/logIn";
-import Register from "@/pages/register";
 
-/* =========================
-   PASSWORD AUTH PAGES
-========================= */
+// Register: main's three-page role-based flow
+import RegisterRole from "@/pages/register/RegisterRole";
+import ClientRegister from "@/pages/register/ClientRegister";
+import WorkerRegister from "@/pages/register/WorkerRegister";
 
-import ForgotPassword from "./pages/logIn/ForgotPassword";
-import ResetPassword from "./pages/logIn/ResetPassword";
-
-/* =========================
-   DASHBOARD LAYOUT
-========================= */
-
-import DashboardLayout from "@/components/dashboard/DashboardLayout/DashboardLayout";
+// Password flows
+import ForgotPassword from "@/pages/logIn/ForgotPassword";
+import ResetPassword from "@/pages/logIn/ResetPassword";
+import ChangePassword from "@/pages/logIn/ChangePassword";
 
 /* =========================
    IDENTITY VERIFICATION
 ========================= */
 
 import VerifyDetails from "./pages/dashboard/VerifyDetails";
+
+/* =========================
+   SHARED AUTH HELPERS
+========================= */
+
+import {
+  getCurrentUser,
+  getSelectedRole,
+} from "@/shared/auth";
+
+import { SelectedPage } from "@/shared/types";
+
+/* =========================
+   DASHBOARD LAYOUT
+========================= */
+
+import DashboardLayout from "@/components/dashboard/DashboardLayout/DashboardLayout";
 
 /* =========================
    CLIENT DASHBOARD PAGES
@@ -48,6 +63,7 @@ import MyJobs from "@/pages/dashboard/client/MyJobs";
 import ClientJobDetails from "@/pages/dashboard/client/JobDetails";
 import PostJob from "@/pages/dashboard/client/PostJob";
 import Applications from "@/pages/dashboard/client/Applications";
+import JobApplications from "@/pages/dashboard/client/JobApplications";
 import Messages from "@/pages/dashboard/client/Messages";
 import Analytics from "@/pages/dashboard/client/Analytics";
 import ClientNotifications from "@/pages/dashboard/client/Notifications";
@@ -70,607 +86,378 @@ import WorkerProfile from "@/pages/dashboard/worker/Profile";
 import WorkerSettings from "@/pages/dashboard/worker/Settings";
 
 /* =========================
-   CHANGE PASSWORD
-========================= */
-
-import ChangePassword from "./pages/logIn/ChangePassword";
-
-/* =========================
-   ADMIN PANEL ROUTES
+   ADMIN PANEL
 ========================= */
 
 import { AdminRoutes } from "@/features/admin/routes";
 
-/* =========================
-   SHARED TYPES
-========================= */
+/* =========================================================
+   GET USER DASHBOARD
+   ========================================================= */
 
-import { SelectedPage } from "@/shared/types";
+function getUserDashboard(): string | null {
+  const user = getCurrentUser();
 
-/* =========================
-   AUTH HELPERS
-========================= */
-
-import {
-  isAuthenticated,
-  getSelectedRole,
-  getCurrentUser,
-} from "@/shared/auth";
-
-/* =========================
-   LANDING PAGE PROPS
-========================= */
-
-type HomePageProps = {
-  selectedPage: SelectedPage;
-
-  setSelectedPage: (
-    value: SelectedPage
-  ) => void;
-};
-
-/* =========================
-   LANDING PAGE
-========================= */
-
-const HomePage = ({
-  setSelectedPage,
-}: HomePageProps) => {
-  return (
-    <>
-      <Home
-        setSelectedPage={
-          setSelectedPage
-        }
-      />
-
-      <HowItWorks
-        setSelectedPage={
-          setSelectedPage
-        }
-      />
-
-      <About
-        setSelectedPage={
-          setSelectedPage
-        }
-      />
-
-      <ContactUs
-        setSelectedPage={
-          setSelectedPage
-        }
-      />
-
-      <Footer />
-    </>
-  );
-};
-
-/* =========================
-   HOME REDIRECT
-========================= */
-
-const HomeRedirect = () => {
-  const authenticated =
-    isAuthenticated();
-
-  const user =
-    getCurrentUser();
-
-  const selectedRole =
-    getSelectedRole();
-
-  /* =========================
-     NOT LOGGED IN
-  ========================= */
-
-  if (!authenticated) {
-    return (
-      <Navigate
-        to="/"
-        replace
-      />
-    );
+  if (!user) {
+    return null;
   }
 
-  /* =========================
-     DETERMINE ROLE
-  ========================= */
+  const selectedRole = getSelectedRole();
 
-  const role =
-    selectedRole ||
-    (user?.is_worker
-      ? "WORKER"
-      : user?.is_client
-      ? "CLIENT"
-      : null);
+  /*
+   * If the user has selected a valid role, respect that selection.
+   */
 
-  /* =========================
-     CLIENT
-  ========================= */
-
-  if (role === "CLIENT") {
-    return (
-      <Navigate
-        to="/client/dashboard"
-        replace
-      />
-    );
+  if (selectedRole === "CLIENT" && user.is_client) {
+    return "/client/dashboard";
   }
 
-  /* =========================
-     WORKER
-  ========================= */
-
-  if (role === "WORKER") {
-    return (
-      <Navigate
-        to="/worker/dashboard"
-        replace
-      />
-    );
+  if (selectedRole === "WORKER" && user.is_worker) {
+    return "/worker/dashboard";
   }
 
-  /* =========================
-     INVALID AUTH
-  ========================= */
+  /*
+   * User only has CLIENT role.
+   */
 
-  return (
-    <Navigate
-      to="/login"
-      replace
-    />
-  );
-};
+  if (user.is_client && !user.is_worker) {
+    return "/client/dashboard";
+  }
 
-/* =========================
-   APP
-========================= */
+  /*
+   * User only has WORKER role.
+   */
 
-function App() {
-  /* =========================
-     SELECTED LANDING PAGE
-  ========================= */
+  if (user.is_worker && !user.is_client) {
+    return "/worker/dashboard";
+  }
 
-  const [
-    selectedPage,
-    setSelectedPage,
-  ] = useState<SelectedPage>(
+  /*
+   * User has both roles but no selected role.
+   * Default to CLIENT.
+   */
+
+  if (user.is_client && user.is_worker) {
+    return "/client/dashboard";
+  }
+
+  return null;
+}
+
+/* =========================================================
+   PUBLIC LANDING PAGE
+   ========================================================= */
+
+function PublicLandingPage() {
+  const [selectedPage, setSelectedPage] = useState<SelectedPage>(
     SelectedPage.Home
   );
 
-  /* =========================
-     TOP OF PAGE
-  ========================= */
-
-  const [
-    isTopOfPage,
-    setIsTopOfPage,
-  ] = useState(true);
-
-  /* =========================
-     LOCATION
-  ========================= */
-
-  const location =
-    useLocation();
-
-  /* =========================
-     SCROLL DETECTION
-  ========================= */
+  const [isTopOfPage, setIsTopOfPage] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsTopOfPage(
-        window.scrollY === 0
-      );
+      setIsTopOfPage(window.scrollY === 0);
     };
 
-    window.addEventListener(
-      "scroll",
-      handleScroll
-    );
+    window.addEventListener("scroll", handleScroll);
+    handleScroll();
 
     return () => {
-      window.removeEventListener(
-        "scroll",
-        handleScroll
-      );
+      window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
-  /* =========================
-     DASHBOARD CHECK
-  ========================= */
+  const dashboard = getUserDashboard();
 
-  const isDashboard =
-    location.pathname.startsWith(
-      "/client/dashboard"
-    ) ||
-    location.pathname.startsWith(
-      "/worker/dashboard"
-    ) ||
-    location.pathname.startsWith(
-      "/admin"
-    );
+  /*
+   * Logged-in users should never see the public landing page.
+   */
 
-  /* =========================
-     AUTH PAGE CHECK
-  ========================= */
-
-  const isAuthPage = [
-    "/login",
-    "/register",
-    "/forgot-password",
-    "/reset-password",
-  ].includes(
-    location.pathname
-  );
-
-  /* =========================
-     RENDER
-  ========================= */
+  if (dashboard) {
+    return <Navigate to={dashboard} replace />;
+  }
 
   return (
-    <div className="app min-h-screen bg-gray-20">
-
-      {/* =========================
-          NAVBAR
-      ========================= */}
-
-      {!isDashboard &&
-        !isAuthPage && (
-          <Navbar
-            isTopOfPage={
-              isTopOfPage
-            }
-            selectedPage={
-              selectedPage
-            }
-            setSelectedPage={
-              setSelectedPage
-            }
-          />
-        )}
-
-      {/* =========================
-          ROUTES
-      ========================= */}
-
-      <Routes>
-
-        {/* ==================================================
-            HOME
-        ================================================== */}
-
-        <Route
-          path="/"
-          element={
-            isAuthenticated() ? (
-              <HomeRedirect />
-            ) : (
-              <HomePage
-                selectedPage={
-                  selectedPage
-                }
-                setSelectedPage={
-                  setSelectedPage
-                }
-              />
-            )
-          }
-        />
-
-        {/* ==================================================
-            GENERIC DASHBOARD
-        ================================================== */}
-
-        <Route
-          path="/dashboard"
-          element={
-            <HomeRedirect />
-          }
-        />
-
-        {/* ==================================================
-            LOGIN
-        ================================================== */}
-
-        <Route
-          path="/login"
-          element={
-            <Login />
-          }
-        />
-
-        {/* ==================================================
-            REGISTER
-        ================================================== */}
-
-        <Route
-          path="/register"
-          element={
-            <Register />
-          }
-        />
-
-        {/* ==================================================
-            FORGOT PASSWORD
-        ================================================== */}
-
-        <Route
-          path="/forgot-password"
-          element={
-            <ForgotPassword />
-          }
-        />
-
-        {/* ==================================================
-            RESET PASSWORD
-        ================================================== */}
-
-        <Route
-          path="/reset-password"
-          element={
-            <ResetPassword />
-          }
-        />
-
-        {/* ==================================================
-            CLIENT DASHBOARD
-        ================================================== */}
-
-        <Route
-          path="/client/dashboard"
-          element={
-            <DashboardLayout />
-          }
-        >
-
-          {/* CLIENT OVERVIEW */}
-
-          <Route
-            index
-            element={
-              <ClientDashboard />
-            }
-          />
-
-          {/* MY JOBS */}
-
-          <Route
-            path="jobs"
-            element={
-              <MyJobs />
-            }
-          />
-
-          {/* CLIENT JOB DETAILS */}
-
-          <Route
-            path="jobs/:jobId"
-            element={
-              <ClientJobDetails />
-            }
-          />
-
-          {/* CLIENT APPLICATIONS */}
-
-          <Route
-            path="applications"
-            element={
-              <Applications />
-            }
-          />
-
-          {/* POST JOB */}
-
-          <Route
-            path="post-job"
-            element={
-              <PostJob />
-            }
-          />
-
-          {/* MESSAGES */}
-
-          <Route
-            path="messages"
-            element={
-              <Messages />
-            }
-          />
-
-          {/* ANALYTICS */}
-
-          <Route
-            path="analytics"
-            element={
-              <Analytics />
-            }
-          />
-
-          {/* NOTIFICATIONS */}
-
-          <Route
-            path="notifications"
-            element={
-              <ClientNotifications />
-            }
-          />
-
-          {/* PROFILE */}
-
-          <Route
-            path="profile"
-            element={
-              <Profile />
-            }
-          />
-
-          {/* SETTINGS */}
-
-          <Route
-            path="settings"
-            element={
-              <Settings />
-            }
-          />
-
-          {/* CHANGE PASSWORD */}
-
-          <Route
-            path="change-password"
-            element={
-              <ChangePassword />
-            }
-          />
-
-          {/* VERIFY */}
-
-          <Route
-            path="verify"
-            element={
-              <VerifyDetails />
-            }
-          />
-
-        </Route>
-
-        {/* ==================================================
-            WORKER DASHBOARD
-        ================================================== */}
-
-        <Route
-          path="/worker/dashboard"
-          element={
-            <DashboardLayout />
-          }
-        >
-
-          {/* WORKER OVERVIEW */}
-
-          <Route
-            index
-            element={
-              <WorkerDashboard />
-            }
-          />
-
-          {/* FIND JOBS */}
-
-          <Route
-            path="jobs"
-            element={
-              <FindJobs />
-            }
-          />
-
-          {/* WORKER JOB DETAILS */}
-
-          <Route
-            path="jobs/:jobId"
-            element={
-              <WorkerJobDetails />
-            }
-          />
-
-          {/* MY JOBS */}
-
-          <Route
-            path="my-jobs"
-            element={
-              <MyWork />
-            }
-          />
-
-          {/* APPLICATIONS */}
-
-          <Route
-            path="applications"
-            element={
-              <MyApplications />
-            }
-          />
-
-          {/* MESSAGES */}
-
-          <Route
-            path="messages"
-            element={
-              <WorkerMessages />
-            }
-          />
-
-          {/* PERFORMANCE */}
-
-          <Route
-            path="performance"
-            element={
-              <Performance />
-            }
-          />
-
-          {/* NOTIFICATIONS */}
-
-          <Route
-            path="notifications"
-            element={
-              <WorkerNotifications />
-            }
-          />
-
-          {/* PROFILE */}
-
-          <Route
-            path="profile"
-            element={
-              <WorkerProfile />
-            }
-          />
-
-          {/* SETTINGS */}
-
-          <Route
-            path="settings"
-            element={
-              <WorkerSettings />
-            }
-          />
-
-          {/* CHANGE PASSWORD */}
-
-          <Route
-            path="change-password"
-            element={
-              <ChangePassword />
-            }
-          />
-
-          {/* VERIFY */}
-
-          <Route
-            path="verify"
-            element={
-              <VerifyDetails />
-            }
-          />
-
-        </Route>
-
-        {/* ==================================================
-            ADMIN PANEL
-        ================================================== */}
-
-        <Route
-          path="/admin/*"
-          element={<AdminRoutes />}
-        />
-
-      </Routes>
-
+    <div className="min-h-screen w-full bg-white">
+      <Navbar
+        isTopOfPage={isTopOfPage}
+        selectedPage={selectedPage}
+        setSelectedPage={setSelectedPage}
+      />
+
+      <main>
+        <Home setSelectedPage={setSelectedPage} />
+        <HowItWorks setSelectedPage={setSelectedPage} />
+        <About setSelectedPage={setSelectedPage} />
+        <ContactUs setSelectedPage={setSelectedPage} />
+        <Footer />
+      </main>
     </div>
+  );
+}
+
+/* =========================================================
+   PUBLIC AUTH ROUTE
+   ========================================================= */
+
+function PublicAuthRoute({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const dashboard = getUserDashboard();
+
+  /*
+   * Already logged in? Send the user directly to their dashboard.
+   */
+
+  if (dashboard) {
+    return <Navigate to={dashboard} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+/* =========================================================
+   PROTECTED DASHBOARD ROUTE
+   ========================================================= */
+
+function ProtectedDashboard({
+  role,
+}: {
+  role: "CLIENT" | "WORKER";
+}) {
+  const user = getCurrentUser();
+
+  /*
+   * No authenticated user.
+   */
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  /*
+   * User is trying to access a CLIENT dashboard
+   * but does not have the CLIENT role.
+   */
+
+  if (role === "CLIENT" && !user.is_client) {
+    const dashboard = getUserDashboard();
+    return <Navigate to={dashboard || "/login"} replace />;
+  }
+
+  /*
+   * User is trying to access a WORKER dashboard
+   * but does not have the WORKER role.
+   */
+
+  if (role === "WORKER" && !user.is_worker) {
+    const dashboard = getUserDashboard();
+    return <Navigate to={dashboard || "/login"} replace />;
+  }
+
+  /*
+   * If the user has BOTH roles, make sure they are accessing
+   * the currently selected role.
+   */
+
+  const selectedRole = getSelectedRole();
+
+  if (
+    user.is_client &&
+    user.is_worker &&
+    selectedRole &&
+    selectedRole !== role
+  ) {
+    return (
+      <Navigate
+        to={
+          selectedRole === "CLIENT"
+            ? "/client/dashboard"
+            : "/worker/dashboard"
+        }
+        replace
+      />
+    );
+  }
+
+  return <DashboardLayout />;
+}
+
+/* =========================================================
+   APP
+   ========================================================= */
+
+function App() {
+  return (
+    <Routes>
+
+      {/* =====================================================
+          PUBLIC LANDING PAGE
+      ===================================================== */}
+
+      <Route path="/" element={<PublicLandingPage />} />
+
+      {/* =====================================================
+          LOGIN — single auto-role page
+      ===================================================== */}
+
+      <Route
+        path="/login"
+        element={
+          <PublicAuthRoute>
+            <Login />
+          </PublicAuthRoute>
+        }
+      />
+
+      {/* =====================================================
+          REGISTER — three-page role-based flow
+      ===================================================== */}
+
+      <Route
+        path="/register"
+        element={
+          <PublicAuthRoute>
+            <RegisterRole />
+          </PublicAuthRoute>
+        }
+      />
+
+      <Route
+        path="/register/client"
+        element={
+          <PublicAuthRoute>
+            <ClientRegister />
+          </PublicAuthRoute>
+        }
+      />
+
+      <Route
+        path="/register/worker"
+        element={
+          <PublicAuthRoute>
+            <WorkerRegister />
+          </PublicAuthRoute>
+        }
+      />
+
+      {/* =====================================================
+          PASSWORD FLOWS
+      ===================================================== */}
+
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicAuthRoute>
+            <ForgotPassword />
+          </PublicAuthRoute>
+        }
+      />
+
+      <Route
+        path="/reset-password"
+        element={
+          <PublicAuthRoute>
+            <ResetPassword />
+          </PublicAuthRoute>
+        }
+      />
+
+      {/* =====================================================
+          CLIENT DASHBOARD
+      ===================================================== */}
+
+      <Route
+        path="/client/dashboard"
+        element={<ProtectedDashboard role="CLIENT" />}
+      >
+        <Route index element={<ClientDashboard />} />
+
+        <Route path="jobs" element={<MyJobs />} />
+        <Route path="jobs/:jobId" element={<ClientJobDetails />} />
+
+        <Route path="post-job" element={<PostJob />} />
+
+        <Route path="applications" element={<Applications />} />
+        <Route path="applications/:jobId" element={<JobApplications />} />
+
+        <Route path="messages" element={<Messages />} />
+
+        <Route path="analytics" element={<Analytics />} />
+
+        <Route
+          path="notifications"
+          element={<ClientNotifications />}
+        />
+
+        <Route path="profile" element={<Profile />} />
+
+        <Route path="settings" element={<Settings />} />
+
+        <Route path="change-password" element={<ChangePassword />} />
+
+        <Route path="verify" element={<VerifyDetails />} />
+      </Route>
+
+      {/* =====================================================
+          WORKER DASHBOARD
+      ===================================================== */}
+
+      <Route
+        path="/worker/dashboard"
+        element={<ProtectedDashboard role="WORKER" />}
+      >
+        <Route index element={<WorkerDashboard />} />
+
+        <Route path="find-jobs" element={<FindJobs />} />
+        <Route path="jobs/:jobId" element={<WorkerJobDetails />} />
+
+        {/* Backward compatibility */}
+        <Route
+          path="jobs"
+          element={
+            <Navigate to="/worker/dashboard/find-jobs" replace />
+          }
+        />
+
+        <Route path="applications" element={<MyApplications />} />
+
+        <Route path="my-work" element={<MyWork />} />
+
+        <Route path="messages" element={<WorkerMessages />} />
+
+        <Route path="performance" element={<Performance />} />
+
+        <Route
+          path="notifications"
+          element={<WorkerNotifications />}
+        />
+
+        <Route path="profile" element={<WorkerProfile />} />
+
+        <Route path="settings" element={<WorkerSettings />} />
+
+        <Route path="change-password" element={<ChangePassword />} />
+
+        <Route path="verify" element={<VerifyDetails />} />
+      </Route>
+
+      {/* =====================================================
+          ADMIN PANEL
+      ===================================================== */}
+
+      <Route path="/admin/*" element={<AdminRoutes />} />
+
+      {/* =====================================================
+          FALLBACK
+      ===================================================== */}
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
+
+    </Routes>
   );
 }
 
