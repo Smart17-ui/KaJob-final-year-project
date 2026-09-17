@@ -136,12 +136,13 @@ INSTALLED_APPS = [
     #'drf_spectacular_sidecar',
 ]
 
+
 # ============================================
 # MIDDLEWARE CONFIGURATION
 # ============================================
 
 MIDDLEWARE = [
-    
+
     # Django default middleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -158,11 +159,11 @@ MIDDLEWARE = [
     'infrastructure.middleware.request_id_middleware.RequestIDMiddleware',
     'infrastructure.middleware.logging_middleware.RequestLoggingMiddleware',
     'infrastructure.middleware.auth_middleware.JWTAuthenticationMiddleware',
-    'infrastructure.middleware.rate_limit_middleware.RateLimitMiddleware',
     'infrastructure.middleware.audit_middleware.AuditMiddleware',
     'infrastructure.middleware.performance_middleware.PerformanceMiddleware',
     'infrastructure.middleware.security_middleware.SecurityHeadersMiddleware',
 ]
+
 
 # ============================================
 # CORS SETTINGS
@@ -400,82 +401,9 @@ REST_FRAMEWORK = {
 
     'PAGE_SIZE': 20,
 
-    'DEFAULT_THROTTLE_CLASSES': (
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
-    ),
-
-    # ============================================
-    # 🆕 ENHANCED RATE LIMITING
-    # Will be overridden below based on DEBUG
-    # ============================================
-
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
-        'user': '1000/day',
-        'register': '5/hour',
-        'login': '10/minute',
-    },
-
     'DEFAULT_SCHEMA_CLASS':
         'drf_spectacular.openapi.AutoSchema',
 }
-
-
-# ============================================
-# 🆕 ENVIRONMENT-BASED RATE LIMITING
-# ============================================
-
-if DEBUG:
-    # 🔓 DEVELOPMENT MODE: High limits for testing
-    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
-        # General limits
-        'anon': '10000/day',        # 10,000 requests per day
-        'user': '50000/day',        # 50,000 requests per day
-        
-        # Authentication
-        'register': '100/hour',     # 100 registrations per hour
-        'login': '100/minute',      # 100 login attempts per minute
-        
-        # Application features
-        'application': '500/minute', # 500 job applications per minute
-        'location': '500/minute',    # 500 location updates per minute
-        'job_create': '100/minute',  # 100 job creations per minute
-        'review': '100/minute',      # 100 reviews per minute
-        'verification': '50/hour',   # 50 verification attempts per hour
-        
-        # Additional endpoint groups
-        'jobs': '200/minute',        # 200 job-related requests per minute
-        'profile': '200/minute',     # 200 profile requests per minute
-        'matching': '200/minute',    # 200 matching requests per minute
-        'notifications': '200/minute', # 200 notification requests per minute
-    }
-    print("🔓 DEVELOPMENT MODE: High rate limits enabled (50x higher)")
-else:
-    # 🔒 PRODUCTION MODE: Strict limits for security
-    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
-        # General limits
-        'anon': '100/day',
-        'user': '1000/day',
-        
-        # Authentication
-        'register': '5/hour',
-        'login': '10/minute',
-        
-        # Application features
-        'application': '100/minute',
-        'location': '60/minute',
-        'job_create': '10/minute',
-        'review': '10/minute',
-        'verification': '3/hour',
-        
-        # Additional endpoint groups
-        'jobs': '60/minute',
-        'profile': '60/minute',
-        'matching': '60/minute',
-        'notifications': '60/minute',
-    }
-    print("🔒 PRODUCTION MODE: Strict rate limits enabled")
 
 
 # ============================================
@@ -549,17 +477,47 @@ SIMPLE_JWT = {
 # ============================================
 
 EMAIL_BACKEND = get_env(
-    'EMAIL_BACKEND', 
+    'EMAIL_BACKEND',
     default='django.core.mail.backends.smtp.EmailBackend'
 )
-EMAIL_HOST = get_env('EMAIL_HOST', default='smtp.gmail.com')
-EMAIL_PORT = get_env('EMAIL_PORT', default='587', cast=int)
-EMAIL_USE_TLS = get_env('EMAIL_USE_TLS', default='True', cast=bool)
-EMAIL_HOST_USER = get_env('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = get_env('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = get_env('DEFAULT_FROM_EMAIL', default='noreply@kajob.com')
 
-FRONTEND_URL = get_env('FRONTEND_URL', default='http://localhost:5173')
+EMAIL_HOST = get_env(
+    'EMAIL_HOST',
+    default='smtp.gmail.com'
+)
+
+EMAIL_PORT = get_env(
+    'EMAIL_PORT',
+    default='587',
+    cast=int
+)
+
+EMAIL_USE_TLS = get_env(
+    'EMAIL_USE_TLS',
+    default='True',
+    cast=bool
+)
+
+EMAIL_HOST_USER = get_env(
+    'EMAIL_HOST_USER',
+    default=''
+)
+
+EMAIL_HOST_PASSWORD = get_env(
+    'EMAIL_HOST_PASSWORD',
+    default=''
+)
+
+DEFAULT_FROM_EMAIL = get_env(
+    'DEFAULT_FROM_EMAIL',
+    default='noreply@kajob.com'
+)
+
+FRONTEND_URL = get_env(
+    'FRONTEND_URL',
+    default='http://localhost:5173'
+)
+
 
 # ============================================
 # CHANNELS / WEBSOCKET CONFIGURATION
@@ -567,7 +525,7 @@ FRONTEND_URL = get_env('FRONTEND_URL', default='http://localhost:5173')
 
 ASGI_APPLICATION = 'config.asgi.application'
 
-# ✅ In-memory channel layer (no Redis needed!)
+# In-memory channel layer (no Redis needed!)
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
@@ -672,9 +630,16 @@ LOGGING = {
 
             'propagate': True,
         },
+
         'channels': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
+            'handlers': [
+                'console',
+                'file'
+            ],
+
+            'level':
+                'DEBUG' if DEBUG else 'INFO',
+
             'propagate': True,
         },
     },
@@ -736,10 +701,6 @@ print(
     f"{EMAIL_HOST_USER}"
 )
 
-# 🆕 Display rate limit information
-print("\n" + "="*50)
-print("RATE LIMITING STATUS")
-print("="*50)
-for scope, rate in REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'].items():
-    print(f"  {scope}: {rate}")
-print("="*50 + "\n")
+print("\n" + "=" * 50)
+print("RATE LIMITING: DISABLED")
+print("=" * 50 + "\n")

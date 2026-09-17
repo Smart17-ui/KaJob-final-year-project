@@ -2,26 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getCurrentUser } from "@/shared/auth";
-import apiClient from "@/api/client";
 
 import {
   getWorkerAnalytics,
   type WorkerAnalytics,
 } from "@/api/analytics/worker";
-
-/* =========================
-   TYPES
-========================= */
-
-type Job = {
-  id: number;
-  status: string;
-};
-
-type CountResponse = {
-  count: number;
-  results?: Job[];
-};
 
 /* =========================
    COMPONENT
@@ -33,15 +18,6 @@ const WorkerDashboard = () => {
   const user = getCurrentUser();
 
   const firstName = user?.first_name || "there";
-
-  const [applicationsCount, setApplicationsCount] =
-    useState(0);
-
-  const [activeJobsCount, setActiveJobsCount] =
-    useState(0);
-
-  const [completedJobsCount, setCompletedJobsCount] =
-    useState(0);
 
   const [analytics, setAnalytics] =
     useState<WorkerAnalytics | null>(null);
@@ -62,60 +38,8 @@ const WorkerDashboard = () => {
       setErrorMessage("");
 
       try {
-        const [
-          applicationsResponse,
-          activeJobsResponse,
-          myJobsResponse,
-          analyticsResponse,
-        ] = await Promise.all([
-          apiClient(
-            "/jobs/my-applications/"
-          ) as Promise<CountResponse>,
-
-          apiClient(
-            "/jobs/my-active-jobs/"
-          ) as Promise<CountResponse>,
-
-          apiClient(
-            "/jobs/my-jobs/"
-          ) as Promise<CountResponse>,
-
-          getWorkerAnalytics(),
-        ]);
-
-        /* =========================
-           APPLICATIONS
-        ========================= */
-
-        setApplicationsCount(
-          applicationsResponse.count ?? 0
-        );
-
-        /* =========================
-           ACTIVE JOBS
-        ========================= */
-
-        setActiveJobsCount(
-          activeJobsResponse.count ?? 0
-        );
-
-        /* =========================
-           COMPLETED JOBS
-        ========================= */
-
-        const completedJobs =
-          myJobsResponse.results?.filter(
-            (job) =>
-              job.status === "COMPLETED"
-          ) ?? [];
-
-        setCompletedJobsCount(
-          completedJobs.length
-        );
-
-        /* =========================
-           WORKER ANALYTICS
-        ========================= */
+        const analyticsResponse =
+          await getWorkerAnalytics();
 
         setAnalytics(analyticsResponse);
       } catch (error) {
@@ -204,6 +128,19 @@ const WorkerDashboard = () => {
         return "bg-slate-100 text-slate-700";
     }
   };
+
+  /* =========================
+     DERIVED STATISTICS
+  ========================= */
+
+  const applicationsCount =
+    analytics?.overview.total_applications ?? 0;
+
+  const activeJobsCount =
+    analytics?.jobs.active ?? 0;
+
+  const completedJobsCount =
+    analytics?.jobs.completed ?? 0;
 
   /* =========================
      UI

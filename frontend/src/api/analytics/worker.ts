@@ -18,16 +18,12 @@ export type WorkerAnalytics = {
   earnings: {
     total: number;
     average_per_job: number;
-    highest_paying: number;
-    lowest_paying: number;
   };
 
   performance: {
     average_rating: number;
     total_reviews: number;
     completion_rate: number;
-    positive_reviews: number;
-    negative_reviews: number;
   };
 
   recent_jobs: WorkerRecentJob[];
@@ -38,15 +34,6 @@ export type WorkerAnalytics = {
     3: number;
     4: number;
     5: number;
-  };
-
-  summary: {
-    total_applications: number;
-    total_jobs_completed: number;
-    total_earnings: number;
-    average_rating: number;
-    total_reviews: number;
-    completion_rate: number;
   };
 };
 
@@ -95,12 +82,142 @@ export type WorkerEarningsTrendResponse = {
   data: WorkerEarningsTrendItem[];
 };
 
+/* =========================================================
+   NORMALIZATION HELPERS
+   ========================================================= */
+
+const toNumber = (value: unknown): number => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeRecentJob = (
+  job: WorkerRecentJob
+): WorkerRecentJob => ({
+  ...job,
+  budget: toNumber(job.budget),
+});
+
+const normalizeJobHistoryItem = (
+  job: WorkerJobHistoryItem
+): WorkerJobHistoryItem => ({
+  ...job,
+  budget: toNumber(job.budget),
+  rating:
+    job.rating === null || job.rating === undefined
+      ? null
+      : toNumber(job.rating),
+});
+
+const normalizeAnalytics = (
+  data: WorkerAnalytics
+): WorkerAnalytics => ({
+  ...data,
+
+  overview: {
+    ...data.overview,
+    total_applications: toNumber(
+      data.overview.total_applications
+    ),
+    accepted_applications: toNumber(
+      data.overview.accepted_applications
+    ),
+    acceptance_rate: toNumber(
+      data.overview.acceptance_rate
+    ),
+  },
+
+  jobs: {
+    ...data.jobs,
+    total: toNumber(data.jobs.total),
+    active: toNumber(data.jobs.active),
+    in_progress: toNumber(data.jobs.in_progress),
+    completed: toNumber(data.jobs.completed),
+    cancelled: toNumber(data.jobs.cancelled),
+  },
+
+  earnings: {
+    ...data.earnings,
+    total: toNumber(data.earnings.total),
+    average_per_job: toNumber(
+      data.earnings.average_per_job
+    ),
+  },
+
+  performance: {
+    ...data.performance,
+    average_rating: toNumber(
+      data.performance.average_rating
+    ),
+    total_reviews: toNumber(
+      data.performance.total_reviews
+    ),
+    completion_rate: toNumber(
+      data.performance.completion_rate
+    ),
+  },
+
+  recent_jobs: (data.recent_jobs ?? []).map(
+    normalizeRecentJob
+  ),
+
+  rating_distribution: {
+    1: toNumber(data.rating_distribution?.[1]),
+    2: toNumber(data.rating_distribution?.[2]),
+    3: toNumber(data.rating_distribution?.[3]),
+    4: toNumber(data.rating_distribution?.[4]),
+    5: toNumber(data.rating_distribution?.[5]),
+  },
+});
+
+const normalizeJobHistoryResponse = (
+  data: WorkerJobHistoryResponse
+): WorkerJobHistoryResponse => ({
+  ...data,
+  results: (data.results ?? []).map(
+    normalizeJobHistoryItem
+  ),
+});
+
+const normalizeEarningsTrendResponse = (
+  data: WorkerEarningsTrendResponse
+): WorkerEarningsTrendResponse => ({
+  ...data,
+
+  total_earnings: toNumber(
+    data.total_earnings
+  ),
+
+  data: (data.data ?? []).map((item) => ({
+    ...item,
+    earnings: toNumber(item.earnings),
+    jobs_completed: toNumber(
+      item.jobs_completed
+    ),
+  })),
+});
+
+/* =========================================================
+   WORKER ANALYTICS
+   ========================================================= */
+
 export const getWorkerAnalytics =
   async (): Promise<WorkerAnalytics> => {
-    return apiClient(
+    const data = await apiClient(
       "/worker/"
-    ) as Promise<WorkerAnalytics>;
+    ) as WorkerAnalytics;
+
+    return normalizeAnalytics(data);
   };
+
+/* =========================================================
+   WORKER JOB HISTORY
+   ========================================================= */
 
 export const getWorkerJobHistory =
   async (
@@ -112,16 +229,24 @@ export const getWorkerJobHistory =
         )}`
       : "/worker/jobs/";
 
-    return apiClient(
+    const data = await apiClient(
       endpoint
-    ) as Promise<WorkerJobHistoryResponse>;
+    ) as WorkerJobHistoryResponse;
+
+    return normalizeJobHistoryResponse(data);
   };
+
+/* =========================================================
+   WORKER EARNINGS TREND
+   ========================================================= */
 
 export const getWorkerEarningsTrend =
   async (
     period: "week" | "month" | "quarter" = "month"
   ): Promise<WorkerEarningsTrendResponse> => {
-    return apiClient(
+    const data = await apiClient(
       `/worker/earnings-trend/?period=${period}`
-    ) as Promise<WorkerEarningsTrendResponse>;
+    ) as WorkerEarningsTrendResponse;
+
+    return normalizeEarningsTrendResponse(data);
   };
