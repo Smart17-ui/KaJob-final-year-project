@@ -279,7 +279,6 @@ class AuthService:
             entity_type='USER',
             entity_id=user.id,
             details={
-                'from_role': user.get_current_role(),
                 'to_role': role_name,
             }
         )
@@ -310,21 +309,32 @@ class AuthService:
         pass
     
     # ============================================
-    # LOGIN / LOGOUT / REFRESH (WITH ROLE SELECTION)
+    # LOGIN / LOGOUT / REFRESH
     # ============================================
     
-    def login_user(self, email: str, password: str, role: str = None, request=None) -> Dict[str, Any]:
+    def login_user(
+        self,
+        email: str,
+        password: str,
+        role: str = None,
+        request=None
+    ) -> Dict[str, Any]:
         """
-        Authenticate user and generate tokens with role selection.
+        Authenticate user and generate tokens with AUTO-DETECTED role.
+        
+        Priority order for role detection:
+        1. ADMIN   → /admin/dashboard
+        2. WORKER  → /worker/dashboard   (covers "worker only" AND "worker + client")
+        3. CLIENT  → /client/dashboard
         
         Args:
             email: User's email
             password: User's password
-            role: Optional role to login as (WORKER or CLIENT)
+            role: Optional legacy param — if provided, validates user has that role
             request: HTTP request (for IP logging)
         
         Returns:
-            Dict with user, tokens, selected_role, and available_roles
+            Dict with user, tokens, detected_role, redirect_to, available_roles
         """
         # Normalize email - case insensitive
         email = email.lower().strip()
@@ -333,32 +343,71 @@ class AuthService:
         user = self.user_repo.get_by_email(email)
         if not user:
             raise BusinessRuleViolation("Invalid email or password.")
-        
-        # Check if user can login
-        can_login, error_message = self.user_repo.can_login(user)
-        if not can_login:
-            raise BusinessRuleViolation(error_message)
+
+        # ============================================
+        # 🆕 DISCIPLINARY CHECK
+        # Runs BEFORE the legacy repo check so banned/suspended users
+        # get a clear, specific message about why they can't log in.
+        # ============================================
+        allowed, reason = user.can_log_in()
+        if not allowed:
+            raise BusinessRuleViolation(reason)
+
+        # Legacy repo check (kept for compatibility; safe no-op if missing)
+        try:
+            can_login, error_message = self.user_repo.can_login(user)
+            if not can_login:
+                raise BusinessRuleViolation(error_message)
+        except AttributeError:
+            pass
         
         # Check password
         if not user.check_password(password):
             raise BusinessRuleViolation("Invalid email or password.")
         
-        # Handle role selection
+        # ============================================
+        # GET USER ROLES
+        # ============================================
         user_roles = user.get_roles_names()
         
         if not user_roles:
             raise BusinessRuleViolation("User has no roles assigned.")
         
-        # If role is provided, validate it
+        # ============================================
+        # AUTO-DETECT ROLE (Priority: ADMIN > WORKER > CLIENT)
+        # ============================================
+        if user.is_admin:
+            detected_role = 'ADMIN'
+            redirect_to = '/admin/dashboard'
+        elif user.is_worker:
+            # Covers both "worker only" AND "worker + client"
+            detected_role = 'WORKER'
+            redirect_to = '/worker/dashboard'
+        elif user.is_client:
+            detected_role = 'CLIENT'
+            redirect_to = '/client/dashboard'
+        else:
+            # Fallback — shouldn't happen
+            detected_role = user_roles[0]
+            redirect_to = '/dashboard'
+        
+        # ============================================
+        # LEGACY: If caller still passes a specific role, honor it
+        # ============================================
         if role:
             if role not in user_roles:
                 raise BusinessRuleViolation(
-                    f"User does not have the '{role}' role. Available roles: {', '.join(user_roles)}"
+                    f"User does not have the '{role}' role. "
+                    f"Available roles: {', '.join(user_roles)}"
                 )
-            selected_role = role
-        else:
-            # If no role provided, use the first role
-            selected_role = user_roles[0]
+            detected_role = role
+            # Recalculate redirect
+            if role == 'ADMIN':
+                redirect_to = '/admin/dashboard'
+            elif role == 'WORKER':
+                redirect_to = '/worker/dashboard'
+            elif role == 'CLIENT':
+                redirect_to = '/client/dashboard'
         
         # Update last login
         self.user_repo.update_last_login(user)
@@ -372,17 +421,19 @@ class AuthService:
             details={
                 'ip': request.META.get('REMOTE_ADDR') if request else None,
                 'user_agent': request.META.get('HTTP_USER_AGENT') if request else None,
-                'login_as': selected_role,
+                'detected_role': detected_role,
+                'available_roles': user_roles,
             },
         )
         
-        # Generate tokens with selected role
-        tokens = self.token_service.generate_tokens(user, selected_role)
+        # Generate tokens with detected role
+        tokens = self.token_service.generate_tokens(user, detected_role)
         
         return {
             'user': user,
             'tokens': tokens,
-            'selected_role': selected_role,
+            'detected_role': detected_role,
+            'redirect_to': redirect_to,
             'available_roles': user_roles,
         }
     
@@ -449,7 +500,7 @@ class AuthService:
         return True
     
     # ============================================
-    # EMAIL VERIFICATION (MOVED TO PHASE 2)
+    # EMAIL VERIFICATION (DELEGATED)
     # ============================================
     
     def verify_email(self, token: str) -> bool:

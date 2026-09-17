@@ -15,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
     is_admin = serializers.BooleanField(read_only=True)
     is_worker = serializers.BooleanField(read_only=True)
     is_client = serializers.BooleanField(read_only=True)
-    
+
     class Meta:
         model = User
         fields = [
@@ -45,16 +45,16 @@ class UserSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-    
+
     def get_full_name(self, obj):
         return obj.full_name
-    
+
     def get_roles(self, obj):
         return [{'id': role.id, 'name': role.name} for role in obj.roles]
-    
+
     def get_available_roles(self, obj):
         return [role.name for role in obj.roles]
-    
+
     def get_role_display(self, obj):
         roles = [role.name for role in obj.roles]
         if not roles:
@@ -68,7 +68,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     """
     user = UserSerializer(read_only=True)
     full_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Profile
         fields = [
@@ -82,11 +82,12 @@ class ProfileSerializer(serializers.ModelSerializer):
             'district',
             'latitude',
             'longitude',
+            'location_updated_at',   # 🆕
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at']
-    
+        read_only_fields = ['created_at', 'updated_at', 'location_updated_at']
+
     def get_full_name(self, obj):
         return obj.user.full_name if obj.user else None
 
@@ -103,7 +104,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     is_admin = serializers.BooleanField(read_only=True)
     is_worker = serializers.BooleanField(read_only=True)
     is_client = serializers.BooleanField(read_only=True)
-    
+
     class Meta:
         model = User
         fields = [
@@ -134,16 +135,16 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-    
+
     def get_full_name(self, obj):
         return obj.full_name
-    
+
     def get_roles(self, obj):
         return [{'id': role.id, 'name': role.name} for role in obj.roles]
-    
+
     def get_available_roles(self, obj):
         return [role.name for role in obj.roles]
-    
+
     def get_role_display(self, obj):
         roles = [role.name for role in obj.roles]
         if not roles:
@@ -158,7 +159,7 @@ class UserListSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     role_names = serializers.SerializerMethodField()
     role_display = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = User
         fields = [
@@ -180,13 +181,13 @@ class UserListSerializer(serializers.ModelSerializer):
             'is_verified',
             'created_at',
         ]
-    
+
     def get_full_name(self, obj):
         return obj.full_name
-    
+
     def get_role_names(self, obj):
         return [role.name for role in obj.roles]
-    
+
     def get_role_display(self, obj):
         roles = [role.name for role in obj.roles]
         if not roles:
@@ -199,7 +200,7 @@ class RoleSerializer(serializers.ModelSerializer):
     Serializer for Role model.
     """
     user_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Role
         fields = [
@@ -212,7 +213,7 @@ class RoleSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
-    
+
     def get_user_count(self, obj):
         return obj.user_roles.count() if hasattr(obj, 'user_roles') else 0
 
@@ -268,7 +269,7 @@ class WorkerProfileSerializer(serializers.ModelSerializer):
     email = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField()
     is_verified = serializers.SerializerMethodField()
-    
+
     class Meta:
         from apps.accounts.models import WorkerProfile
         model = WorkerProfile
@@ -298,16 +299,16 @@ class WorkerProfileSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-    
+
     def get_full_name(self, obj):
         return obj.user.full_name if obj.user else None
-    
+
     def get_email(self, obj):
         return obj.user.email if obj.user else None
-    
+
     def get_phone_number(self, obj):
         return obj.user.phone_number if obj.user else None
-    
+
     def get_is_verified(self, obj):
         return obj.user.is_verified if obj.user else False
 
@@ -329,7 +330,7 @@ class ClientProfileSerializer(serializers.ModelSerializer):
     email = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField()
     is_verified = serializers.SerializerMethodField()
-    
+
     class Meta:
         from apps.accounts.models import ClientProfile
         model = ClientProfile
@@ -352,16 +353,16 @@ class ClientProfileSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-    
+
     def get_full_name(self, obj):
         return obj.user.full_name if obj.user else None
-    
+
     def get_email(self, obj):
         return obj.user.email if obj.user else None
-    
+
     def get_phone_number(self, obj):
         return obj.user.phone_number if obj.user else None
-    
+
     def get_is_verified(self, obj):
         return obj.user.is_verified if obj.user else False
 

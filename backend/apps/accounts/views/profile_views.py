@@ -13,7 +13,7 @@ from apps.accounts.serializers import (
     WorkerProfileUpdateSerializer,
     ClientProfileSerializer,
     ClientProfileUpdateSerializer,
-    UpdatePhoneSerializer,  # 🆕 Add this
+    UpdatePhoneSerializer,
 )
 from apps.common.permissions import IsActiveUser, IsWorker, IsClient
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
@@ -29,7 +29,7 @@ class UserProfileView(APIView):
     Get the authenticated user's profile.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def get(self, request):
         profile = profile_service.get_profile(request.user)
         return Response({
@@ -43,11 +43,11 @@ class UserProfileUpdateView(APIView):
     Update the authenticated user's profile.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def put(self, request):
         serializer = ProfileUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             profile = profile_service.update_profile(
                 request.user,
@@ -70,7 +70,7 @@ class WorkerProfileView(APIView):
     Get the authenticated user's worker profile.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
+
     def get(self, request):
         try:
             worker_profile = profile_service.get_worker_profile(request.user)
@@ -90,11 +90,11 @@ class WorkerProfileUpdateView(APIView):
     Update the authenticated user's worker profile.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
+
     def put(self, request):
         serializer = WorkerProfileUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             worker_profile = profile_service.update_worker_profile(
                 request.user,
@@ -117,7 +117,7 @@ class ClientProfileView(APIView):
     Get the authenticated user's client profile.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def get(self, request):
         try:
             client_profile = profile_service.get_client_profile(request.user)
@@ -137,11 +137,11 @@ class ClientProfileUpdateView(APIView):
     Update the authenticated user's client profile.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def put(self, request):
         serializer = ClientProfileUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             client_profile = profile_service.update_client_profile(
                 request.user,
@@ -158,33 +158,65 @@ class ClientProfileUpdateView(APIView):
             )
 
 
+# ============================================
+# LOCATION
+# ============================================
+
 class UpdateLocationView(APIView):
     """
-    PUT /api/auth/profile/location/
-    Update the authenticated user's location.
+    PUT  /api/auth/profile/location/
+    POST /api/auth/profile/location/
+
+    Body: { "latitude": -15.3875, "longitude": 28.3412 }
+
+    Works for BOTH clients and workers.
+    Auto-creates Profile if missing.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def put(self, request):
+        return self._handle(request)
+
+    def post(self, request):
+        return self._handle(request)
+
+    def _handle(self, request):
         latitude = request.data.get('latitude')
         longitude = request.data.get('longitude')
-        
+
         if latitude is None or longitude is None:
             return Response(
                 {'error': 'latitude and longitude are required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             profile = profile_service.update_location(
                 request.user,
                 latitude,
                 longitude
             )
+
+            nearby_count = 0
+            if request.user.is_worker:
+                try:
+                    from apps.matching.services.matching_service import (
+                        MatchingService,
+                    )
+                    nearby_count = (
+                        MatchingService().count_nearby_jobs_for_worker(
+                            request.user.id, radius_km=1.0
+                        )
+                    )
+                except Exception:
+                    pass
+
             return Response({
                 'message': 'Location updated successfully!',
                 'profile': ProfileSerializer(profile).data,
+                'nearby_jobs_count': nearby_count,
             }, status=status.HTTP_200_OK)
+
         except BusinessRuleViolation as e:
             return Response(
                 {'error': str(e)},
@@ -193,61 +225,44 @@ class UpdateLocationView(APIView):
 
 
 # ============================================
-# 🆕 PHONE NUMBER MANAGEMENT
+# PHONE NUMBER MANAGEMENT
 # ============================================
 
 class UpdatePhoneNumberView(APIView):
     """
     PUT /api/auth/profile/phone/
     Update the authenticated user's phone number.
-    
-    Request Body:
-        {
-            "phone_number": "0971234567"
-        }
-    
-    Response:
-        {
-            "status": "updated",
-            "message": "Phone number updated successfully. Please verify your new phone number.",
-            "phone_number": "+260971234567",
-            "verification_reset": true,
-            "next_step": "phone_verification"
-        }
-    
-    Error Responses:
-        - Invalid format: {"error": "Invalid phone number format. ..."}
-        - Already registered: {"error": "This phone number is already registered to another account."}
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def put(self, request):
-        # Validate phone number
         serializer = UpdatePhoneSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         phone_number = serializer.validated_data['phone_number']
-        
+
         try:
             from apps.identity_verification.services import VerificationService
             verification_service = VerificationService()
-            
-            result = verification_service.update_phone_number(request.user, phone_number)
-            
+
+            result = verification_service.update_phone_number(
+                request.user, phone_number
+            )
+
             if result['status'] == 'invalid_phone':
                 return Response(
                     {'error': result['message']},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if result['status'] == 'phone_taken':
                 return Response(
                     {'error': result['message']},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             return Response(result, status=status.HTTP_200_OK)
-            
+
         except BusinessRuleViolation as e:
             return Response(
                 {'error': str(e)},

@@ -1,26 +1,45 @@
+// frontend/src/App.tsx
+
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
-// =========================
-// Public landing page
-// =========================
+/* =========================
+   PUBLIC LANDING PAGE
+========================= */
+
 import Navbar from "@/components/navbar";
 import Home from "@/components/home";
 import About from "@/components/about";
 import HowItWorks from "@/components/HowItWorks";
 import ContactUs from "@/components/ContactUs";
+import Footer from "@/components/footer";
 
-// =========================
-// Authentication
-// =========================
-import LoginRole from "@/pages/logIn/LoginRole";
-import ClientLogin from "@/pages/logIn/ClientLogin";
-import WorkerLogin from "@/pages/logIn/WorkerLogin";
-import ForgotPassword from "@/pages/logIn/ForgotPassword";
+/* =========================
+   AUTHENTICATION
+========================= */
 
+// Login: single auto-role page (backend detects role)
+import Login from "@/pages/logIn";
+
+// Register: main's three-page role-based flow
 import RegisterRole from "@/pages/register/RegisterRole";
 import ClientRegister from "@/pages/register/ClientRegister";
 import WorkerRegister from "@/pages/register/WorkerRegister";
+
+// Password flows
+import ForgotPassword from "@/pages/logIn/ForgotPassword";
+import ResetPassword from "@/pages/logIn/ResetPassword";
+import ChangePassword from "@/pages/logIn/ChangePassword";
+
+/* =========================
+   IDENTITY VERIFICATION
+========================= */
+
+import VerifyDetails from "./pages/dashboard/VerifyDetails";
+
+/* =========================
+   SHARED AUTH HELPERS
+========================= */
 
 import {
   getCurrentUser,
@@ -29,14 +48,16 @@ import {
 
 import { SelectedPage } from "@/shared/types";
 
-// =========================
-// Dashboard layout
-// =========================
+/* =========================
+   DASHBOARD LAYOUT
+========================= */
+
 import DashboardLayout from "@/components/dashboard/DashboardLayout/DashboardLayout";
 
-// =========================
-// Client dashboard pages
-// =========================
+/* =========================
+   CLIENT DASHBOARD PAGES
+========================= */
+
 import ClientDashboard from "@/pages/dashboard/client/ClientDashboard";
 import MyJobs from "@/pages/dashboard/client/MyJobs";
 import ClientJobDetails from "@/pages/dashboard/client/JobDetails";
@@ -45,10 +66,14 @@ import Applications from "@/pages/dashboard/client/Applications";
 import JobApplications from "@/pages/dashboard/client/JobApplications";
 import Messages from "@/pages/dashboard/client/Messages";
 import Analytics from "@/pages/dashboard/client/Analytics";
+import ClientNotifications from "@/pages/dashboard/client/Notifications";
+import Profile from "@/pages/dashboard/client/Profile";
+import Settings from "@/pages/dashboard/client/Settings";
 
-// =========================
-// Worker dashboard pages
-// =========================
+/* =========================
+   WORKER DASHBOARD PAGES
+========================= */
+
 import WorkerDashboard from "@/pages/dashboard/worker/WorkerDashboard";
 import FindJobs from "@/pages/dashboard/worker/FindJobs";
 import WorkerJobDetails from "@/pages/dashboard/worker/JobDetails";
@@ -56,12 +81,21 @@ import MyApplications from "@/pages/dashboard/worker/MyApplications";
 import MyWork from "@/pages/dashboard/worker/MyWork";
 import WorkerMessages from "@/pages/dashboard/worker/Messages";
 import Performance from "@/pages/dashboard/worker/Performance";
+import WorkerNotifications from "@/pages/dashboard/worker/Notifications";
+import WorkerProfile from "@/pages/dashboard/worker/Profile";
+import WorkerSettings from "@/pages/dashboard/worker/Settings";
+
+/* =========================
+   ADMIN PANEL
+========================= */
+
+import { AdminRoutes } from "@/features/admin/routes";
 
 /* =========================================================
    GET USER DASHBOARD
    ========================================================= */
 
-function getUserDashboard() {
+function getUserDashboard(): string | null {
   const user = getCurrentUser();
 
   if (!user) {
@@ -71,21 +105,14 @@ function getUserDashboard() {
   const selectedRole = getSelectedRole();
 
   /*
-   * If the user has selected a valid role,
-   * always respect that selection.
+   * If the user has selected a valid role, respect that selection.
    */
 
-  if (
-    selectedRole === "CLIENT" &&
-    user.is_client
-  ) {
+  if (selectedRole === "CLIENT" && user.is_client) {
     return "/client/dashboard";
   }
 
-  if (
-    selectedRole === "WORKER" &&
-    user.is_worker
-  ) {
+  if (selectedRole === "WORKER" && user.is_worker) {
     return "/worker/dashboard";
   }
 
@@ -93,10 +120,7 @@ function getUserDashboard() {
    * User only has CLIENT role.
    */
 
-  if (
-    user.is_client &&
-    !user.is_worker
-  ) {
+  if (user.is_client && !user.is_worker) {
     return "/client/dashboard";
   }
 
@@ -104,23 +128,16 @@ function getUserDashboard() {
    * User only has WORKER role.
    */
 
-  if (
-    user.is_worker &&
-    !user.is_client
-  ) {
+  if (user.is_worker && !user.is_client) {
     return "/worker/dashboard";
   }
 
   /*
    * User has both roles but no selected role.
-   *
    * Default to CLIENT.
    */
 
-  if (
-    user.is_client &&
-    user.is_worker
-  ) {
+  if (user.is_client && user.is_worker) {
     return "/client/dashboard";
   }
 
@@ -132,90 +149,49 @@ function getUserDashboard() {
    ========================================================= */
 
 function PublicLandingPage() {
-  const [selectedPage, setSelectedPage] =
-    useState<SelectedPage>(
-      SelectedPage.Home
-    );
+  const [selectedPage, setSelectedPage] = useState<SelectedPage>(
+    SelectedPage.Home
+  );
 
-  const [isTopOfPage, setIsTopOfPage] =
-    useState(true);
-
-  /*
-   * IMPORTANT:
-   * Hooks must always run before any conditional return.
-   */
+  const [isTopOfPage, setIsTopOfPage] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsTopOfPage(
-        window.scrollY === 0
-      );
+      setIsTopOfPage(window.scrollY === 0);
     };
 
-    window.addEventListener(
-      "scroll",
-      handleScroll
-    );
-
+    window.addEventListener("scroll", handleScroll);
     handleScroll();
 
     return () => {
-      window.removeEventListener(
-        "scroll",
-        handleScroll
-      );
+      window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
-  const dashboard =
-    getUserDashboard();
+  const dashboard = getUserDashboard();
 
   /*
-   * Logged-in users should never see
-   * the public landing page.
+   * Logged-in users should never see the public landing page.
    */
 
   if (dashboard) {
-    return (
-      <Navigate
-        to={dashboard}
-        replace
-      />
-    );
+    return <Navigate to={dashboard} replace />;
   }
 
   return (
     <div className="min-h-screen w-full bg-white">
-      {/* =========================
-          NAVBAR
-      ========================= */}
-
       <Navbar
         isTopOfPage={isTopOfPage}
         selectedPage={selectedPage}
         setSelectedPage={setSelectedPage}
       />
 
-      {/* =========================
-          LANDING PAGE
-      ========================= */}
-
       <main>
-        <Home
-          setSelectedPage={setSelectedPage}
-        />
-
-        <HowItWorks
-          setSelectedPage={setSelectedPage}
-        />
-
-        <About
-          setSelectedPage={setSelectedPage}
-        />
-
-        <ContactUs
-          setSelectedPage={setSelectedPage}
-        />
+        <Home setSelectedPage={setSelectedPage} />
+        <HowItWorks setSelectedPage={setSelectedPage} />
+        <About setSelectedPage={setSelectedPage} />
+        <ContactUs setSelectedPage={setSelectedPage} />
+        <Footer />
       </main>
     </div>
   );
@@ -230,21 +206,14 @@ function PublicAuthRoute({
 }: {
   children: React.ReactNode;
 }) {
-  const dashboard =
-    getUserDashboard();
+  const dashboard = getUserDashboard();
 
   /*
-   * Already logged in?
-   * Send the user directly to their dashboard.
+   * Already logged in? Send the user directly to their dashboard.
    */
 
   if (dashboard) {
-    return (
-      <Navigate
-        to={dashboard}
-        replace
-      />
-    );
+    return <Navigate to={dashboard} replace />;
   }
 
   return <>{children}</>;
@@ -266,12 +235,7 @@ function ProtectedDashboard({
    */
 
   if (!user) {
-    return (
-      <Navigate
-        to="/"
-        replace
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
   /*
@@ -279,19 +243,9 @@ function ProtectedDashboard({
    * but does not have the CLIENT role.
    */
 
-  if (
-    role === "CLIENT" &&
-    !user.is_client
-  ) {
-    const dashboard =
-      getUserDashboard();
-
-    return (
-      <Navigate
-        to={dashboard || "/"}
-        replace
-      />
-    );
+  if (role === "CLIENT" && !user.is_client) {
+    const dashboard = getUserDashboard();
+    return <Navigate to={dashboard || "/login"} replace />;
   }
 
   /*
@@ -299,34 +253,27 @@ function ProtectedDashboard({
    * but does not have the WORKER role.
    */
 
-  if (
-    role === "WORKER" &&
-    !user.is_worker
-  ) {
-    const dashboard =
-      getUserDashboard();
-
-    return (
-      <Navigate
-        to={dashboard || "/"}
-        replace
-      />
-    );
+  if (role === "WORKER" && !user.is_worker) {
+    const dashboard = getUserDashboard();
+    return <Navigate to={dashboard || "/login"} replace />;
   }
 
   /*
-   * If the user has BOTH roles, make sure they
-   * are accessing the currently selected role.
+   * If the user has BOTH roles, make sure they are accessing
+   * the currently selected role.
+   *
+   * ADMIN users bypass this check — they can view both dashboards
+   * freely without being redirected.
    */
 
-  const selectedRole =
-    getSelectedRole();
+  const selectedRole = getSelectedRole();
 
   if (
     user.is_client &&
     user.is_worker &&
     selectedRole &&
-    selectedRole !== role
+    selectedRole !== role &&
+    selectedRole !== "ADMIN"        // 🆕 admins bypass the role check
   ) {
     return (
       <Navigate
@@ -339,11 +286,6 @@ function ProtectedDashboard({
       />
     );
   }
-
-  /*
-   * The dashboard layout contains the navigation
-   * and renders the nested dashboard page through Outlet.
-   */
 
   return <DashboardLayout />;
 }
@@ -360,59 +302,23 @@ function App() {
           PUBLIC LANDING PAGE
       ===================================================== */}
 
-      <Route
-        path="/"
-        element={
-          <PublicLandingPage />
-        }
-      />
+      <Route path="/" element={<PublicLandingPage />} />
 
       {/* =====================================================
-          LOGIN
+          LOGIN — single auto-role page
       ===================================================== */}
 
       <Route
         path="/login"
         element={
           <PublicAuthRoute>
-            <LoginRole />
-          </PublicAuthRoute>
-        }
-      />
-
-      <Route
-        path="/login/client"
-        element={
-          <PublicAuthRoute>
-            <ClientLogin />
-          </PublicAuthRoute>
-        }
-      />
-
-      <Route
-        path="/login/worker"
-        element={
-          <PublicAuthRoute>
-            <WorkerLogin />
+            <Login />
           </PublicAuthRoute>
         }
       />
 
       {/* =====================================================
-          FORGOT PASSWORD
-      ===================================================== */}
-
-      <Route
-        path="/forgot-password"
-        element={
-          <PublicAuthRoute>
-            <ForgotPassword />
-          </PublicAuthRoute>
-        }
-      />
-
-      {/* =====================================================
-          REGISTER
+          REGISTER — three-page role-based flow
       ===================================================== */}
 
       <Route
@@ -443,95 +349,61 @@ function App() {
       />
 
       {/* =====================================================
+          PASSWORD FLOWS
+      ===================================================== */}
+
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicAuthRoute>
+            <ForgotPassword />
+          </PublicAuthRoute>
+        }
+      />
+
+      <Route
+        path="/reset-password"
+        element={
+          <PublicAuthRoute>
+            <ResetPassword />
+          </PublicAuthRoute>
+        }
+      />
+
+      {/* =====================================================
           CLIENT DASHBOARD
       ===================================================== */}
 
       <Route
         path="/client/dashboard"
-        element={
-          <ProtectedDashboard
-            role="CLIENT"
-          />
-        }
+        element={<ProtectedDashboard role="CLIENT" />}
       >
+        <Route index element={<ClientDashboard />} />
 
-        {/* Dashboard home */}
+        <Route path="jobs" element={<MyJobs />} />
+        <Route path="jobs/:jobId" element={<ClientJobDetails />} />
 
-        <Route
-          index
-          element={
-            <ClientDashboard />
-          }
-        />
+        <Route path="post-job" element={<PostJob />} />
 
-        {/* My Jobs */}
+        <Route path="applications" element={<Applications />} />
+        <Route path="applications/:jobId" element={<JobApplications />} />
 
-        <Route
-          path="jobs"
-          element={
-            <MyJobs />
-          }
-        />
+        <Route path="messages" element={<Messages />} />
 
-        {/* Job details */}
+        <Route path="analytics" element={<Analytics />} />
 
         <Route
-          path="jobs/:jobId"
-          element={
-            <ClientJobDetails />
-          }
+          path="notifications"
+          element={<ClientNotifications />}
         />
 
-        {/* =================================================
-            POST A JOB
+        <Route path="profile" element={<Profile />} />
 
-            Unverified clients can enter this page.
-            PostJob.tsx handles the verification check.
-        ================================================= */}
+        <Route path="settings" element={<Settings />} />
 
-        <Route
-          path="post-job"
-          element={
-            <PostJob />
-          }
-        />
+        <Route path="change-password" element={<ChangePassword />} />
 
-        {/* Applications */}
-
-        <Route
-          path="applications"
-          element={
-            <Applications />
-          }
-        />
-
-        {/* Applications for a specific job */}
-
-        <Route
-          path="applications/:jobId"
-          element={
-            <JobApplications />
-          }
-        />
-
-        {/* Messages */}
-
-        <Route
-          path="messages"
-          element={
-            <Messages />
-          }
-        />
-
-        {/* Analytics */}
-
-        <Route
-          path="analytics"
-          element={
-            <Analytics />
-          }
-        />
-
+        <Route path="verify" element={<VerifyDetails />} />
       </Route>
 
       {/* =====================================================
@@ -540,103 +412,54 @@ function App() {
 
       <Route
         path="/worker/dashboard"
-        element={
-          <ProtectedDashboard
-            role="WORKER"
-          />
-        }
+        element={<ProtectedDashboard role="WORKER" />}
       >
+        <Route index element={<WorkerDashboard />} />
 
-        {/* Dashboard home */}
-
-        <Route
-          index
-          element={
-            <WorkerDashboard />
-          }
-        />
-
-        {/* Find Jobs */}
-
-        <Route
-          path="find-jobs"
-          element={
-            <FindJobs />
-          }
-        />
-
-        {/* Worker Job Details */}
-
-        <Route
-          path="jobs/:jobId"
-          element={
-            <WorkerJobDetails />
-          }
-        />
+        <Route path="find-jobs" element={<FindJobs />} />
+        <Route path="jobs/:jobId" element={<WorkerJobDetails />} />
 
         {/* Backward compatibility */}
-
         <Route
           path="jobs"
           element={
-            <Navigate
-              to="/worker/dashboard/find-jobs"
-              replace
-            />
+            <Navigate to="/worker/dashboard/find-jobs" replace />
           }
         />
 
-        {/* My Applications */}
+        <Route path="applications" element={<MyApplications />} />
+
+        <Route path="my-work" element={<MyWork />} />
+
+        <Route path="messages" element={<WorkerMessages />} />
+
+        <Route path="performance" element={<Performance />} />
 
         <Route
-          path="applications"
-          element={
-            <MyApplications />
-          }
+          path="notifications"
+          element={<WorkerNotifications />}
         />
 
-        {/* My Work */}
+        <Route path="profile" element={<WorkerProfile />} />
 
-        <Route
-          path="my-work"
-          element={
-            <MyWork />
-          }
-        />
+        <Route path="settings" element={<WorkerSettings />} />
 
-        {/* Messages */}
+        <Route path="change-password" element={<ChangePassword />} />
 
-        <Route
-          path="messages"
-          element={
-            <WorkerMessages />
-          }
-        />
-
-        {/* Performance */}
-
-        <Route
-          path="performance"
-          element={
-            <Performance />
-          }
-        />
-
+        <Route path="verify" element={<VerifyDetails />} />
       </Route>
+
+      {/* =====================================================
+          ADMIN PANEL
+      ===================================================== */}
+
+      <Route path="/admin/*" element={<AdminRoutes />} />
 
       {/* =====================================================
           FALLBACK
       ===================================================== */}
 
-      <Route
-        path="*"
-        element={
-          <Navigate
-            to="/"
-            replace
-          />
-        }
-      />
+      <Route path="*" element={<Navigate to="/login" replace />} />
 
     </Routes>
   );

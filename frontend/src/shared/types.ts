@@ -1,3 +1,9 @@
+// frontend/src/shared/types.ts
+
+/* =========================
+   NAVIGATION
+========================= */
+
 export enum SelectedPage {
   Home = "home",
   HowItWorks = "How It Works",
@@ -9,6 +15,11 @@ export enum SelectedPage {
    USER
 ========================= */
 
+export interface UserRole {
+  id: number;
+  name: string;
+}
+
 export interface User {
   id: string | number;
   first_name: string;
@@ -18,7 +29,9 @@ export interface User {
   phone_number: string;
   account_status: string;
   is_verified: boolean;
-  roles: string[];
+  roles: UserRole[];              // ✅ array of objects, not strings
+  available_roles?: string[];
+  role_display?: string;
   is_admin: boolean;
   is_worker: boolean;
   is_client: boolean;
@@ -31,9 +44,7 @@ export interface User {
    ROLES
 ========================= */
 
-export type RoleValue =
-  | "WORKER"
-  | "CLIENT";
+export type RoleValue = "WORKER" | "CLIENT";
 
 export const ROLE_OPTIONS: {
   value: RoleValue;
@@ -43,14 +54,12 @@ export const ROLE_OPTIONS: {
   {
     value: "WORKER",
     label: "Worker",
-    description:
-      "Browse nearby piecework and apply to jobs.",
+    description: "Browse nearby piecework and apply to jobs.",
   },
   {
     value: "CLIENT",
     label: "Client",
-    description:
-      "Post tasks and hire workers nearby.",
+    description: "Post tasks and hire workers nearby.",
   },
 ];
 
@@ -78,26 +87,50 @@ export interface RegisterResponse {
 }
 
 /* =========================
-   LOGIN
+   LOGIN (auto-detect role)
 ========================= */
 
 export interface LoginPayload {
   email: string;
   password: string;
-  role?: RoleValue;
+  // ⚠️ NO role field — backend auto-detects
 }
 
 export interface LoginResponse {
   message: string;
   user: User;
-
   tokens: {
     access: string;
     refresh: string;
   };
+  detected_role: string;        // 🆕 auto-detected by backend
+  redirect_to: string;          // 🆕 where frontend should navigate
+  available_roles: string[];    // 🆕 all roles user has
+}
 
-  selected_role: RoleValue;
+/* =========================
+   ROLE SWITCHING
+========================= */
 
+export interface SwitchRoleResponse {
+  message: string;
+  user: User;
+  tokens: {
+    access: string;
+    refresh: string;
+  };
+  current_role: string;
+  available_roles: string[];
+}
+
+export interface AddRoleResponse {
+  message: string;
+  user: User;
+  tokens: {
+    access: string;
+    refresh: string;
+  };
+  is_verified: boolean;
   available_roles: string[];
 }
 
@@ -106,10 +139,7 @@ export interface LoginResponse {
 ========================= */
 
 export interface ApiFieldErrors {
-  [field: string]:
-    | string[]
-    | string
-    | undefined;
+  [field: string]: string[] | string | undefined;
 
   error?: string;
   detail?: string;

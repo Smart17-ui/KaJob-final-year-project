@@ -1,142 +1,197 @@
 # apps/identity_verification/serializers/verification_serializer.py
 
+import os
 import re
 from rest_framework import serializers
-from apps.identity_verification.models import IdentityVerification, VerificationDocument
+
+from apps.identity_verification.models import (
+    IdentityVerification,
+    VerificationDocument,
+)
 from apps.common.constants import DocumentType, VerificationStatus
 
 
+# ============================================
+# FILE VALIDATION CONSTANTS
+# ============================================
+
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+}
+
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+# ============================================
+# FILE UPLOAD (multipart)
+# ============================================
+
 class DocumentUploadSerializer(serializers.Serializer):
     """
-    Serializer for individual document upload.
+    Serializer for a single file upload (multipart/form-data).
     """
-    document_type = serializers.ChoiceField(choices=DocumentType.CHOICES, required=True)
-    file_path = serializers.CharField(max_length=500, required=True)
-    file_name = serializers.CharField(max_length=255, required=True)
-    file_size = serializers.IntegerField(required=False, allow_null=True)
-    mime_type = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    document_type = serializers.ChoiceField(
+        choices=DocumentType.CHOICES,
+        required=True,
+    )
+    file = serializers.FileField(required=True)
 
+    def validate_file(self, value):
+        if value.size > MAX_FILE_SIZE:
+            raise serializers.ValidationError(
+                f"File too large. Max size is {MAX_FILE_SIZE // (1024 * 1024)} MB."
+            )
+
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise serializers.ValidationError(
+                "Unsupported extension. Allowed: PDF, JPG, JPEG, PNG."
+            )
+
+        content_type = getattr(value, "content_type", None)
+        if content_type and content_type not in ALLOWED_MIME_TYPES:
+            raise serializers.ValidationError(
+                "Unsupported file type. Allowed: PDF, JPG, PNG."
+            )
+
+        return value
+
+
+# ============================================
+# DOCUMENT (read + write)
+# ============================================
 
 class DocumentSerializer(serializers.ModelSerializer):
-    """Serializer for verification documents."""
-    
+    """
+    Serializer for verification documents.
+    Used for listing and creating real file uploads.
+    """
     document_type_display = serializers.SerializerMethodField()
-    
+    file_url = serializers.SerializerMethodField()
+
     class Meta:
         model = VerificationDocument
         fields = [
             'id',
             'document_type',
+            'verification',
             'document_type_display',
-            'file_path',
+            'file',
+            'file_url',
             'file_name',
             'file_size',
             'mime_type',
             'uploaded_at',
         ]
-        read_only_fields = ['id', 'uploaded_at']
-    
+        read_only_fields = [
+            'id',
+            'file_url',
+            'file_name',
+            'file_size',
+            'mime_type',
+            'uploaded_at',
+        ]
+        extra_kwargs = {
+            'file': {'required': True},
+        }
+
     def get_document_type_display(self, obj):
         return obj.get_document_type_display()
 
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if not obj.file:
+            return None
+        url = obj.file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def validate_file(self, value):
+        if value.size > MAX_FILE_SIZE:
+            raise serializers.ValidationError(
+                f"File too large. Max size is {MAX_FILE_SIZE // (1024 * 1024)} MB."
+            )
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise serializers.ValidationError(
+                "Unsupported extension. Allowed: PDF, JPG, JPEG, PNG."
+            )
+        return value
+
+    def create(self, validated_data):
+        uploaded_file = validated_data['file']
+        validated_data['file_name'] = uploaded_file.name
+        validated_data['file_size'] = uploaded_file.size
+        validated_data['mime_type'] = getattr(uploaded_file, 'content_type', '')
+        return super().create(validated_data)
+
+
+# ============================================
+# SUBMIT VERIFICATION
+# (kept for compatibility — but see the view
+#  for the multipart version)
+# ============================================
 
 class SubmitVerificationSerializer(serializers.Serializer):
     """
     Serializer for submitting identity verification with validation.
-    
-    ✅ Validates NRC format: 123456/78/1
-    ✅ Validates Passport format: ZA123456
-    ✅ Checks for duplicate document numbers
+    Note: With the new upload flow, this is mostly used for
+    validation of document_number. Files are uploaded separately.
     """
-    document_type = serializers.ChoiceField(choices=DocumentType.CHOICES, required=True)
-    document_number = serializers.CharField(max_length=100, required=True)
-    documents = serializers.ListField(
-        child=DocumentUploadSerializer(),
-        required=True,
-        min_length=1,
-        max_length=5,
-        help_text="At least one document is required"
+    document_type = serializers.ChoiceField(
+        choices=DocumentType.CHOICES, required=True
     )
-    
+    document_number = serializers.CharField(max_length=100, required=True)
+
     def validate_document_number(self, value):
-        """
-        Validate document number format.
-        
-        NRC: 123456/78/1 (6 digits / 2 digits / 1 digit)
-        Passport: ZA123456 (2 letters + 6 digits)
-        Unique check (no duplicates)
-        """
-        # Remove whitespace
         value = value.strip()
-        
         if not value:
             raise serializers.ValidationError("Document number is required.")
-        
-        # Get document type
+
         document_type = self.initial_data.get('document_type', '')
-        
-        # Validate based on document type
+
         if document_type in ['NRC', 'NRC_FRONT', 'NRC_BACK']:
             if not self._is_valid_nrc(value):
                 raise serializers.ValidationError(
-                    "Invalid NRC format. Expected format: 123456/78/1 "
-                    "(6 digits / 2 digits / 1 digit)"
+                    "Invalid NRC format. Expected: 123456/78/1"
                 )
         elif document_type in ['PASSPORT', 'PASSPORT_PHOTO']:
             if not self._is_valid_passport(value):
                 raise serializers.ValidationError(
-                    "Invalid Passport format. Expected format: ZA123456 "
-                    "(2 uppercase letters + 6 digits)"
+                    "Invalid Passport format. Expected: ZA123456"
                 )
         elif document_type == 'SELFIE':
-            # Selfie doesn't have a document number
             pass
-        
-        # Check if document number already exists
+
         if self._document_number_exists(value):
             raise serializers.ValidationError(
-                "This document number is already registered. Please use a different one."
+                "This document number is already registered."
             )
-        
+
         return value
-    
+
     def _is_valid_nrc(self, value):
-        """
-        Validate NRC format: 123456/78/1
-        - 6 digits
-        - slash
-        - 2 digits
-        - slash
-        - 1 digit
-        """
-        pattern = r'^\d{6}/\d{2}/\d{1}$'
-        return bool(re.match(pattern, value))
-    
+        return bool(re.match(r'^\d{6}/\d{2}/\d{1}$', value))
+
     def _is_valid_passport(self, value):
-        """
-        Validate Passport format: ZA123456
-        - 2 uppercase letters
-        - 6 digits
-        """
-        pattern = r'^[A-Z]{2}\d{6}$'
-        return bool(re.match(pattern, value))
-    
+        return bool(re.match(r'^[A-Z]{2}\d{6}$', value))
+
     def _document_number_exists(self, document_number):
-        """
-        Check if document number already exists in the system.
-        """
-        from apps.identity_verification.models import IdentityVerification
-        
         return IdentityVerification.objects.filter(
             document_number=document_number,
-            deleted_at__isnull=True
+            deleted_at__isnull=True,
         ).exists()
 
 
+# ============================================
+# STATUS
+# ============================================
+
 class VerificationStatusSerializer(serializers.Serializer):
-    """
-    Serializer for verification status response.
-    """
     has_submitted = serializers.BooleanField()
     verification_id = serializers.IntegerField(required=False, allow_null=True)
     verification_status = serializers.CharField(required=False, allow_null=True)
@@ -153,7 +208,7 @@ class VerificationStatusSerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(allow_blank=True)
     message = serializers.CharField()
     next_step = serializers.CharField()
-    
+
     def get_status_display(self, obj):
         status = obj.get('verification_status')
         if status:
@@ -161,10 +216,11 @@ class VerificationStatusSerializer(serializers.Serializer):
         return None
 
 
+# ============================================
+# HISTORY
+# ============================================
+
 class VerificationHistorySerializer(serializers.Serializer):
-    """
-    Serializer for verification history.
-    """
     id = serializers.IntegerField()
     status = serializers.CharField()
     status_display = serializers.SerializerMethodField()
@@ -172,7 +228,7 @@ class VerificationHistorySerializer(serializers.Serializer):
     reviewed_at = serializers.DateTimeField(allow_null=True)
     rejection_reason = serializers.CharField(allow_null=True)
     document_count = serializers.IntegerField()
-    
+
     def get_status_display(self, obj):
         status = obj.get('status')
         if status:

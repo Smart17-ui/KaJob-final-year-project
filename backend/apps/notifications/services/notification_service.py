@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 class NotificationService:
     """
     Service for managing notifications with WebSocket broadcasting.
+    
+    FIXED: Uses account_status='ACTIVE' instead of is_active=True
     """
     
     def __init__(self):
@@ -44,8 +46,13 @@ class NotificationService:
         """
         Create a notification and broadcast via WebSocket.
         """
+        # FIXED: use account_status='ACTIVE' instead of is_active=True
         try:
-            user = User.objects.get(id=recipient_id, is_active=True)
+            user = User.objects.get(
+                id=recipient_id,
+                account_status='ACTIVE',
+                deleted_at__isnull=True
+            )
         except User.DoesNotExist:
             logger.warning(f"User {recipient_id} not found or inactive")
             return None
@@ -70,7 +77,7 @@ class NotificationService:
             )
             logger.info(f"In-app notification created for user {recipient_id}: {notification_type}")
             
-            # ✅ Broadcast via WebSocket using NotificationBroadcastService
+            # Broadcast via WebSocket using NotificationBroadcastService
             if notification:
                 NotificationBroadcastService.send_notification_to_user(
                     recipient_id,
