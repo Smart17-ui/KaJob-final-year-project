@@ -22,9 +22,13 @@ const VerificationDetailPage = lazy(
 );
 
 const JobsPage = lazy(() => import('./jobs/JobsPage'));
-const JobDetailPage = lazy(() => import('./jobs/JobDetailPage'));    // 🆕 ADDED
+const JobDetailPage = lazy(() => import('./jobs/JobDetailPage'));
 
 const ReportsPage = lazy(() => import('./reports/ReportsPage'));
+const ReportDetailPage = lazy(
+    () => import('./reports/ReportDetailPage')
+);
+
 const AnalyticsPage = lazy(() => import('./analytics/AnalyticsPage'));
 const AuditLogsPage = lazy(() => import('./auditLogs/AuditLogsPage'));
 
@@ -103,6 +107,10 @@ export const AdminRoutes = () => {
                             <Route
                                 path="reports"
                                 element={<ReportsPage />}
+                            />
+                            <Route
+                                path="reports/:reportId"
+                                element={<ReportDetailPage />}
                             />
 
                             {/* Analytics */}

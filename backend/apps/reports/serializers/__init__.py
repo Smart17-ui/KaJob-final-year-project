@@ -18,12 +18,14 @@ from .user_report_serializer import (
 )
 
 __all__ = [
+    # Admin serializers
     'ReportSerializer',
     'ReportListSerializer',
     'ReportDetailSerializer',
     'InvestigationSerializer',
     'ReportUserSerializer',
     'ReportJobSerializer',
+    # User serializers
     'CreateReportSerializer',
     'MyReportListSerializer',
     'MyReportDetailSerializer',

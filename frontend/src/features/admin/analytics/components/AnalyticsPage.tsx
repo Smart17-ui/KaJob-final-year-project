@@ -96,8 +96,8 @@ export const AnalyticsPage = () => {
             {/* Stat cards */}
             <AnalyticsStats stats={stats} loading={loading} />
 
-            {/* Charts row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {/* Charts row — 2 columns on desktop, stacked on mobile */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
                 <ActivityChart
                     data={stats?.daily_summary || []}
                     loading={loading}

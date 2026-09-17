@@ -33,16 +33,21 @@ class DisciplinaryService:
             AccountStatusService.ban_user(target, notes, admin)
 
         elif decision == AdminDecision.ESCALATED:
-            AccountStatusService.suspend_user(
+            # Escalation = permanent ban pending police investigation
+            AccountStatusService.ban_user(
                 target,
-                reason=f"Escalated to police. {notes}",
+                reason=f"Escalated to police: {notes}",
                 admin=admin,
             )
             report.status = ReportStatus.ESCALATED_TO_POLICE
-            report.police_report_generated = True
-            report.save(update_fields=['status', 'police_report_generated'])
+            report.save(update_fields=['status'])
+            DisciplinaryService._notify_reporter_escalated(report, admin)
 
         return report
+
+    # ============================================
+    # DISMISSED
+    # ============================================
 
     @staticmethod
     def _dismiss(report, target, admin, notes):
@@ -60,3 +65,29 @@ class DisciplinaryService:
             )
         except Exception as e:
             print(f"[DisciplinaryService] notify dismiss failed: {e}")
+
+    # ============================================
+    # ESCALATED — notify the reporter
+    # ============================================
+
+    @staticmethod
+    def _notify_reporter_escalated(report, admin):
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService().create_notification(
+                recipient_id=report.reporter.id,
+                notification_type="REPORT_RESOLVED",
+                title="Report Referred to Law Enforcement",
+                message=(
+                    f"Your report {report.reference_number} "
+                    f"({report.get_category_display()}) has been reviewed "
+                    f"and referred to law enforcement. We'll keep you "
+                    f"updated as the case progresses."
+                ),
+                redirect_url=f"/reports/my/{report.id}",
+                data={"report_id": report.id},
+                send_email=True,
+                send_push=True,
+            )
+        except Exception as e:
+            print(f"[DisciplinaryService] reporter notify failed: {e}")
