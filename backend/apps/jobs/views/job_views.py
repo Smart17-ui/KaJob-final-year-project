@@ -30,11 +30,11 @@ class CreateJobView(APIView):
     Only verified clients can post jobs.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient, IsVerifiedUser]
-    
+
     def post(self, request):
         serializer = JobCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             result = job_service.create_job(request.user, serializer.validated_data)
             return Response({
@@ -50,7 +50,7 @@ class JobDetailView(APIView):
     Get job details by ID.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def get(self, request, job_id):
         try:
             job = job_service.get_job_by_id(job_id)
@@ -66,7 +66,7 @@ class OpenJobsView(APIView):
     Get all open jobs.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
+
     def get(self, request):
         jobs = job_service.get_open_jobs()
         return Response({
@@ -75,65 +75,48 @@ class OpenJobsView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-# ============================================================
-# ✅ FIXED: MyJobsView
-# ============================================================
-
 class MyJobsView(APIView):
     """
-    GET /api/my-jobs/
+    GET /api/jobs/my-jobs/
     Get jobs posted by or assigned to the authenticated user.
-    
-    For Clients: Returns jobs they posted
-    For Workers: Returns jobs they are assigned to or have applied for
-    For Both: Returns a combined list
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def get(self, request):
         from apps.jobs.models import Job, JobAssignment, JobApplication
-        
+
         user = request.user
-        
-        # Start with empty queryset
         jobs = Job.objects.none()
-        
-        # If user is a client, get jobs they posted
+
         if user.is_client:
             client_jobs = Job.objects.filter(
                 client=user,
                 deleted_at__isnull=True
             )
             jobs = jobs | client_jobs
-        
-        # If user is a worker, get jobs they are assigned to or applied for
+
         if user.is_worker:
-            # Get jobs where worker is assigned
             assigned_job_ids = JobAssignment.objects.filter(
                 worker=user
             ).values_list('job_id', flat=True)
-            
-            # Get jobs where worker has applied
+
             applied_job_ids = JobApplication.objects.filter(
                 worker=user
             ).values_list('job_id', flat=True)
-            
-            # Combine both
+
             worker_job_ids = set(assigned_job_ids) | set(applied_job_ids)
-            
+
             if worker_job_ids:
                 worker_jobs = Job.objects.filter(
                     id__in=worker_job_ids,
                     deleted_at__isnull=True
                 )
                 jobs = jobs | worker_jobs
-        
-        # Remove duplicates and order by most recent
+
         jobs = jobs.distinct().order_by('-posted_at')
-        
-        # Serialize
+
         serializer = JobListSerializer(jobs, many=True)
-        
+
         return Response({
             'count': len(serializer.data),
             'results': serializer.data
@@ -145,7 +128,7 @@ class MyOpenJobsView(APIView):
     Get open jobs posted by the authenticated client.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def get(self, request):
         jobs = job_service.get_open_jobs_by_client(request.user.id)
         return Response({
@@ -159,21 +142,20 @@ class MyActiveJobsView(APIView):
     Get active jobs assigned to the authenticated worker.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
+
     def get(self, request):
         from apps.jobs.models import Job, JobAssignment
-        
-        # Get job IDs where worker has ACTIVE assignment
+
         assigned_job_ids = JobAssignment.objects.filter(
             worker=request.user,
-            status=AssignmentStatus.ACTIVE
+            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
         ).values_list('job_id', flat=True)
-        
+
         jobs = Job.objects.filter(
             id__in=assigned_job_ids,
             deleted_at__isnull=True
         ).order_by('-posted_at')
-        
+
         return Response({
             'count': jobs.count(),
             'results': JobListSerializer(jobs, many=True).data
@@ -185,14 +167,14 @@ class SearchJobsView(APIView):
     Search jobs by title or description.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
+
     def get(self, request):
         query = request.query_params.get('q', '')
         if not query:
             return Response({
                 'error': 'Search query is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         jobs = job_service.search_jobs(query)
         return Response({
             'count': len(jobs),
@@ -206,13 +188,12 @@ class FilterJobsView(APIView):
     Location filtering is handled by the Matching Service.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
+
     def get(self, request):
         category_id = request.query_params.get('category')
         min_budget = request.query_params.get('min_budget')
         max_budget = request.query_params.get('max_budget')
-        
-        # Convert parameters
+
         try:
             category_id = int(category_id) if category_id else None
             min_budget = float(min_budget) if min_budget else None
@@ -221,7 +202,7 @@ class FilterJobsView(APIView):
             return Response({
                 'error': 'Invalid parameter format'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         jobs = job_service.filter_jobs(category_id, min_budget, max_budget)
         return Response({
             'count': len(jobs),
@@ -235,11 +216,11 @@ class UpdateJobView(APIView):
     Only the client who posted the job can update it.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def put(self, request, job_id):
         serializer = JobUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             result = job_service.update_job(request.user, job_id, serializer.validated_data)
             return Response({
@@ -256,7 +237,7 @@ class DeleteJobView(APIView):
     Only the client who posted the job can delete it.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def delete(self, request, job_id):
         try:
             result = job_service.delete_job(request.user, job_id)
@@ -271,9 +252,10 @@ class CancelJobView(APIView):
     """
     Cancel a job.
     Only the client who posted the job can cancel it.
+    Blocked when job is IN_PROGRESS or AWAITING_CONFIRMATION.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def post(self, request, job_id):
         try:
             result = job_service.cancel_job(request.user, job_id)
@@ -287,11 +269,10 @@ class CancelJobView(APIView):
 
 class CompleteJobView(APIView):
     """
-    Mark a job as completed.
     DEPRECATED: Use WorkerMarkCompleteView and ClientConfirmCompleteView instead.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def post(self, request, job_id):
         try:
             result = job_service.complete_job(request.user, job_id)
@@ -303,39 +284,32 @@ class CompleteJobView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ============================================================
-# JOB DETAIL FOR WORKER (Conditional Disclosure)
-# ============================================================
-
 class JobDetailForWorkerView(APIView):
     """
     GET /api/jobs/{job_id}/worker/
-    
     Get job details for a worker with CONDITIONAL DISCLOSURE.
-    
-    🔑 KEY FEATURE: Workers only see full details after being assigned.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
-    
+
     def get(self, request, job_id):
         try:
             result = job_service.get_job_for_worker(
                 job_id=job_id,
                 worker_id=request.user.id
             )
-            
+
             serializer = WorkerJobDetailSerializer(
                 result['job'],
                 context={'worker_id': request.user.id}
             )
-            
+
             return Response({
                 'job': serializer.data,
                 'can_view_full_details': result['can_view_full_details'],
                 'assignment_status': result['assignment_status'],
                 'application_status': result['application_status'],
             }, status=status.HTTP_200_OK)
-            
+
         except ResourceNotFound as e:
             return Response(
                 {'error': str(e)},
@@ -346,3 +320,68 @@ class JobDetailForWorkerView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_403_FORBIDDEN
             )
+
+
+# ============================================================
+# JOB LIFECYCLE — WORKER WITHDRAW / START / DISPUTE
+# ============================================================
+
+class WorkerWithdrawView(APIView):
+    """
+    POST /api/jobs/{job_id}/withdraw/
+    Worker withdraws from an ASSIGNED job (before it goes IN_PROGRESS).
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+
+    def post(self, request, job_id):
+        try:
+            result = job_service.worker_withdraw(request.user, job_id)
+            return Response({
+                'message': result['message'],
+                'job': JobSerializer(result['job']).data,
+            }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class WorkerStartJobView(APIView):
+    """
+    POST /api/jobs/{job_id}/start/
+    Worker starts the job -> Job.status becomes IN_PROGRESS.
+    After this, the worker can no longer withdraw.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+
+    def post(self, request, job_id):
+        try:
+            result = job_service.worker_start_job(request.user, job_id)
+            return Response({
+                'message': result['message'],
+                'job': JobSerializer(result['job']).data,
+            }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RaiseDisputeView(APIView):
+    """
+    POST /api/jobs/{job_id}/dispute/
+    Body: { "reason": "...", "notes": "..." }  (notes optional)
+    Either party can raise a dispute on an active job.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
+    def post(self, request, job_id):
+        reason = request.data.get('reason', '')
+        notes = request.data.get('notes', '')
+
+        try:
+            result = job_service.raise_dispute(
+                request.user, job_id, reason, notes
+            )
+            return Response({
+                'message': result['message'],
+                'job': JobSerializer(result['job']).data,
+            }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
