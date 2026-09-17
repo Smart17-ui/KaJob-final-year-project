@@ -1,4 +1,5 @@
- import { useState } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ChevronDownIcon,
   UserCircleIcon,
@@ -29,6 +30,8 @@ const ProfileDropdown = ({
   onSwitchRole,
   onLogout,
 }: ProfileDropdownProps) => {
+  const navigate = useNavigate();
+
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
 
@@ -41,6 +44,45 @@ const ProfileDropdown = ({
 
   const currentRole = userRole === "CLIENT" ? "Client" : "Worker";
   const otherRole = userRole === "CLIENT" ? "Worker" : "Client";
+
+  /*
+   * Settings route for the currently active role.
+   */
+  const settingsBasePath =
+    userRole === "CLIENT"
+      ? "/client/dashboard/settings"
+      : "/worker/dashboard/settings";
+
+  /*
+   * Go to Profile settings.
+   */
+  const handleProfileClick = () => {
+    setShowProfileMenu(false);
+    setShowRoleSwitcher(false);
+
+    navigate(`${settingsBasePath}/profile`);
+  };
+
+  /*
+   * Go to Verification settings.
+   */
+  const handleVerifyClick = () => {
+    setShowProfileMenu(false);
+    setShowRoleSwitcher(false);
+
+    navigate(`${settingsBasePath}/verification`);
+  };
+
+  /*
+   * Go to Settings.
+   * Settings opens on the Profile section by default.
+   */
+  const handleSettingsClick = () => {
+    setShowProfileMenu(false);
+    setShowRoleSwitcher(false);
+
+    navigate(`${settingsBasePath}/profile`);
+  };
 
   return (
     <div className="relative">
@@ -116,10 +158,7 @@ const ProfileDropdown = ({
             {/* Profile */}
             <button
               type="button"
-              onClick={() => {
-                setShowProfileMenu(false);
-                onProfileClick?.();
-              }}
+              onClick={handleProfileClick}
               className="
                 group flex w-full
                 items-center gap-3
@@ -141,10 +180,7 @@ const ProfileDropdown = ({
             {/* Verify Details */}
             <button
               type="button"
-              onClick={() => {
-                setShowProfileMenu(false);
-                onVerifyClick?.();
-              }}
+              onClick={handleVerifyClick}
               className="
                 group flex w-full
                 items-center gap-3
@@ -166,10 +202,7 @@ const ProfileDropdown = ({
             {/* Settings */}
             <button
               type="button"
-              onClick={() => {
-                setShowProfileMenu(false);
-                onSettingsClick?.();
-              }}
+              onClick={handleSettingsClick}
               className="
                 group flex w-full
                 items-center gap-3

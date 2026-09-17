@@ -35,6 +35,10 @@ const Performance = () => {
   const [errorMessage, setErrorMessage] =
     useState("");
 
+  /* =========================
+     LOAD PERFORMANCE DATA
+  ========================= */
+
   useEffect(() => {
     const loadPerformanceData = async () => {
       setIsLoading(true);
@@ -81,6 +85,10 @@ const Performance = () => {
     loadPerformanceData();
   }, []);
 
+  /* =========================
+     LOAD EARNINGS TREND
+  ========================= */
+
   useEffect(() => {
     const loadEarningsTrend = async () => {
       setIsLoadingTrend(true);
@@ -102,12 +110,21 @@ const Performance = () => {
       }
     };
 
-    if (selectedPeriod === "month") {
-      return;
+    /*
+     * The initial page load already requests
+     * the monthly trend.
+     *
+     * When the user changes the dropdown,
+     * request the newly selected period.
+     */
+    if (selectedPeriod !== "month") {
+      loadEarningsTrend();
     }
-
-    loadEarningsTrend();
   }, [selectedPeriod]);
+
+  /* =========================
+     FORMATTERS
+  ========================= */
 
   const formatCurrency = (
     value: number
@@ -150,6 +167,10 @@ const Performance = () => {
     );
   };
 
+  /* =========================
+     STATUS STYLING
+  ========================= */
+
   const getStatusClass = (
     status: string
   ) => {
@@ -171,6 +192,10 @@ const Performance = () => {
     }
   };
 
+  /* =========================
+     RATING DISTRIBUTION
+  ========================= */
+
   const ratingDistribution =
     analytics?.rating_distribution ?? {
       1: 0,
@@ -182,7 +207,8 @@ const Performance = () => {
 
   const totalRatings =
     Object.values(ratingDistribution).reduce(
-      (total, value) => total + value,
+      (total, value) =>
+        total + Number(value || 0),
       0
     );
 
@@ -194,13 +220,19 @@ const Performance = () => {
     }
 
     return (
-      (ratingDistribution[
-        rating as keyof typeof ratingDistribution
-      ] /
+      (Number(
+        ratingDistribution[
+          rating as keyof typeof ratingDistribution
+        ] || 0
+      ) /
         totalRatings) *
       100
     );
   };
+
+  /* =========================
+     EARNINGS TREND
+  ========================= */
 
   const maxEarnings =
     earningsTrend?.data?.reduce(
@@ -211,6 +243,10 @@ const Performance = () => {
         ),
       0
     ) ?? 0;
+
+  /* =========================
+     LOADING STATE
+  ========================= */
 
   if (isLoading) {
     return (
@@ -240,8 +276,16 @@ const Performance = () => {
     );
   }
 
+  /* =========================
+     UI
+  ========================= */
+
   return (
     <div className="space-y-8">
+      {/* =========================
+          HEADER
+      ========================= */}
+
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
           My Performance
@@ -253,6 +297,10 @@ const Performance = () => {
         </p>
       </div>
 
+      {/* =========================
+          ERROR
+      ========================= */}
+
       {errorMessage && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {errorMessage}
@@ -261,12 +309,18 @@ const Performance = () => {
 
       {analytics && (
         <>
+          {/* =========================
+              OVERVIEW
+          ========================= */}
+
           <section>
             <h2 className="mb-4 text-lg font-semibold text-slate-900">
               Overview
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* APPLICATIONS */}
+
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm text-slate-500">
                   Applications
@@ -279,6 +333,8 @@ const Performance = () => {
                   }
                 </p>
               </div>
+
+              {/* ACCEPTED APPLICATIONS */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm text-slate-500">
@@ -293,6 +349,8 @@ const Performance = () => {
                 </p>
               </div>
 
+              {/* ACCEPTANCE RATE */}
+
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm text-slate-500">
                   Acceptance Rate
@@ -305,6 +363,8 @@ const Performance = () => {
                   )}
                 </p>
               </div>
+
+              {/* AVERAGE RATING */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm text-slate-500">
@@ -325,12 +385,18 @@ const Performance = () => {
             </div>
           </section>
 
+          {/* =========================
+              JOBS
+          ========================= */}
+
           <section>
             <h2 className="mb-4 text-lg font-semibold text-slate-900">
               Jobs
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* TOTAL */}
+
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm text-slate-500">
                   Total Jobs
@@ -340,6 +406,8 @@ const Performance = () => {
                   {analytics.jobs.total}
                 </p>
               </div>
+
+              {/* ACTIVE */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm text-slate-500">
@@ -351,6 +419,8 @@ const Performance = () => {
                 </p>
               </div>
 
+              {/* IN PROGRESS */}
+
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm text-slate-500">
                   In Progress
@@ -360,6 +430,8 @@ const Performance = () => {
                   {analytics.jobs.in_progress}
                 </p>
               </div>
+
+              {/* COMPLETED */}
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm text-slate-500">
@@ -373,7 +445,13 @@ const Performance = () => {
             </div>
           </section>
 
+          {/* =========================
+              EARNINGS + PERFORMANCE
+          ========================= */}
+
           <section className="grid gap-6 lg:grid-cols-2">
+            {/* EARNINGS */}
+
             <div className="rounded-xl border border-slate-200 bg-white p-6">
               <h2 className="text-lg font-semibold text-slate-900">
                 Earnings
@@ -384,6 +462,8 @@ const Performance = () => {
               </p>
 
               <div className="mt-6 grid grid-cols-2 gap-4">
+                {/* TOTAL */}
+
                 <div>
                   <p className="text-sm text-slate-500">
                     Total Earnings
@@ -395,6 +475,8 @@ const Performance = () => {
                     )}
                   </p>
                 </div>
+
+                {/* AVERAGE */}
 
                 <div>
                   <p className="text-sm text-slate-500">
@@ -408,34 +490,10 @@ const Performance = () => {
                     )}
                   </p>
                 </div>
-
-                <div>
-                  <p className="text-sm text-slate-500">
-                    Highest Paying
-                  </p>
-
-                  <p className="mt-1 text-xl font-semibold text-slate-900">
-                    {formatCurrency(
-                      analytics.earnings
-                        .highest_paying
-                    )}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-slate-500">
-                    Lowest Paying
-                  </p>
-
-                  <p className="mt-1 text-xl font-semibold text-slate-900">
-                    {formatCurrency(
-                      analytics.earnings
-                        .lowest_paying
-                    )}
-                  </p>
-                </div>
               </div>
             </div>
+
+            {/* PERFORMANCE */}
 
             <div className="rounded-xl border border-slate-200 bg-white p-6">
               <h2 className="text-lg font-semibold text-slate-900">
@@ -443,6 +501,8 @@ const Performance = () => {
               </h2>
 
               <div className="mt-6 grid grid-cols-2 gap-4">
+                {/* RATING */}
+
                 <div>
                   <p className="text-sm text-slate-500">
                     Average Rating
@@ -455,6 +515,8 @@ const Performance = () => {
                     ).toFixed(1)}
                   </p>
                 </div>
+
+                {/* REVIEWS */}
 
                 <div>
                   <p className="text-sm text-slate-500">
@@ -469,6 +531,8 @@ const Performance = () => {
                   </p>
                 </div>
 
+                {/* COMPLETION RATE */}
+
                 <div>
                   <p className="text-sm text-slate-500">
                     Completion Rate
@@ -481,24 +545,17 @@ const Performance = () => {
                     )}
                   </p>
                 </div>
-
-                <div>
-                  <p className="text-sm text-slate-500">
-                    Positive Reviews
-                  </p>
-
-                  <p className="mt-1 text-2xl font-bold text-slate-900">
-                    {
-                      analytics.performance
-                        .positive_reviews
-                    }
-                  </p>
-                </div>
               </div>
             </div>
           </section>
 
+          {/* =========================
+              RATING + EARNINGS TREND
+          ========================= */}
+
           <section className="grid gap-6 lg:grid-cols-2">
+            {/* RATING DISTRIBUTION */}
+
             <div className="rounded-xl border border-slate-200 bg-white p-6">
               <h2 className="text-lg font-semibold text-slate-900">
                 Rating Distribution
@@ -508,9 +565,11 @@ const Performance = () => {
                 {[5, 4, 3, 2, 1].map(
                   (rating) => {
                     const count =
-                      ratingDistribution[
-                        rating as keyof typeof ratingDistribution
-                      ];
+                      Number(
+                        ratingDistribution[
+                          rating as keyof typeof ratingDistribution
+                        ] || 0
+                      );
 
                     const percentage =
                       getRatingPercentage(
@@ -544,6 +603,8 @@ const Performance = () => {
                 )}
               </div>
             </div>
+
+            {/* EARNINGS TREND */}
 
             <div className="rounded-xl border border-slate-200 bg-white p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -656,6 +717,10 @@ const Performance = () => {
               )}
             </div>
           </section>
+
+          {/* =========================
+              RECENT WORK
+          ========================= */}
 
           <section className="rounded-xl border border-slate-200 bg-white p-6">
             <div>

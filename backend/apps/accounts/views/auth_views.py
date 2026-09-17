@@ -83,7 +83,7 @@ class LoginView(APIView):
     - CLIENT  → /client/dashboard
     """
     permission_classes = [AllowAny]
-    throttle_classes = [AnonRateThrottle]
+    throttle_classes = []
     
     def post(self, request):
         serializer = LoginSerializer(data=request.data)

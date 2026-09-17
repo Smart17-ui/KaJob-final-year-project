@@ -26,21 +26,9 @@ const DashboardLayout = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  /* =========================
-     CURRENT USER
-  ========================= */
-
   const user = getCurrentUser();
 
-  /* =========================
-     SELECTED ROLE
-  ========================= */
-
   const selectedRole = getSelectedRole();
-
-  /* =========================
-     DETERMINE CURRENT ROLE
-  ========================= */
 
   const role =
     selectedRole ||
@@ -50,9 +38,17 @@ const DashboardLayout = () => {
       ? "CLIENT"
       : null);
 
-  /* =========================
-     AUTH CHECK
-  ========================= */
+  /*
+   * Settings has its own internal navigation.
+   *
+   * When we are anywhere inside Settings:
+   * - Dashboard sidebar is hidden on desktop
+   * - Dashboard sidebar can still open as a mobile drawer
+   * - DashboardTabs are hidden
+   * - TopBar remains visible
+   */
+  const isSettingsPage =
+    location.pathname.includes("/settings");
 
   useEffect(() => {
     if (!user || !role) {
@@ -64,18 +60,12 @@ const DashboardLayout = () => {
     }
   }, [user, role, navigate]);
 
-  /* =========================
-     CLOSE SIDEBAR
-     WHEN ROUTE CHANGES
-  ========================= */
-
+  /*
+   * Close the mobile sidebar whenever the route changes.
+   */
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
-
-  /* =========================
-     LOGOUT
-  ========================= */
 
   async function handleLogout() {
     const refreshToken = getRefreshToken();
@@ -94,10 +84,6 @@ const DashboardLayout = () => {
       });
     }
   }
-
-  /* =========================
-     SWITCH ROLE
-  ========================= */
 
   function handleSwitchRole() {
     if (!user || !role) {
@@ -143,10 +129,6 @@ const DashboardLayout = () => {
     }
   }
 
-  /* =========================
-     PROFILE
-  ========================= */
-
   function handleProfile() {
     if (!role) {
       return;
@@ -156,10 +138,6 @@ const DashboardLayout = () => {
       `/${role.toLowerCase()}/dashboard/profile`
     );
   }
-
-  /* =========================
-     VERIFY DETAILS
-  ========================= */
 
   function handleVerify() {
     if (!role) {
@@ -171,10 +149,6 @@ const DashboardLayout = () => {
     );
   }
 
-  /* =========================
-     SETTINGS
-  ========================= */
-
   function handleSettings() {
     if (!role) {
       return;
@@ -184,10 +158,6 @@ const DashboardLayout = () => {
       `/${role.toLowerCase()}/dashboard/settings`
     );
   }
-
-  /* =========================
-     NOTIFICATIONS
-  ========================= */
 
   function handleNotifications() {
     if (!role) {
@@ -199,17 +169,9 @@ const DashboardLayout = () => {
     );
   }
 
-  /* =========================
-     WAIT FOR AUTH CHECK
-  ========================= */
-
   if (!user || !role) {
     return null;
   }
-
-  /* =========================
-     ROLE BUTTON TEXT
-  ========================= */
 
   let roleActionText = "";
 
@@ -230,111 +192,159 @@ const DashboardLayout = () => {
     roleActionText = "Add Client Role";
   }
 
-  /* =========================
-     RENDER
-  ========================= */
-
   return (
     <div className="min-h-screen bg-slate-50">
 
-      {/* ==================================================
-          SIDEBAR
-      ================================================== */}
+      {/* =====================================================
+          DASHBOARD SIDEBAR
+          =====================================================
 
-      <Sidebar
-        role={role}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={handleLogout}
-        onSwitchRole={handleSwitchRole}
-        roleActionText={roleActionText}
-      />
+          Normal dashboard:
+          - Sidebar is rendered normally.
 
-      {/* ==================================================
-          MAIN AREA
-      ================================================== */}
+          Settings:
+          - Sidebar is hidden on desktop.
+          - Sidebar can still open as a mobile drawer
+            when the TopBar hamburger is clicked.
+      ===================================================== */}
 
-      <div className="lg:pl-64">
+      {!isSettingsPage && (
+        <Sidebar
+          role={role}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onLogout={handleLogout}
+          onSwitchRole={handleSwitchRole}
+          roleActionText={roleActionText}
+        />
+      )}
 
-        {/* ==================================================
-            FIXED HEADER
-            TOPBAR + TABS
-        ================================================== */}
+      {isSettingsPage && (
+        <div className="lg:hidden">
+          <Sidebar
+            role={role}
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            onLogout={handleLogout}
+            onSwitchRole={handleSwitchRole}
+            roleActionText={roleActionText}
+          />
+        </div>
+      )}
+
+      {/* =====================================================
+          MAIN DASHBOARD AREA
+      ===================================================== */}
+
+      <div
+        className={
+          isSettingsPage
+            ? ""
+            : "lg:pl-64"
+        }
+      >
+
+        {/* ===================================================
+            TOPBAR
+        =================================================== */}
 
         <div
-          className="
-            fixed
-            left-0
-            right-0
-            top-0
-            z-40
-            lg:left-64
-          "
+          className={
+            isSettingsPage
+              ? "fixed left-0 right-0 top-0 z-40"
+              : "fixed left-0 right-0 top-0 z-40 lg:left-64"
+          }
         >
-
-          {/* =========================
-              TOP BAR
-          ========================= */}
-
           <TopBar
             userName={`${user.first_name ?? ""} ${
               user.last_name ?? ""
             }`.trim()}
+
             userRole={role}
+
+            /*
+             * The hamburger always works.
+             *
+             * On Settings:
+             * it opens the mobile Dashboard Sidebar.
+             *
+             * On normal dashboard:
+             * it also opens the Dashboard Sidebar.
+             */
             onMenuOpen={() =>
               setSidebarOpen(true)
             }
+
             onNotificationsClick={
               handleNotifications
             }
+
             onProfileClick={
               handleProfile
             }
+
             onVerifyClick={
               handleVerify
             }
+
             onSettingsClick={
               handleSettings
             }
+
             onSwitchRole={
               user.is_client &&
               user.is_worker
                 ? handleSwitchRole
                 : undefined
             }
+
             onLogout={handleLogout}
           />
 
-          {/* =========================
+          {/* =================================================
               DASHBOARD TABS
-          ========================= */}
 
-          <DashboardTabs
-            role={role}
-          />
+              Completely hidden on Settings.
+          ================================================= */}
 
+          {!isSettingsPage && (
+            <DashboardTabs
+              role={role}
+            />
+          )}
         </div>
 
-        {/* ==================================================
-            PAGE CONTENT
-        ================================================== */}
+        {/* ===================================================
+            MAIN CONTENT
+        =================================================== */}
 
         <main
-          className="
-            min-w-0
-            p-4
-            pt-[120px]
-            sm:p-6
-            sm:pt-[120px]
-            lg:p-8
-            lg:pt-[120px]
-          "
+          className={
+            isSettingsPage
+              ? `
+                min-w-0
+                p-4
+                pt-[80px]
+                sm:p-6
+                sm:pt-[80px]
+                lg:p-8
+                lg:pt-[80px]
+              `
+              : `
+                min-w-0
+                p-4
+                pt-[120px]
+                sm:p-6
+                sm:pt-[120px]
+                lg:p-8
+                lg:pt-[120px]
+              `
+          }
         >
           <Outlet />
         </main>
 
       </div>
-
     </div>
   );
 };
