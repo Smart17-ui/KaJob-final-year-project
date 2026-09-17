@@ -52,17 +52,18 @@ class JobStatus:
     OPEN = 'OPEN'
     ASSIGNED = 'ASSIGNED'
     IN_PROGRESS = 'IN_PROGRESS'
+    AWAITING_CONFIRMATION = 'AWAITING_CONFIRMATION'
     COMPLETED = 'COMPLETED'
     CANCELLED = 'CANCELLED'
-    
+
     CHOICES = [
         (OPEN, 'Open'),
         (ASSIGNED, 'Assigned'),
         (IN_PROGRESS, 'In Progress'),
+        (AWAITING_CONFIRMATION, 'Awaiting Confirmation'),
         (COMPLETED, 'Completed'),
         (CANCELLED, 'Cancelled'),
     ]
-
 
 # ============================================
 # APPLICATION STATUS - ENHANCED
