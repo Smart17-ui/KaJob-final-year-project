@@ -63,34 +63,20 @@ export interface PaginatedResponse<T> {
 }
 
 // ============================================
-// STATS TYPES
+// ANALYTICS TYPES
 // ============================================
 
-export interface PlatformStats {
-    users: {
-        total: number;
-        workers: number;
-        clients: number;
-        verified: number;
-        active_today: number;
-    };
-    jobs: {
-        total: number;
-        open: number;
-        assigned: number;
-        in_progress: number;
-        completed: number;
-        cancelled: number;
-        completion_rate: number;
-    };
-    reviews: {
-        total: number;
-        average_rating: number;
-        rating_distribution: Record<string, number>;
-    };
-    daily_summary: DailySummary[];
-    generated_at: string;
-}
+export type AnalyticsPeriod =
+    | 'today'
+    | 'yesterday'
+    | 'this_week'
+    | 'last_week'
+    | 'this_month'
+    | 'last_month'
+    | 'this_year'
+    | 'last_7_days'
+    | 'last_30_days'
+    | 'all_time';
 
 export interface DailySummary {
     date: string;
@@ -100,6 +86,41 @@ export interface DailySummary {
     reviews_created: number;
     page_views: number;
     unique_visitors: number;
+}
+
+export interface PlatformStats {
+    period: {
+        key: string;
+        label: string;
+        start: string | null;
+        end: string | null;
+    };
+    users: {
+        total: number;
+        active: number;
+        workers: number;
+        clients: number;
+        both_roles: number;
+        verified: number;
+        new_users: number;
+    };
+    jobs: {
+        total: number;
+        created: number;
+        completed: number;
+        cancelled: number;
+        open: number;
+        assigned: number;
+        in_progress: number;
+        completion_rate: number;
+    };
+    reviews: {
+        total: number;
+        average_rating: number;
+        rating_distribution: Record<string, number>;
+    };
+    daily_summary: DailySummary[];
+    generated_at: string;
 }
 
 // ============================================
@@ -141,8 +162,8 @@ export interface PendingVerification {
     };
     document_type: DocumentType;
     document_number: string;
-    verification_status?: VerificationStatus;   // actual backend field
-    status?: VerificationStatus;                // alias
+    verification_status?: VerificationStatus;
+    status?: VerificationStatus;
     status_display: string;
     submitted_at: string;
     reviewed_at: string | null;
@@ -168,8 +189,6 @@ export type ReportStatus =
     | 'ESCALATED_TO_POLICE'
     | 'CLOSED';
 
-export type ReportPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-
 export type ReportCategory =
     | 'THEFT'
     | 'VIOLENCE'
@@ -180,31 +199,83 @@ export type ReportCategory =
     | 'POOR_CONDUCT'
     | 'OTHER';
 
+export type ReportDecision =
+    | 'DISMISSED'
+    | 'WARNED'
+    | 'SUSPENDED'
+    | 'BANNED'
+    | 'ESCALATED';
+
+export interface ReportUser {
+    id: number;
+    full_name: string;
+    email: string;
+    phone_number: string;
+    account_status: AccountStatus;
+    is_verified: boolean;
+}
+
+export interface ReportJob {
+    id: number;
+    title: string;
+    status: string;
+    budget: string | null;
+}
+
+export interface ReportInvestigation {
+    id: number;
+    report: number;
+    admin: ReportUser;
+    status: string;
+    status_display: string;
+    decision: ReportDecision | null;
+    decision_display: string | null;
+    decision_notes: string;
+    internal_notes: string;
+    started_at: string;
+    completed_at: string | null;
+}
+
 export interface AdminReport {
     id: number;
-    reporter: {
-        id: number;
-        full_name: string;
-        email: string;
-    };
-    reported_user: {
-        id: number;
-        full_name: string;
-        email: string;
-    } | null;
-    reported_job: {
-        id: number;
-        title: string;
-    } | null;
+    reference_number: string;
+    job_id: number;
+    job_title: string;
+    reporter: ReportUser;
+    reported_user: ReportUser;
     category: ReportCategory;
     category_display: string;
-    priority: ReportPriority;
+    status: ReportStatus;
+    status_display: string;
+    submitted_at: string;
+}
+
+export interface AdminReportDetail {
+    id: number;
+    reference_number: string;
+    job: ReportJob;
+    reporter: ReportUser;
+    reported_user: ReportUser;
+    category: ReportCategory;
+    category_display: string;
     description: string;
     status: ReportStatus;
     status_display: string;
-    evidence: string[];
-    created_at: string;
-    resolved_at: string | null;
+    police_report_generated: boolean;
+    police_report_path: string;
+    submitted_at: string;
+    investigation: ReportInvestigation | null;
+}
+
+export interface ReportStats {
+    total: number;
+    pending: number;
+    under_investigation: number;
+    resolved: number;
+    escalated_to_police: number;
+    by_status: { status: string; count: number }[];
+    by_category: { category: string; count: number }[];
+    recent: AdminReport[];
 }
 
 // ============================================
@@ -305,7 +376,6 @@ export interface UserFilters {
 export interface ReportFilters {
     status?: ReportStatus;
     category?: ReportCategory;
-    priority?: ReportPriority;
     page?: number;
     page_size?: number;
     ordering?: string;
