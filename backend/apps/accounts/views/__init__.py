@@ -24,6 +24,7 @@ from .profile_views import (
     ClientProfileUpdateView,
     UpdateLocationView,
     UpdatePhoneNumberView,
+    UpdateEmailView, 
 )
 from .worker_views import (
     WorkerDetailView,
@@ -56,6 +57,7 @@ __all__ = [
     'ClientProfileUpdateView',
     'UpdateLocationView',
     'UpdatePhoneNumberView',
+    'UpdateEmailView',
     # Worker Views
     'WorkerDetailView',
     'WorkerSummaryView',

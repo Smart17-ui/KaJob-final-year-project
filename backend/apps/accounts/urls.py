@@ -27,6 +27,7 @@ from apps.accounts.views import (
     WorkerSummaryView,
     WorkerApplicationsView,
     WorkerAvailabilityView,
+    UpdateEmailView,
 )
 
 app_name = 'accounts'
@@ -62,6 +63,7 @@ urlpatterns = [
     path('auth/profile/worker/update/', WorkerProfileUpdateView.as_view(), name='worker-profile-update'),
     path('auth/profile/client/', ClientProfileView.as_view(), name='client-profile'),
     path('auth/profile/client/update/', ClientProfileUpdateView.as_view(), name='client-profile-update'),
+    path('auth/profile/email/', UpdateEmailView.as_view(), name='update-email'),
 
     # WORKER MANAGEMENT
     path('workers/<int:worker_id>/', WorkerDetailView.as_view(), name='worker-detail'),

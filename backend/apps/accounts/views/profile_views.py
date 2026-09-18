@@ -14,6 +14,7 @@ from apps.accounts.serializers import (
     ClientProfileSerializer,
     ClientProfileUpdateSerializer,
     UpdatePhoneSerializer,
+    UpdateEmailSerializer,
 )
 from apps.common.permissions import IsActiveUser, IsWorker, IsClient
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
@@ -273,3 +274,41 @@ class UpdatePhoneNumberView(APIView):
                 {'error': f'Failed to update phone number: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+class UpdateEmailView(APIView):
+    """
+    PUT /api/auth/profile/email/
+    Update the authenticated user's email address.
+
+    Request Body:
+        { "email": "newemail@example.com" }
+
+    Response:
+        {
+            "status": "updated",
+            "message": "Email updated. A verification email has been sent to the new address.",
+            "email": "newemail@example.com",
+            "email_sent": true,
+            "next_step": "email_verification"
+        }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
+    def put(self, request):
+        serializer = UpdateEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        from apps.identity_verification.services import VerificationService
+        verification_service = VerificationService()
+
+        result = verification_service.update_email(
+            request.user,
+            serializer.validated_data['email']
+        )
+
+        if result['status'] in ('invalid_email', 'email_taken'):
+            return Response(
+                {'error': result['message']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(result, status=status.HTTP_200_OK)
