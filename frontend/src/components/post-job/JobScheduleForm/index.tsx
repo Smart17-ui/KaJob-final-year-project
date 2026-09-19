@@ -2,7 +2,7 @@ import type {
   FormErrors,
   JobForm,
   Urgency,
-} from "../../types/job";
+} from "../../../shared/types/job";
 
 import {
   CalendarDaysIcon,
@@ -30,7 +30,7 @@ const JobScheduleForm = ({
   onFlexibleChange,
 }: JobScheduleFormProps) => {
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm">
+    <section className="border-t border-gray-200 pt-8">
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-gray-900">
           Schedule
@@ -209,7 +209,7 @@ const JobScheduleForm = ({
         </div>
 
         {/* Flexible */}
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-4 hover:bg-gray-50">
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-4 transition hover:bg-gray-50">
           <input
             type="checkbox"
             checked={form.isFlexible}

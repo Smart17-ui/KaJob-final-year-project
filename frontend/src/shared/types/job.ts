@@ -18,6 +18,10 @@ export type ApplicationStatus =
   | "REJECTED"
   | "WITHDRAWN";
 
+// ============================================
+// JOB FORM
+// ============================================
+
 export interface JobForm {
   title: string;
   description: string;
@@ -36,8 +40,12 @@ export interface JobForm {
   longitude: number | null;
   locationAccuracy: number | null;
 
-  requiredSkills: string[];
+  requiredSkills: number[];
 }
+
+// ============================================
+// FORM ERRORS
+// ============================================
 
 export interface FormErrors {
   title?: string;
@@ -64,6 +72,15 @@ export interface JobCategory {
   id: number;
   name: string;
   description?: string;
+}
+
+// ============================================
+// SKILL
+// ============================================
+
+export interface SkillOption {
+  id: number;
+  name: string;
 }
 
 // ============================================
@@ -148,11 +165,11 @@ export interface CreateJobData {
 
   is_flexible: boolean;
 
-  duration_hours: number;
+  duration_hours?: number;
 
   urgency: Urgency;
 
-  required_skills: string[];
+  required_skills: number[];
 }
 
 // ============================================
@@ -180,7 +197,7 @@ export interface UpdateJobData {
 
   urgency?: Urgency;
 
-  required_skills?: string[];
+  required_skills?: number[];
 }
 
 // ============================================

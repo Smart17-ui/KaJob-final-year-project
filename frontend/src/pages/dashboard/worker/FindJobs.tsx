@@ -99,7 +99,7 @@ const updateWorkerLocation = async (
   }
 
   const response = await fetch(
-    `${API_URL}/profile/location/`,
+    `${API_URL}/auth/profile/location/`,
     {
       method: "PUT",
       headers: {
@@ -905,14 +905,6 @@ export default function FindJobs() {
 
         {/* =========================
             ACTIVE JOB INFORMATION
-            =========================
-            
-            We do NOT show an empty
-            "0 jobs" message when the
-            worker already has an
-            assignment.
-
-            The popup explains why.
             ========================= */}
 
         {!checkingActiveJob &&

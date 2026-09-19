@@ -1,6 +1,6 @@
 import type {
   SkillOption,
-} from "../../types/job";
+} from "../../../shared/types/job";
 
 type JobSkillsSelectorProps = {
   skills: SkillOption[];
@@ -39,7 +39,7 @@ const JobSkillsSelector = ({
   };
 
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm">
+    <section className="border-t border-gray-200 pt-8">
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-gray-900">
           Required skills
@@ -51,7 +51,7 @@ const JobSkillsSelector = ({
       </div>
 
       {skills.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-center">
+        <div className="rounded-xl border border-dashed border-gray-300 p-5 text-center">
           <p className="text-sm font-medium text-gray-700">
             No skills available yet
           </p>
