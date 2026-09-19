@@ -59,7 +59,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout/DashboardLay
 import ClientDashboard from "@/pages/dashboard/client/ClientDashboard";
 import MyJobs from "@/pages/dashboard/client/MyJobs";
 import ClientJobDetails from "@/pages/dashboard/client/JobDetails";
-import PostJob from "@/pages/dashboard/client/PostJob";
+import PostJob from "@/pages/dashboard/client/PostJob/PostJob";
 import Applications from "@/pages/dashboard/client/Applications";
 import JobApplications from "@/pages/dashboard/client/JobApplications";
 import Messages from "@/pages/dashboard/client/Messages";

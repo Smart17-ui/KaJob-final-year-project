@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronDownIcon,
@@ -35,6 +35,8 @@ const ProfileDropdown = ({
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
 
+  const profileRef = useRef<HTMLDivElement>(null);
+
   const initials = userName
     .split(" ")
     .map((name) => name.charAt(0))
@@ -42,8 +44,11 @@ const ProfileDropdown = ({
     .join("")
     .toUpperCase();
 
-  const currentRole = userRole === "CLIENT" ? "Client" : "Worker";
-  const otherRole = userRole === "CLIENT" ? "Worker" : "Client";
+  const currentRole =
+    userRole === "CLIENT" ? "Client" : "Worker";
+
+  const otherRole =
+    userRole === "CLIENT" ? "Worker" : "Client";
 
   /*
    * Settings route for the currently active role.
@@ -52,6 +57,44 @@ const ProfileDropdown = ({
     userRole === "CLIENT"
       ? "/client/dashboard/settings"
       : "/worker/dashboard/settings";
+
+  /*
+   * Close profile menu when clicking anywhere outside it.
+   */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      /*
+       * Clicking anywhere inside the profile component
+       * should NOT close the dropdown.
+       */
+      if (
+        profileRef.current &&
+        profileRef.current.contains(target)
+      ) {
+        return;
+      }
+
+      /*
+       * Clicking anywhere else on the UI closes it.
+       */
+      setShowProfileMenu(false);
+      setShowRoleSwitcher(false);
+    };
+
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    };
+  }, []);
 
   /*
    * Go to Profile settings.
@@ -85,11 +128,20 @@ const ProfileDropdown = ({
   };
 
   return (
-    <div className="relative">
-      {/* PROFILE TRIGGER BUTTON */}
+    <div
+      ref={profileRef}
+      className="relative"
+    >
+      {/* =====================================================
+          PROFILE TRIGGER BUTTON
+          ===================================================== */}
+
       <button
         type="button"
-        onClick={() => {
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
           setShowProfileMenu((prev) => !prev);
           setShowRoleSwitcher(false);
         }}
@@ -99,12 +151,16 @@ const ProfileDropdown = ({
           transition-all duration-200
           hover:bg-slate-50
           active:scale-95
-          focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+          focus:outline-none
+          focus:ring-2 focus:ring-emerald-500
+          focus:ring-offset-2
         "
         aria-label="Open profile menu"
         aria-expanded={showProfileMenu}
+        aria-haspopup="true"
       >
         {/* Avatar */}
+
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
           <span className="text-xs font-bold text-white">
             {initials}
@@ -112,6 +168,7 @@ const ProfileDropdown = ({
         </div>
 
         {/* Name & Chevron */}
+
         <div className="hidden items-center gap-1.5 md:flex">
           <span className="max-w-32 truncate text-sm font-medium text-slate-700">
             {userName}
@@ -120,14 +177,21 @@ const ProfileDropdown = ({
           <ChevronDownIcon
             className={`
               h-4 w-4 transition-transform duration-200
-              ${showProfileMenu ? "rotate-180" : ""}
+              ${
+                showProfileMenu
+                  ? "rotate-180"
+                  : ""
+              }
               text-slate-400
             `}
           />
         </div>
       </button>
 
-      {/* DROPDOWN MENU */}
+      {/* =====================================================
+          DROPDOWN MENU
+          ===================================================== */}
+
       {showProfileMenu && (
         <div
           className="
@@ -141,7 +205,10 @@ const ProfileDropdown = ({
             backdrop-blur-sm
           "
         >
-          {/* Account Header */}
+          {/* =================================================
+              ACCOUNT HEADER
+              ================================================= */}
+
           <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent px-4 py-4">
             <p className="truncate text-sm font-semibold text-slate-900">
               {userName}
@@ -152,10 +219,13 @@ const ProfileDropdown = ({
             </p>
           </div>
 
-          {/* Menu Items */}
-          <div className="py-1">
+          {/* =================================================
+              MENU ITEMS
+              ================================================= */}
 
+          <div className="py-1">
             {/* Profile */}
+
             <button
               type="button"
               onClick={handleProfileClick}
@@ -178,6 +248,7 @@ const ProfileDropdown = ({
             </button>
 
             {/* Verify Details */}
+
             <button
               type="button"
               onClick={handleVerifyClick}
@@ -200,6 +271,7 @@ const ProfileDropdown = ({
             </button>
 
             {/* Settings */}
+
             <button
               type="button"
               onClick={handleSettingsClick}
@@ -222,12 +294,19 @@ const ProfileDropdown = ({
             </button>
 
             {/* Divider */}
+
             <div className="my-1 border-t border-slate-100" />
 
             {/* Switch Role */}
+
             <button
               type="button"
-              onClick={() => setShowRoleSwitcher((prev) => !prev)}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                setShowRoleSwitcher((prev) => !prev);
+              }}
               className="
                 group flex w-full
                 items-center gap-3
@@ -248,17 +327,24 @@ const ProfileDropdown = ({
               <ChevronDownIcon
                 className={`
                   h-4 w-4 transition-transform duration-200
-                  ${showRoleSwitcher ? "rotate-180" : ""}
+                  ${
+                    showRoleSwitcher
+                      ? "rotate-180"
+                      : ""
+                  }
                   text-slate-400
                 `}
               />
             </button>
 
-            {/* Role Options */}
+            {/* =================================================
+                ROLE OPTIONS
+                ================================================= */}
+
             {showRoleSwitcher && (
               <div className="border-t border-slate-100 bg-slate-50 px-2 py-2">
-
                 {/* Current Role */}
+
                 <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
                     <span className="text-xs font-bold text-white">
@@ -280,12 +366,17 @@ const ProfileDropdown = ({
                 </div>
 
                 {/* Other Role Option */}
+
                 {onSwitchRole && (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+
                       setShowProfileMenu(false);
                       setShowRoleSwitcher(false);
+
                       onSwitchRole();
                     }}
                     className="
@@ -309,7 +400,8 @@ const ProfileDropdown = ({
                       </p>
 
                       <p className="text-xs text-slate-500">
-                        Switch to {otherRole.toLowerCase()}
+                        Switch to{" "}
+                        {otherRole.toLowerCase()}
                       </p>
                     </div>
                   </button>
@@ -318,14 +410,20 @@ const ProfileDropdown = ({
             )}
 
             {/* Divider */}
+
             <div className="my-1 border-t border-slate-100" />
 
             {/* Logout */}
+
             {onLogout && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+
                   setShowProfileMenu(false);
+
                   onLogout();
                 }}
                 className="
@@ -347,7 +445,6 @@ const ProfileDropdown = ({
                 </span>
               </button>
             )}
-
           </div>
         </div>
       )}
