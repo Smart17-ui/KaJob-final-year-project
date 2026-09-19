@@ -17,7 +17,8 @@ const MEDIA_BASE_URL =
 interface Document {
     id: number;
     document_type: string;
-    file_path: string;
+    document_type_display?: string;
+    file_url: string;
     file_name: string;
     file_size: number;
     mime_type: string;
@@ -34,10 +35,20 @@ export const DocumentViewer = ({
 }: DocumentViewerProps) => {
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const [activeTab, setActiveTab] = useState(0);
+    const [imageError, setImageError] = useState(false);
 
-    const getFileUrl = (filePath?: string) => {
-        if (!filePath) return '';
-        return `${MEDIA_BASE_URL}${filePath}`;
+    const getFileUrl = (fileUrl?: string) => {
+        if (!fileUrl) return '';
+
+        // If backend already returns an absolute URL, use as-is
+        if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+            return fileUrl;
+        }
+
+        // Otherwise prepend the backend origin.
+        const base = MEDIA_BASE_URL.replace(/\/$/, '');
+        const path = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+        return `${base}${path}`;
     };
 
     const isImage = (mimeType?: string) => mimeType?.startsWith('image/');
@@ -46,6 +57,11 @@ export const DocumentViewer = ({
     const formatDocType = (docType?: string) => {
         if (!docType) return 'Document';
         return docType.replace(/_/g, ' ');
+    };
+
+    const handleTabChange = (index: number) => {
+        setActiveTab(index);
+        setImageError(false);  // reset error state when switching docs
     };
 
     if (!documents || documents.length === 0) {
@@ -83,7 +99,7 @@ export const DocumentViewer = ({
                 {documents.map((doc, index) => (
                     <button
                         key={doc.id}
-                        onClick={() => setActiveTab(index)}
+                        onClick={() => handleTabChange(index)}
                         className={`
                             px-3 py-2 text-sm font-medium rounded-md whitespace-nowrap
                             transition-colors
@@ -104,21 +120,40 @@ export const DocumentViewer = ({
                 <div className="bg-admin-bg-hover rounded-admin-card overflow-hidden">
                     <div className="relative bg-gray-100 flex items-center justify-center min-h-[400px] p-4">
                         {isImage(activeDoc.mime_type) ? (
-                            <img
-                                src={getFileUrl(activeDoc.file_path)}
-                                alt={formatDocType(activeDoc.document_type)}
-                                className="max-h-[500px] w-auto object-contain rounded-md shadow-md cursor-zoom-in"
-                                onClick={() => setSelectedDoc(activeDoc)}
-                                onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    target.parentElement!.innerHTML =
-                                        '<p class="text-admin-text-secondary">Image failed to load</p>';
-                                }}
-                            />
+                            imageError ? (
+                                <div className="text-center py-12">
+                                    <p className="text-admin-text-secondary mb-4">
+                                        Image failed to load
+                                    </p>
+                                    <a
+                                        href={getFileUrl(activeDoc.file_url)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 text-admin-primary-600 hover:underline"
+                                    >
+                                        <ExternalLink size={16} />
+                                        Open in new tab
+                                    </a>
+                                </div>
+                            ) : (
+                                <img
+                                    key={activeDoc.id}
+                                    src={getFileUrl(activeDoc.file_url)}
+                                    alt={formatDocType(activeDoc.document_type)}
+                                    className="max-h-[500px] w-auto object-contain rounded-md shadow-md cursor-zoom-in"
+                                    onClick={() => setSelectedDoc(activeDoc)}
+                                    onError={() => {
+                                        console.error(
+                                            'Failed to load image:',
+                                            getFileUrl(activeDoc.file_url)
+                                        );
+                                        setImageError(true);
+                                    }}
+                                />
+                            )
                         ) : isPdf(activeDoc.mime_type) ? (
                             <iframe
-                                src={getFileUrl(activeDoc.file_path)}
+                                src={getFileUrl(activeDoc.file_url)}
                                 className="w-full h-[500px] rounded-md"
                                 title={formatDocType(activeDoc.document_type)}
                             />
@@ -128,7 +163,7 @@ export const DocumentViewer = ({
                                     Preview not available for this file type
                                 </p>
                                 <a
-                                    href={getFileUrl(activeDoc.file_path)}
+                                    href={getFileUrl(activeDoc.file_url)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-2 text-admin-primary-600 hover:underline"
@@ -167,7 +202,7 @@ export const DocumentViewer = ({
                                 </Button>
                             )}
                             <a
-                                href={getFileUrl(activeDoc.file_path)}
+                                href={getFileUrl(activeDoc.file_url)}
                                 download={activeDoc.file_name}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -199,7 +234,7 @@ export const DocumentViewer = ({
                         <X size={24} />
                     </button>
                     <img
-                        src={getFileUrl(selectedDoc.file_path)}
+                        src={getFileUrl(selectedDoc.file_url)}
                         alt={formatDocType(selectedDoc.document_type)}
                         className="max-w-full max-h-full object-contain"
                         onClick={(e) => e.stopPropagation()}

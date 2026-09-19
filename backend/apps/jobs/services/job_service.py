@@ -77,11 +77,19 @@ class JobService:
             if job_date < timezone.now().date():
                 raise BusinessRuleViolation("Job date cannot be in the past.")
 
-        general_location = data.get('general_location')
+        general_location = (data.get('general_location') or '').strip()
         latitude = data.get('latitude')
         longitude = data.get('longitude')
 
-        if not general_location and latitude and longitude:
+        # ── Location is REQUIRED ──────────────────────────────────
+        if not (latitude and longitude) and not general_location:
+            raise BusinessRuleViolation(
+                "Please provide a job location. Tap 'Use My Location' "
+                "or enter a general location."
+            )
+
+        # ── Case 1: coords given, no text → reverse geocode for display
+        if (latitude and longitude) and not general_location:
             try:
                 general_location = GeocodingService.get_display_location(
                     float(latitude),
@@ -92,6 +100,37 @@ class JobService:
             except Exception as e:
                 logger.warning(f"Failed to auto-fill location: {str(e)}")
                 general_location = f"{latitude}, {longitude}"
+
+        # ── Case 2: text given, no coords → forward geocode ──────
+        if general_location and (not latitude or not longitude):
+            try:
+                results = GeocodingService.search_location(general_location, limit=1)
+                if results:
+                    first = results[0]
+                    lat_c = first.get('latitude')
+                    lng_c = first.get('longitude')
+                    # Guard against the (0.0, 0.0) "null island" fallback
+                    if lat_c and lng_c and (lat_c != 0.0 or lng_c != 0.0):
+                        latitude = lat_c
+                        longitude = lng_c
+                        logger.info(
+                            f"Geocoded '{general_location}' -> "
+                            f"{latitude},{longitude}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Geocoding returned zero coords for "
+                            f"'{general_location}' — keeping text only"
+                        )
+                else:
+                    logger.info(
+                        f"No geocoding result for '{general_location}' — "
+                        f"keeping text location only"
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Forward geocoding failed for '{general_location}': {e}"
+                )
 
         map_urls = {}
         if latitude and longitude:
@@ -150,6 +189,40 @@ class JobService:
         )
 
         logger.info(f"Job created: {job.title} by {client.email} (ID: {job.id})")
+
+        # 🆕 Notify nearby available workers (within 1 km)
+        try:
+            from apps.matching.services.matching_service import MatchingService
+            from apps.notifications.services import NotificationService
+
+            nearby = MatchingService().find_workers_near_job(
+                job_id=job.id, radius_km=1.0
+            )
+
+            if nearby:
+                notif = NotificationService()
+                for item in nearby:
+                    try:
+                        notif.notify_job_posted(
+                            worker=item['worker'],
+                            job=job,
+                            distance=item['distance_display'],
+                        )
+                    except Exception as inner_e:
+                        logger.error(
+                            f"[notify] job_posted failed for worker "
+                            f"{item['worker'].id}: {inner_e}"
+                        )
+
+                logger.info(
+                    f"[notify] job_posted broadcast to {len(nearby)} workers"
+                )
+            else:
+                logger.info(
+                    f"[notify] job_posted: no nearby workers within 1km of job {job.id}"
+                )
+        except Exception as e:
+            logger.error(f"[notify] job_posted broadcast failed: {e}")
 
         return {
             'job': job,
@@ -438,9 +511,9 @@ class JobService:
         job = self.get_job_by_id(job_id)
 
         assignment = job.assignments.filter(
-    worker=worker,
-    status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS],
-).first()
+            worker=worker,
+            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS],
+        ).first()
 
         if not assignment:
             raise BusinessRuleViolation(

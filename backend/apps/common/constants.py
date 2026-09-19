@@ -337,14 +337,12 @@ class DisciplinaryActionType:
     ]
 
 
-# ============================================
-# NOTIFICATION TYPE
-# ============================================
-
 class NotificationType:
     """Notification types"""
     JOB_POSTED = 'JOB_POSTED'
     APPLICATION_RECEIVED = 'APPLICATION_RECEIVED'
+    APPLICATION_ACCEPTED = 'APPLICATION_ACCEPTED'   # 🆕
+    APPLICATION_REJECTED = 'APPLICATION_REJECTED'   # 🆕
     WORKER_ASSIGNED = 'WORKER_ASSIGNED'
     JOB_COMPLETED = 'JOB_COMPLETED'
     JOB_CANCELLED = 'JOB_CANCELLED'
@@ -354,10 +352,12 @@ class NotificationType:
     ACCOUNT_SUSPENDED = 'ACCOUNT_SUSPENDED'
     ACCOUNT_BANNED = 'ACCOUNT_BANNED'
     WARNING_ISSUED = 'WARNING_ISSUED'
-    
+
     CHOICES = [
         (JOB_POSTED, 'Job Posted'),
         (APPLICATION_RECEIVED, 'Application Received'),
+        (APPLICATION_ACCEPTED, 'Application Accepted'),   # 🆕
+        (APPLICATION_REJECTED, 'Application Rejected'),   # 🆕
         (WORKER_ASSIGNED, 'Worker Assigned'),
         (JOB_COMPLETED, 'Job Completed'),
         (JOB_CANCELLED, 'Job Cancelled'),
@@ -368,8 +368,6 @@ class NotificationType:
         (ACCOUNT_BANNED, 'Account Banned'),
         (WARNING_ISSUED, 'Warning Issued'),
     ]
-
-
 # ============================================
 # FILE TYPE
 # ============================================

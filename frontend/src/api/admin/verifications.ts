@@ -38,7 +38,8 @@ export type VerificationAction =
 
 export const adminVerificationsApi = {
     /**
-     * GET /api/verifications/
+     * GET /api/admin/verifications/pending/
+     * (backend ignores ?status= for now — filter client-side if needed)
      */
     getVerifications: async (
         filters?: VerificationFilters
@@ -48,7 +49,7 @@ export const adminVerificationsApi = {
         if (filters?.page) params.page = filters.page;
         if (filters?.page_size) params.page_size = filters.page_size;
         if (filters?.ordering) params.ordering = filters.ordering;
-        return await http.get('/verifications/', params);
+        return await http.get('/admin/verifications/pending/', params);
     },
 
     /**
@@ -59,26 +60,28 @@ export const adminVerificationsApi = {
     },
 
     /**
-     * GET /api/verifications/{id}/
+     * GET /api/admin/verifications/{id}/
      */
     getVerification: async (
         verificationId: number
     ): Promise<PendingVerification> => {
-        return await http.get(`/verifications/${verificationId}/`);
+        return await http.get(`/admin/verifications/${verificationId}/`);
     },
 
     /**
-     * POST /api/verifications/{id}/approve/
+     * POST /api/admin/verifications/{id}/review/
+     * Body: { action: 'approve', notes?: string }
      */
     approveVerification: async (verificationId: number, notes?: string) => {
         return await http.post(
-            `/verifications/${verificationId}/approve/`,
-            { notes }
+            `/admin/verifications/${verificationId}/review/`,
+            { action: 'approve', notes }
         );
     },
 
     /**
-     * POST /api/verifications/{id}/reject/
+     * POST /api/admin/verifications/{id}/review/
+     * Body: { action: 'reject', reason, notes? }
      */
     rejectVerification: async (
         verificationId: number,
@@ -86,27 +89,32 @@ export const adminVerificationsApi = {
         notes?: string
     ) => {
         return await http.post(
-            `/verifications/${verificationId}/reject/`,
-            { reason, notes }
+            `/admin/verifications/${verificationId}/review/`,
+            { action: 'reject', reason, notes }
         );
     },
 
     /**
-     * GET /api/verifications/{id}/documents/
+     * GET /api/admin/verifications/{id}/
+     * Documents come embedded in the detail payload.
      */
     getDocuments: async (verificationId: number) => {
-        return await http.get(`/verifications/${verificationId}/documents/`);
+        const detail: any = await http.get(
+            `/admin/verifications/${verificationId}/`
+        );
+        return detail?.documents || [];
     },
 
     /**
-     * GET /api/verifications/stats/
+     * GET /api/admin/verifications/stats/
      */
     getStats: async () => {
-        return await http.get('/verifications/stats/');
+        return await http.get('/admin/verifications/stats/');
     },
 
     /**
      * POST /api/admin/verifications/{id}/review/
+     * Action is decided by the payload shape.
      */
     reviewVerification: async (
         verificationId: number,

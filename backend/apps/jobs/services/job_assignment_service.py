@@ -100,6 +100,19 @@ class JobAssignmentService:
             f"Worker {worker_id} assigned to job {job_id} by client {client.id}"
         )
 
+        # 🆕 Notify the worker
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_job_assigned(
+                worker=assignment.worker,
+                job=job,
+            )
+            logger.info(
+                f"[notify] worker_assigned sent to worker {worker_id}"
+            )
+        except Exception as e:
+            logger.error(f"[notify] assign_worker failed: {e}")
+
         return {
             'message': 'Worker assigned successfully! All other applications have been withdrawn.',
             'assignment': assignment,
@@ -165,6 +178,20 @@ class JobAssignmentService:
             f"Worker {worker.id} marked job {job_id} as complete; "
             f"auto-confirm at {job.auto_confirm_at}"
         )
+
+        # 🆕 Notify the client
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_job_completed(
+                client=job.client,
+                job=job,
+                worker=worker,
+            )
+            logger.info(
+                f"[notify] job_completed sent to client {job.client_id}"
+            )
+        except Exception as e:
+            logger.error(f"[notify] worker_mark_complete failed: {e}")
 
         return {
             'message': (

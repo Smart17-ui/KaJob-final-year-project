@@ -6,7 +6,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 /* =========================
    PUBLIC LANDING PAGE
 ========================= */
-
+import VerifyEmailPage from "@/pages/verifyEmail/VerifyEmailPage";
 import Navbar from "@/components/navbar";
 import Home from "@/components/home";
 import About from "@/components/about";
@@ -484,6 +484,16 @@ function App() {
             <ResetPassword />
           </PublicAuthRoute>
         }
+      />
+
+      {/* =====================================================
+          EMAIL VERIFICATION
+          Accessible without login. Uses ?token=... in the URL.
+      ===================================================== */}
+
+      <Route
+        path="/verify-email"
+        element={<VerifyEmailPage />}
       />
 
       {/* =====================================================

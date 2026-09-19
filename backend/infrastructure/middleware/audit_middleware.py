@@ -11,9 +11,11 @@ logger = logging.getLogger(__name__)
 class AuditMiddleware:
     """
     Middleware to log all API requests for audit purposes.
+
+    IMPORTANT: reads/caches request.body BEFORE the DRF view runs,
+    so request.data in the view still works.
     """
-    
-    # Skip logging for these paths (to avoid clutter)
+
     SKIP_PATHS = [
         '/api/auth/login/',
         '/api/auth/refresh/',
@@ -22,51 +24,66 @@ class AuditMiddleware:
         '/media/',
         '/favicon.ico',
     ]
-    
-    # Only log these methods
+
     LOG_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
-    
+
+    SENSITIVE_FIELDS = [
+        'password', 'old_password', 'new_password', 'token',
+    ]
+
     def __init__(self, get_response):
         self.get_response = get_response
-    
+
     def __call__(self, request):
-        # Get request details
         path = request.path
         method = request.method
-        
-        # Skip logging for certain paths
+
         skip = any(path.startswith(skip_path) for skip_path in self.SKIP_PATHS)
-        
-        # Skip logging for GET requests (unless specific)
         if method not in self.LOG_METHODS:
             skip = True
-        
-        # Process the request
+
+        # ── 1. Cache the body BEFORE get_response() runs.
+        #       Once we access request.body, Django stores it in request._body.
+        #       DRF's request.data will re-read from that cache — no more
+        #       "cannot access body after reading" errors.
+        cached_body = b''
+        if not skip:
+            try:
+                if not hasattr(request, '_body'):
+                    request._body = request.body
+                cached_body = request._body or b''
+            except Exception:
+                cached_body = b''
+
+        # ── 2. Run the actual view
         response = self.get_response(request)
-        
-        # Only log if not skipped and user is authenticated
+
+        # ── 3. Log after the view, using the cached body (not request.body)
         if not skip and hasattr(request, 'user') and request.user.is_authenticated:
-            self.log_request(request, response)
-        
+            self.log_request(request, response, cached_body)
+
         return response
-    
-    def log_request(self, request, response):
+
+    def _parse_body(self, raw_body: bytes):
+        """Sanitized JSON parse of the cached body."""
+        if not raw_body:
+            return None
+        try:
+            parsed = json.loads(raw_body)
+        except (json.JSONDecodeError, UnicodeDecodeError, TypeError):
+            return str(raw_body)[:100] + '...'
+
+        if isinstance(parsed, dict):
+            for field in self.SENSITIVE_FIELDS:
+                if field in parsed:
+                    parsed[field] = '***'
+        return parsed
+
+    def log_request(self, request, response, raw_body: bytes):
         """Log the request to the audit log."""
         try:
-            # Get request body (sanitized)
-            request_body = None
-            if request.body:
-                try:
-                    request_body = json.loads(request.body)
-                    # Sanitize sensitive fields
-                    if isinstance(request_body, dict):
-                        for sensitive_field in ['password', 'old_password', 'new_password', 'token']:
-                            if sensitive_field in request_body:
-                                request_body[sensitive_field] = '***'
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    request_body = str(request.body)[:100] + '...'
-            
-            # Create audit log
+            request_body = self._parse_body(raw_body)
+
             AuditLog.objects.create(
                 user=request.user,
                 action=f"{request.method}_{request.path}",
@@ -86,9 +103,8 @@ class AuditMiddleware:
             )
         except Exception as e:
             logger.error(f"Failed to create audit log: {e}")
-    
+
     def get_client_ip(self, request):
-        """Get client IP address from request."""
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
             ip = x_forwarded_for.split(',')[0]
