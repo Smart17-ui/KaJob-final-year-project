@@ -1,24 +1,27 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import {
   ArrowPathIcon,
   BriefcaseIcon,
-  FunnelIcon,
-  MagnifyingGlassIcon,
-  MapPinIcon,
   CalendarDaysIcon,
   ClockIcon,
+  MapIcon,
+  MapPinIcon,
 } from "@heroicons/react/24/outline";
 
-import { applyForJob } from "@/components/services/applicationService";
+import { applyForJob, getMyApplications } from "@/components/services/applicationService";
 import { getMyActiveJobs } from "@/api/jobs";
 
 import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
 import DetailsModal from "@/components/pop/DetailsModal/DetailsModal";
+
+import FindJobsHeader from "@/components/find-jobs/FindJobsHeader";
+import JobsGrid from "@/components/find-jobs/JobsGrid";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -31,6 +34,8 @@ type LocationStatus =
   | "denied"
   | "error";
 
+type ViewMode = "list" | "map";
+
 type Job = {
   id: number;
   title: string;
@@ -42,6 +47,7 @@ type Job = {
   urgency: string;
   urgency_display: string;
   job_date: string | null;
+  job_time?: string | null;
   is_flexible: boolean;
   duration_hours: string | null;
   posted_at: string;
@@ -49,6 +55,7 @@ type Job = {
   latitude?: number | string | null;
   longitude?: number | string | null;
   is_urgent?: boolean;
+  required_skills?: string[];
 };
 
 type NearbyJob = {
@@ -212,6 +219,41 @@ const formatDate = (
   );
 };
 
+const formatTime = (
+  time?: string | null
+): string => {
+  if (!time) {
+    return "Flexible";
+  }
+
+  const [hours, minutes] =
+    time.split(":").map(Number);
+
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes)
+  ) {
+    return time;
+  }
+
+  const date = new Date();
+
+  date.setHours(
+    hours,
+    minutes,
+    0,
+    0
+  );
+
+  return date.toLocaleTimeString(
+    "en-ZM",
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    }
+  );
+};
+
 const formatPostedDate = (
   date: string
 ): string => {
@@ -247,15 +289,9 @@ export default function FindJobs() {
   const [jobs, setJobs] =
     useState<NearbyJob[]>([]);
 
-  /*
-   * =========================
-   * ACTIVE JOB
-   * =========================
-   *
-   * This is used to determine
-   * whether the worker already
-   * has an active assignment.
-   */
+  const [appliedJobIds, setAppliedJobIds] =
+    useState<Set<number>>(new Set());
+
   const [activeJob, setActiveJob] =
     useState<Job | null>(null);
 
@@ -264,21 +300,11 @@ export default function FindJobs() {
     setCheckingActiveJob,
   ] = useState(true);
 
-  /*
-   * =========================
-   * ACTIVE JOB POPUP
-   * =========================
-   */
   const [
     showActiveJobPopup,
     setShowActiveJobPopup,
   ] = useState(false);
 
-  /*
-   * =========================
-   * SEARCH
-   * =========================
-   */
   const [radius, setRadius] =
     useState<number>(5);
 
@@ -290,11 +316,9 @@ export default function FindJobs() {
     setSelectedCategory,
   ] = useState<string>("all");
 
-  /*
-   * =========================
-   * LOCATION
-   * =========================
-   */
+  const [viewMode, setViewMode] =
+    useState<ViewMode>("list");
+
   const [
     locationStatus,
     setLocationStatus,
@@ -306,38 +330,18 @@ export default function FindJobs() {
   const [loading, setLoading] =
     useState(true);
 
-  /*
-   * =========================
-   * JOB LOADING
-   * =========================
-   */
   const [jobsLoading, setJobsLoading] =
     useState(false);
 
   const [error, setError] =
     useState("");
 
-  /*
-   * =========================
-   * SELECTED JOB
-   * =========================
-   */
   const [selectedJob, setSelectedJob] =
     useState<NearbyJob | null>(null);
 
-  /*
-   * =========================
-   * APPLICATION
-   * =========================
-   */
-  const [applying, setApplying] =
-    useState(false);
+  const [applyingJobId, setApplyingJobId] =
+    useState<number | null>(null);
 
-  /*
-   * =========================
-   * FEEDBACK
-   * =========================
-   */
   const [feedback, setFeedback] =
     useState<{
       isOpen: boolean;
@@ -355,11 +359,7 @@ export default function FindJobs() {
       message: "",
     });
 
-  /*
-   * =========================
-   * CHECK ACTIVE JOB
-   * =========================
-   */
+  /* CHECK ACTIVE JOB */
   const checkActiveJob =
     useCallback(async (): Promise<boolean> => {
       try {
@@ -375,14 +375,7 @@ export default function FindJobs() {
           const currentActiveJob =
             activeJobs[0] as Job;
 
-          setActiveJob(
-            currentActiveJob
-          );
-
-          /*
-           * Show popup only when an
-           * active assignment exists.
-           */
+          setActiveJob(currentActiveJob);
           setShowActiveJobPopup(true);
 
           return true;
@@ -397,13 +390,6 @@ export default function FindJobs() {
           err
         );
 
-        /*
-         * Do not block Find Jobs if
-         * this check fails.
-         *
-         * The backend still protects
-         * the application endpoint.
-         */
         setActiveJob(null);
 
         return false;
@@ -412,45 +398,58 @@ export default function FindJobs() {
       }
     }, []);
 
-  /*
-   * =========================
-   * FETCH NEARBY JOBS
-   * =========================
-   */
+  /* LOAD EXISTING APPLICATIONS */
+  const loadAppliedJobs =
+    useCallback(async () => {
+      try {
+        const response =
+          await getMyApplications();
+
+        const applications =
+          response.results || [];
+
+        const jobIds = new Set<number>(
+          applications.map(
+            (application) =>
+              application.job
+          )
+        );
+
+        setAppliedJobIds(jobIds);
+      } catch (err) {
+        console.error(
+          "Failed to load existing applications:",
+          err
+        );
+
+        /*
+         * We intentionally do not block
+         * Find Jobs if application history
+         * fails to load.
+         */
+      }
+    }, []);
+
+  /* FETCH NEARBY JOBS */
   const fetchNearbyJobs =
     useCallback(
-      async (
-        selectedRadius: number
-      ) => {
+      async (selectedRadius: number) => {
         const token = getToken();
 
         if (!token) {
           setError(
             "You are not authenticated."
           );
-
           setJobs([]);
-
           return;
         }
 
-        /*
-         * Always check whether the
-         * worker already has an
-         * active assignment.
-         */
         const hasActiveJob =
           await checkActiveJob();
 
-        /*
-         * If the worker already has
-         * an active job, don't show
-         * nearby jobs.
-         */
         if (hasActiveJob) {
           setJobs([]);
           setJobsLoading(false);
-
           return;
         }
 
@@ -464,16 +463,13 @@ export default function FindJobs() {
               method: "GET",
               headers: {
                 Authorization: `Bearer ${token}`,
-                "Content-Type":
-                  "application/json",
+                "Content-Type": "application/json",
               },
             }
           );
 
           const data =
-            await parseJsonResponse(
-              response
-            );
+            await parseJsonResponse(response);
 
           if (!response.ok) {
             if (data) {
@@ -483,9 +479,7 @@ export default function FindJobs() {
                 data.message ||
                 `Failed to load nearby jobs (${response.status}).`;
 
-              throw new Error(
-                errorMessage
-              );
+              throw new Error(errorMessage);
             }
 
             throw new Error(
@@ -503,8 +497,7 @@ export default function FindJobs() {
             data as NearbyJobsResponse;
 
           setJobs(
-            nearbyJobsResponse.results ||
-              []
+            nearbyJobsResponse.results || []
           );
         } catch (err) {
           console.error(
@@ -526,11 +519,7 @@ export default function FindJobs() {
       [checkActiveJob]
     );
 
-  /*
-   * =========================
-   * LOCATION + JOBS
-   * =========================
-   */
+  /* LOCATION */
   const requestLocationAndLoadJobs =
     useCallback(async () => {
       setLocationStatus("requesting");
@@ -555,7 +544,14 @@ export default function FindJobs() {
 
         setLocationStatus("success");
 
-        await fetchNearbyJobs(radius);
+        /*
+         * Load both nearby jobs and the
+         * worker's existing applications.
+         */
+        await Promise.all([
+          fetchNearbyJobs(radius),
+          loadAppliedJobs(),
+        ]);
       } catch (err) {
         console.error(
           "Location error:",
@@ -595,127 +591,180 @@ export default function FindJobs() {
       } finally {
         setLoading(false);
       }
-    }, [fetchNearbyJobs, radius]);
+    }, [
+      fetchNearbyJobs,
+      loadAppliedJobs,
+      radius,
+    ]);
 
-  /*
-   * =========================
-   * INITIAL LOAD
-   * =========================
-   */
   useEffect(() => {
     requestLocationAndLoadJobs();
   }, [requestLocationAndLoadJobs]);
 
-  /*
-   * =========================
-   * CHANGE RADIUS
-   * =========================
-   */
-  const handleRadiusChange = async (
-    newRadius: number
-  ) => {
-    setRadius(newRadius);
+  /* RADIUS */
+  const handleRadiusChange =
+    async (newRadius: number) => {
+      setRadius(newRadius);
 
-    if (
-      locationStatus === "success"
-    ) {
-      await fetchNearbyJobs(
-        newRadius
-      );
-    }
-  };
+      if (
+        locationStatus === "success"
+      ) {
+        await fetchNearbyJobs(
+          newRadius
+        );
+      }
+    };
 
-  /*
-   * =========================
-   * VIEW JOB
-   * =========================
-   */
+  /* JOB ACTIONS */
   const handleViewJob = (
     item: NearbyJob
   ) => {
     setSelectedJob(item);
   };
 
-  /*
-   * =========================
-   * CLOSE JOB
-   * =========================
-   */
-  const handleCloseJob = () => {
-    if (applying) {
-      return;
-    }
-
-    setSelectedJob(null);
-  };
-
-  /*
-   * =========================
-   * CLOSE FEEDBACK
-   * =========================
-   */
-  const handleCloseFeedback = () => {
-    setFeedback((current) => ({
-      ...current,
-      isOpen: false,
-    }));
-  };
-
-  /*
-   * =========================
-   * APPLY FOR JOB
-   * =========================
-   */
-  const handleApplyForJob =
-    async () => {
-      if (!selectedJob) {
+  const handleApplyFromCard =
+    async (item: NearbyJob) => {
+      /*
+       * Do nothing if the worker has
+       * already applied.
+       */
+      if (
+        appliedJobIds.has(item.job.id)
+      ) {
         return;
       }
 
-      /*
-       * Check again before applying.
-       *
-       * This protects against the
-       * worker being assigned to a
-       * job while Find Jobs was open.
-       */
       const hasActiveJob =
         await checkActiveJob();
 
       if (hasActiveJob) {
-        setSelectedJob(null);
-
         return;
       }
 
-      setApplying(true);
+      setApplyingJobId(item.job.id);
 
       try {
-        const result =
-          await applyForJob(
-            selectedJob.job.id
-          );
+        await applyForJob(
+          item.job.id
+        );
 
-        setSelectedJob(null);
+        /*
+         * Immediately mark this job
+         * as applied.
+         */
+        setAppliedJobIds(
+          (currentIds) => {
+            const updatedIds =
+              new Set(currentIds);
 
-        setFeedback({
-          isOpen: true,
-          type: "success",
-          title: "Application Submitted",
-          message:
-            result.message ||
-            "Your application has been submitted successfully.",
-        });
+            updatedIds.add(
+              item.job.id
+            );
+
+            return updatedIds;
+          }
+        );
+
+        /*
+         * No success feedback modal.
+         */
       } catch (err) {
         console.error(
           "Failed to apply for job:",
           err
         );
 
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Failed to apply for this job.";
+        setFeedback({
+          isOpen: true,
+          type: "error",
+          title: "Unable to Apply",
+          message:
+            err instanceof Error
+              ? err.message
+              : "Failed to apply for this job.",
+        });
+      } finally {
+        setApplyingJobId(null);
+      }
+    };
+
+  const handleCloseJob = () => {
+    if (
+      applyingJobId !== null
+    ) {
+      return;
+    }
+
+    setSelectedJob(null);
+  };
+
+  const handleCloseFeedback = () => {
+    setFeedback(
+      (current) => ({
+        ...current,
+        isOpen: false,
+      })
+    );
+  };
+
+  const handleApplyForJob =
+    async () => {
+      if (!selectedJob) {
+        return;
+      }
+
+      const jobId =
+        selectedJob.job.id;
+
+      /*
+       * Prevent applying again if the
+       * worker already applied.
+       */
+      if (
+        appliedJobIds.has(jobId)
+      ) {
+        setSelectedJob(null);
+        return;
+      }
+
+      const hasActiveJob =
+        await checkActiveJob();
+
+      if (hasActiveJob) {
+        setSelectedJob(null);
+        return;
+      }
+
+      setApplyingJobId(jobId);
+
+      try {
+        await applyForJob(jobId);
+
+        /*
+         * Immediately mark the job
+         * as applied.
+         */
+        setAppliedJobIds(
+          (currentIds) => {
+            const updatedIds =
+              new Set(currentIds);
+
+            updatedIds.add(jobId);
+
+            return updatedIds;
+          }
+        );
+
+        setSelectedJob(null);
+
+        /*
+         * No success feedback modal.
+         */
+      } catch (err) {
+        console.error(
+          "Failed to apply for job:",
+          err
+        );
 
         setSelectedJob(null);
 
@@ -723,89 +772,99 @@ export default function FindJobs() {
           isOpen: true,
           type: "error",
           title: "Unable to Apply",
-          message: errorMessage,
+          message:
+            err instanceof Error
+              ? err.message
+              : "Failed to apply for this job.",
         });
       } finally {
-        setApplying(false);
+        setApplyingJobId(null);
       }
     };
 
-  /*
-   * =========================
-   * CATEGORIES
-   * =========================
-   */
-  const categories = Array.from(
-    new Set(
-      jobs
-        .map(
-          (item) =>
-            item.job.category_name
+  /* CATEGORIES */
+  const categories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          jobs
+            .map(
+              (item) =>
+                item.job.category_name
+            )
+            .filter(
+              (
+                category
+              ): category is string =>
+                Boolean(category)
+            )
         )
-        .filter(
-          (
-            category
-          ): category is string =>
-            Boolean(category)
-        )
-    )
+      ),
+    [jobs]
   );
 
-  /*
-   * =========================
-   * FILTER JOBS
-   * =========================
-   */
-  const filteredJobs = jobs.filter(
-    (item) => {
-      const job = item.job;
+  /* FILTER JOBS */
+  const filteredJobs = useMemo(() => {
+    const normalizedSearch =
+      searchQuery
+        .trim()
+        .toLowerCase();
 
-      const normalizedSearch =
-        searchQuery
-          .trim()
-          .toLowerCase();
+    return jobs.filter(
+      (item) => {
+        const job = item.job;
 
-      const matchesSearch =
-        normalizedSearch === "" ||
-        job.title
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        job.description
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        job.general_location
-          .toLowerCase()
-          .includes(normalizedSearch);
+        const matchesSearch =
+          normalizedSearch === "" ||
+          job.title
+            .toLowerCase()
+            .includes(
+              normalizedSearch
+            ) ||
+          job.description
+            .toLowerCase()
+            .includes(
+              normalizedSearch
+            ) ||
+          job.general_location
+            .toLowerCase()
+            .includes(
+              normalizedSearch
+            );
 
-      const matchesCategory =
-        selectedCategory === "all" ||
-        job.category_name ===
-          selectedCategory;
+        const matchesCategory =
+          selectedCategory ===
+            "all" ||
+          job.category_name ===
+            selectedCategory;
 
-      return (
-        matchesSearch &&
-        matchesCategory
-      );
-    }
-  );
+        return (
+          matchesSearch &&
+          matchesCategory
+        );
+      }
+    );
+  }, [
+    jobs,
+    searchQuery,
+    selectedCategory,
+  ]);
 
-  /*
-   * =========================
-   * LOCATION SCREEN
-   * =========================
-   */
+  /* LOCATION SCREEN */
   if (
     locationStatus !== "success" &&
     (loading ||
       locationStatus === "idle" ||
-      locationStatus === "requesting" ||
-      locationStatus === "denied" ||
+      locationStatus ===
+        "requesting" ||
+      locationStatus ===
+        "denied" ||
       locationStatus === "error")
   ) {
     return (
-      <div className="min-h-full bg-gray-50 p-6">
+      <div className="min-h-full bg-white p-6">
         <div className="mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+          <div className="rounded-2xl border border-gray-200 bg-white p-8">
             <div className="flex flex-col items-center text-center">
               {locationStatus ===
                 "requesting" ||
@@ -820,9 +879,8 @@ export default function FindJobs() {
                   </h2>
 
                   <p className="mt-2 max-w-lg text-sm text-gray-600">
-                    KaJob needs your current
-                    location to find available
-                    jobs near you.
+                    KaJob needs your current location to find
+                    available jobs near you.
                   </p>
 
                   <div className="mt-6 h-2 w-48 overflow-hidden rounded-full bg-gray-100">
@@ -840,11 +898,9 @@ export default function FindJobs() {
                   </h2>
 
                   <p className="mt-3 max-w-lg text-sm leading-6 text-gray-600">
-                    KaJob uses your current
-                    location to show available
-                    jobs near you. Your exact
-                    location is not shown to
-                    clients before you are
+                    KaJob uses your current location to show
+                    available jobs near you. Your exact location
+                    is not shown to clients before you are
                     assigned to a job.
                   </p>
 
@@ -859,7 +915,7 @@ export default function FindJobs() {
                     onClick={
                       requestLocationAndLoadJobs
                     }
-                    className="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
                   >
                     <MapPinIcon className="h-5 w-5" />
                     Enable Location
@@ -873,663 +929,483 @@ export default function FindJobs() {
     );
   }
 
+  /* MAIN PAGE */
   return (
-    <div className="min-h-full bg-gray-50 p-6">
-      <div className="mx-auto max-w-7xl">
-
-        {/* =========================
-            HEADER
-            ========================= */}
-        <div className="mb-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Find Jobs
-              </h1>
-
-              <p className="mt-1 text-sm text-gray-600">
-                Find available work
-                opportunities near you.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
-              <MapPinIcon className="h-5 w-5" />
-
-              <span>
-                Location enabled
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* =========================
-            ACTIVE JOB INFORMATION
-            ========================= */}
+    <div className="min-h-full bg-white">
+      <div className="mx-auto max-w-[1600px] px-6 py-2">
+        {!activeJob && (
+          <FindJobsHeader
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            radius={radius}
+            onRadiusChange={
+              handleRadiusChange
+            }
+            selectedCategory={
+              selectedCategory
+            }
+            onCategoryChange={
+              setSelectedCategory
+            }
+            categories={categories}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            jobsLoading={jobsLoading}
+            onRefresh={() =>
+              fetchNearbyJobs(radius)
+            }
+          />
+        )}
 
         {!checkingActiveJob &&
           activeJob && (
-            <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
               <div className="flex items-center gap-3">
-                <BriefcaseIcon className="h-5 w-5 flex-shrink-0 text-blue-600" />
+                <BriefcaseIcon className="h-5 w-5 shrink-0 text-blue-600" />
 
                 <p className="text-sm text-blue-800">
-                  You currently have an
-                  active job. Complete it
-                  before applying for
-                  another job.
+                  You currently have an active
+                  job. Complete it before applying
+                  for another job.
                 </p>
               </div>
             </div>
           )}
 
-        {/* =========================
-            SEARCH + FILTERS
-            ========================= */}
-
         {!activeJob && (
-          <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row">
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-xs text-gray-500">
+              {filteredJobs.length}{" "}
+              {filteredJobs.length ===
+              1
+                ? "job"
+                : "jobs"}{" "}
+              within {radius} km
+            </p>
 
-              {/* Search */}
-
-              <div className="relative flex-1">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) =>
-                    setSearchQuery(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Search jobs..."
-                  className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
+            {jobsLoading && (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                Updating jobs...
               </div>
-
-              {/* Radius */}
-
-              <div className="flex items-center gap-2">
-                <MapPinIcon className="h-5 w-5 text-gray-500" />
-
-                <label
-                  htmlFor="radius"
-                  className="whitespace-nowrap text-sm font-medium text-gray-700"
-                >
-                  Radius
-                </label>
-
-                <select
-                  id="radius"
-                  value={radius}
-                  onChange={(event) =>
-                    handleRadiusChange(
-                      Number(
-                        event.target.value
-                      )
-                    )
-                  }
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value={0.5}>
-                    0.5 km
-                  </option>
-
-                  <option value={1}>
-                    1 km
-                  </option>
-
-                  <option value={2}>
-                    2 km
-                  </option>
-
-                  <option value={5}>
-                    5 km
-                  </option>
-
-                  <option value={10}>
-                    10 km
-                  </option>
-                </select>
-              </div>
-
-              {/* Category */}
-
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-gray-500" />
-
-                <select
-                  value={selectedCategory}
-                  onChange={(event) =>
-                    setSelectedCategory(
-                      event.target.value
-                    )
-                  }
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="all">
-                    All categories
-                  </option>
-
-                  {categories.map(
-                    (category) => (
-                      <option
-                        key={category}
-                        value={category}
-                      >
-                        {category}
-                      </option>
-                    )
-                  )}
-                </select>
-              </div>
-
-              {/* Refresh */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  fetchNearbyJobs(radius)
-                }
-                disabled={jobsLoading}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ArrowPathIcon
-                  className={`h-5 w-5 ${
-                    jobsLoading
-                      ? "animate-spin"
-                      : ""
-                  }`}
-                />
-
-                Refresh
-              </button>
-            </div>
+            )}
           </div>
         )}
-
-        {/* =========================
-            RESULTS HEADER
-            ========================= */}
-
-        {!activeJob && (
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Nearby Jobs
-              </h2>
-
-              <p className="text-sm text-gray-500">
-                {filteredJobs.length}{" "}
-                {filteredJobs.length === 1
-                  ? "job"
-                  : "jobs"}{" "}
-                within {radius} km
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* =========================
-            JOB LOADING
-            ========================= */}
-
-        {jobsLoading && !activeJob && (
-          <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-            Searching for jobs near you...
-          </div>
-        )}
-
-        {/* =========================
-            ERROR
-            ========================= */}
 
         {error && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            <p className="font-medium">
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-semibold text-red-800">
               Unable to load jobs
             </p>
 
-            <p className="mt-1">
+            <p className="mt-1 text-sm text-red-700">
               {error}
             </p>
           </div>
         )}
 
-        {/* =========================
-            EMPTY STATE
-            ========================= */}
-
         {!activeJob &&
-          !jobsLoading &&
-          filteredJobs.length === 0 && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-                <BriefcaseIcon className="h-8 w-8 text-gray-500" />
-              </div>
-
-              <h3 className="mt-4 text-lg font-semibold text-gray-900">
-                No jobs found nearby
-              </h3>
-
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600">
-                There are currently no
-                available jobs matching
-                your search within{" "}
-                {radius} km of your
-                location.
-              </p>
-
-              <button
-                type="button"
-                onClick={() =>
-                  handleRadiusChange(
-                    radius < 10
-                      ? Math.min(
-                          radius * 2,
-                          10
-                        )
-                      : radius
+          viewMode === "list" &&
+          !jobsLoading && (
+            <JobsGrid
+              jobs={filteredJobs}
+              applyingJobId={
+                applyingJobId
+              }
+              appliedJobIds={
+                appliedJobIds
+              }
+              radius={radius}
+              onViewJob={
+                handleViewJob
+              }
+              onApply={
+                handleApplyFromCard
+              }
+              onSearchWider={() =>
+                handleRadiusChange(
+                  Math.min(
+                    radius * 2,
+                    10
                   )
-                }
-                disabled={radius >= 10}
-                className="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {radius < 10
-                  ? "Search a wider area"
-                  : "Maximum radius reached"}
-              </button>
-            </div>
+                )
+              }
+              canSearchWider={
+                radius < 10
+              }
+            />
           )}
 
-        {/* =========================
-            JOB CARDS
-            ========================= */}
-
         {!activeJob &&
+          viewMode === "map" &&
           filteredJobs.length > 0 && (
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {filteredJobs.map((item) => {
-                const job = item.job;
+            <section className="mt-5 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+              <div className="relative h-[600px]">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                  <div className="text-center">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white">
+                      <MapIcon className="h-7 w-7 text-gray-400" />
+                    </div>
 
-                return (
-                  <article
-                    key={job.id}
-                    onClick={() =>
-                      handleViewJob(item)
-                    }
-                    className="cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
-                  >
-                    <div className="p-5">
+                    <h3 className="mt-4 text-base font-semibold text-gray-900">
+                      Jobs Map
+                    </h3>
 
-                      {/* Job heading */}
+                    <p className="mt-2 text-sm text-gray-500">
+                      Map view will display available jobs around
+                      your current location.
+                    </p>
+                  </div>
+                </div>
 
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="line-clamp-2 text-lg font-semibold text-gray-900">
-                            {job.title}
-                          </h3>
+                <div className="absolute bottom-4 left-4 right-4 max-h-[250px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg md:left-auto md:w-[360px]">
+                  <div className="mb-2 px-1">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Nearby Jobs
+                    </h3>
 
-                          {job.category_name && (
-                            <span className="mt-2 inline-block rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                    <p className="text-xs text-gray-500">
+                      Select a job to view details.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {filteredJobs
+                      .slice(0, 5)
+                      .map(
+                        (item) => (
+                          <button
+                            key={
+                              item.job.id
+                            }
+                            type="button"
+                            onClick={() =>
+                              handleViewJob(
+                                item
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition hover:bg-gray-50"
+                          >
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                              <MapPinIcon className="h-4 w-4 text-gray-500" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-semibold text-gray-900">
+                                {
+                                  item
+                                    .job
+                                    .title
+                                }
+                              </p>
+
+                              <p className="truncate text-[11px] text-gray-500">
+                                {
+                                  item
+                                    .job
+                                    .general_location
+                                }
+                              </p>
+                            </div>
+
+                            <span className="text-[10px] font-semibold text-gray-600">
                               {
-                                job.category_name
+                                item.distance_display
                               }
                             </span>
-                          )}
-                        </div>
-
-                        <span className="flex-shrink-0 rounded-lg bg-green-50 px-2.5 py-1 text-sm font-semibold text-green-700">
-                          {formatBudget(
-                            job.budget
-                          )}
-                        </span>
-                      </div>
-
-                      {/* Description */}
-
-                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-gray-600">
-                        {job.description}
-                      </p>
-
-                      {/* Location */}
-
-                      <div className="mt-4 flex items-start gap-2 text-sm text-gray-600">
-                        <MapPinIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-500" />
-
-                        <div>
-                          <p className="font-medium text-gray-800">
-                            {job.general_location ||
-                              "Location available"}
-                          </p>
-
-                          <p className="text-xs text-gray-500">
-                            {item.distance_display ||
-                              `${item.distance_km} km away`}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Details */}
-
-                      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-gray-100 pt-4">
-                        <div>
-                          <p className="text-xs text-gray-500">
-                            Date
-                          </p>
-
-                          <p className="mt-1 text-sm font-medium text-gray-800">
-                            {formatDate(
-                              job.job_date
-                            )}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-gray-500">
-                            Duration
-                          </p>
-
-                          <p className="mt-1 text-sm font-medium text-gray-800">
-                            {job.duration_hours
-                              ? `${job.duration_hours} hrs`
-                              : "Not specified"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Urgency */}
-
-                      {job.urgency_display && (
-                        <div className="mt-4">
-                          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700">
-                            {
-                              job.urgency_display
-                            }
-                          </span>
-                        </div>
+                          </button>
+                        )
                       )}
-
-                      {/* View */}
-
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-
-                          handleViewJob(item);
-                        }}
-                        className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                      >
-                        View Job
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                  </div>
+                </div>
+              </div>
+            </section>
           )}
-      </div>
 
-      {/* =====================================================
-          ACTIVE JOB POPUP
-          ===================================================== */}
+        {selectedJob && (
+          <DetailsModal
+            title={
+              selectedJob.job.title
+            }
+            onClose={
+              handleCloseJob
+            }
+            width="xl"
+            footer={
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={
+                    handleCloseJob
+                  }
+                  disabled={
+                    applyingJobId !==
+                    null
+                  }
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
 
-      <FeedbackModal
-        isOpen={showActiveJobPopup}
-        type="info"
-        title="Active Job"
-        message={
-          activeJob
-            ? `You already have an active job: "${activeJob.title}". Complete your current job before applying for another one.`
-            : "You already have an active job. Complete your current job before applying for another one."
-        }
-        onClose={() =>
-          setShowActiveJobPopup(false)
-        }
-      />
-
-      {/* =====================================================
-          JOB DETAILS POPUP
-          ===================================================== */}
-
-      {selectedJob && (
-        <DetailsModal
-          title={selectedJob.job.title}
-          onClose={handleCloseJob}
-          width="xl"
-          footer={
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={handleCloseJob}
-                disabled={applying}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleApplyForJob}
-                disabled={applying}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {applying ? (
-                  <span className="inline-flex items-center justify-center gap-2">
-                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                    Applying...
-                  </span>
-                ) : (
-                  "Apply for Job"
-                )}
-              </button>
-            </div>
-          }
-        >
-          <div>
-            {/* Category */}
-
-            {selectedJob.job.category_name && (
-              <span className="inline-block rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                {
-                  selectedJob.job
-                    .category_name
-                }
-              </span>
-            )}
-
-            {/* Budget */}
-
-            <div className="mt-4 rounded-xl bg-green-50 p-5">
-              <p className="text-sm font-medium text-green-700">
-                Job Budget
-              </p>
-
-              <p className="mt-1 text-3xl font-bold text-green-800">
-                {formatBudget(
-                  selectedJob.job.budget
-                )}
-              </p>
-            </div>
-
-            {/* Description */}
-
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                Job Description
-              </h3>
-
-              <p className="mt-2 whitespace-pre-line text-sm leading-7 text-gray-700">
-                {
-                  selectedJob.job
-                    .description
-                }
-              </p>
-            </div>
-
-            {/* Job information */}
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-
-              {/* Location */}
-
-              <div className="rounded-xl border border-gray-200 p-4">
-                <div className="flex items-start gap-3">
-                  <MapPinIcon className="h-6 w-6 flex-shrink-0 text-blue-600" />
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">
-                      Location
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {
-                        selectedJob.job
-                          .general_location
-                      }
-                    </p>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      {
-                        selectedJob
-                          .distance_display
-                      }
-                    </p>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={
+                    handleApplyForJob
+                  }
+                  disabled={
+                    applyingJobId !==
+                      null ||
+                    appliedJobIds.has(
+                      selectedJob.job.id
+                    )
+                  }
+                  className={`flex-1 rounded-lg px-4 py-3 text-sm font-semibold transition ${
+                    appliedJobIds.has(
+                      selectedJob.job.id
+                    )
+                      ? "cursor-not-allowed border border-green-200 bg-green-50 text-green-700"
+                      : "bg-gray-900 text-white hover:bg-gray-800"
+                  } disabled:opacity-50`}
+                >
+                  {appliedJobIds.has(
+                    selectedJob.job.id
+                  ) ? (
+                    "Applied"
+                  ) : applyingJobId ===
+                    selectedJob.job.id ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      Applying...
+                    </span>
+                  ) : (
+                    "Apply for Job"
+                  )}
+                </button>
               </div>
-
-              {/* Date */}
-
-              <div className="rounded-xl border border-gray-200 p-4">
-                <div className="flex items-start gap-3">
-                  <CalendarDaysIcon className="h-6 w-6 flex-shrink-0 text-blue-600" />
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">
-                      Job Date
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {formatDate(
-                        selectedJob.job
-                          .job_date
-                      )}
-                    </p>
-
-                    {selectedJob.job
-                      .is_flexible && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        Date is flexible
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Duration */}
-
-              <div className="rounded-xl border border-gray-200 p-4">
-                <div className="flex items-start gap-3">
-                  <ClockIcon className="h-6 w-6 flex-shrink-0 text-blue-600" />
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">
-                      Duration
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {selectedJob.job
-                        .duration_hours
-                        ? `${selectedJob.job.duration_hours} hours`
-                        : "Not specified"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Distance */}
-
-              <div className="rounded-xl border border-gray-200 p-4">
-                <div className="flex items-start gap-3">
-                  <MapPinIcon className="h-6 w-6 flex-shrink-0 text-blue-600" />
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">
-                      Distance
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {
-                        selectedJob
-                          .distance_display
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Urgency */}
-
-            {selectedJob.job
-              .urgency_display && (
-              <div className="mt-6 rounded-xl border border-orange-100 bg-orange-50 p-4">
-                <p className="text-xs font-medium text-orange-600">
-                  Urgency
-                </p>
-
-                <p className="mt-1 text-sm font-semibold text-orange-800">
+            }
+          >
+            <div>
+              {selectedJob.job
+                .category_name && (
+                <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
                   {
                     selectedJob.job
-                      .urgency_display
+                      .category_name
                   }
-                </p>
-              </div>
-            )}
+                </span>
+              )}
 
-            {/* Status */}
-
-            {selectedJob.job.status && (
-              <div className="mt-5">
-                <p className="text-xs font-medium text-gray-500">
-                  Status
+              <div className="mt-4 rounded-xl bg-gray-50 p-5">
+                <p className="text-sm font-medium text-gray-500">
+                  Job Budget
                 </p>
 
-                <p className="mt-1 text-sm font-medium text-gray-800">
-                  {formatStatus(
-                    selectedJob.job.status
+                <p className="mt-1 text-3xl font-bold text-gray-900">
+                  {formatBudget(
+                    selectedJob.job
+                      .budget
                   )}
                 </p>
               </div>
-            )}
 
-            {/* Posted */}
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                  Job Description
+                </h3>
 
-            <div className="mt-5 text-xs text-gray-500">
-              Posted on{" "}
-              {formatPostedDate(
-                selectedJob.job.posted_at
+                <p className="mt-2 whitespace-pre-line text-sm leading-7 text-gray-700">
+                  {
+                    selectedJob.job
+                      .description
+                  }
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-start gap-3">
+                    <MapPinIcon className="h-6 w-6 shrink-0 text-gray-500" />
+
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">
+                        Location
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {
+                          selectedJob
+                            .job
+                            .general_location
+                        }
+                      </p>
+
+                      <p className="mt-1 text-xs text-gray-500">
+                        {
+                          selectedJob.distance_display
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-start gap-3">
+                    <CalendarDaysIcon className="h-6 w-6 shrink-0 text-gray-500" />
+
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">
+                        Job Date
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {formatDate(
+                          selectedJob
+                            .job
+                            .job_date
+                        )}
+                      </p>
+
+                      {selectedJob.job
+                        .is_flexible && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Date is flexible
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-start gap-3">
+                    <ClockIcon className="h-6 w-6 shrink-0 text-gray-500" />
+
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">
+                        Time
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {formatTime(
+                          selectedJob
+                            .job
+                            .job_time
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-start gap-3">
+                    <ClockIcon className="h-6 w-6 shrink-0 text-gray-500" />
+
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">
+                        Duration
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {selectedJob.job
+                          .duration_hours
+                          ? `${selectedJob.job.duration_hours} hours`
+                          : "Not specified"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 p-4 sm:col-span-2">
+                  <div className="flex items-start gap-3">
+                    <MapPinIcon className="h-6 w-6 shrink-0 text-gray-500" />
+
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">
+                        Distance from you
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {
+                          selectedJob.distance_display
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {selectedJob.job
+                .urgency_display && (
+                <div className="mt-6 rounded-xl bg-gray-50 p-4">
+                  <p className="text-xs font-medium text-gray-500">
+                    Urgency
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-gray-800">
+                    {
+                      selectedJob.job
+                        .urgency_display
+                    }
+                  </p>
+                </div>
               )}
+
+              {selectedJob.job
+                .status && (
+                <div className="mt-5">
+                  <p className="text-xs font-medium text-gray-500">
+                    Status
+                  </p>
+
+                  <p className="mt-1 text-sm font-medium text-gray-800">
+                    {formatStatus(
+                      selectedJob.job
+                        .status
+                    )}
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-5 text-xs text-gray-500">
+                Posted on{" "}
+                {formatPostedDate(
+                  selectedJob.job
+                    .posted_at
+                )}
+              </div>
             </div>
-          </div>
-        </DetailsModal>
-      )}
+          </DetailsModal>
+        )}
 
-      {/* =====================================================
-          APPLICATION FEEDBACK
-          ===================================================== */}
+        <FeedbackModal
+          isOpen={
+            showActiveJobPopup
+          }
+          type="info"
+          title="Active Job"
+          message={
+            activeJob
+              ? `You already have an active job: "${activeJob.title}". Complete your current job before applying for another one.`
+              : "You already have an active job. Complete your current job before applying for another one."
+          }
+          onClose={() =>
+            setShowActiveJobPopup(
+              false
+            )
+          }
+        />
 
-      <FeedbackModal
-        isOpen={feedback.isOpen}
-        type={feedback.type}
-        title={feedback.title}
-        message={feedback.message}
-        onClose={handleCloseFeedback}
-      />
+        <FeedbackModal
+          isOpen={
+            feedback.isOpen
+          }
+          type={feedback.type}
+          title={feedback.title}
+          message={feedback.message}
+          onClose={
+            handleCloseFeedback
+          }
+        />
+      </div>
     </div>
   );
 }

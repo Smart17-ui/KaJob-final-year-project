@@ -54,19 +54,78 @@ export async function getJobApplications(
 
   if (!response.ok) {
     if (result?.error) {
-      throw new Error(
-        result.error
-      );
+      throw new Error(result.error);
     }
 
     if (result?.detail) {
-      throw new Error(
-        result.detail
-      );
+      throw new Error(result.detail);
     }
 
     throw new Error(
       "Failed to load job applications."
+    );
+  }
+
+  return result as JobApplicationsResponse;
+}
+
+/*
+ * =========================
+ * GET MY APPLICATIONS
+ * =========================
+ *
+ * GET /api/jobs/my-applications/
+ *
+ * Gets all applications submitted
+ * by the currently authenticated worker.
+ *
+ * This is used by Find Jobs to determine
+ * which jobs the worker has already applied for.
+ */
+
+export async function getMyApplications(): Promise<JobApplicationsResponse> {
+  const accessToken =
+    localStorage.getItem("access_token");
+
+  if (!accessToken) {
+    throw new Error(
+      "You are not authenticated. Please log in."
+    );
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/jobs/my-applications/`,
+    {
+      method: "GET",
+
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  let result: any = null;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      "The server returned an invalid response."
+    );
+  }
+
+  if (!response.ok) {
+    if (result?.error) {
+      throw new Error(result.error);
+    }
+
+    if (result?.detail) {
+      throw new Error(result.detail);
+    }
+
+    throw new Error(
+      "Failed to load your applications."
     );
   }
 
@@ -128,15 +187,11 @@ export async function applyForJob(
 
   if (!response.ok) {
     if (result?.error) {
-      throw new Error(
-        result.error
-      );
+      throw new Error(result.error);
     }
 
     if (result?.detail) {
-      throw new Error(
-        result.detail
-      );
+      throw new Error(result.detail);
     }
 
     throw new Error(
@@ -205,15 +260,11 @@ export async function updateApplicationStatus(
 
   if (!response.ok) {
     if (result?.error) {
-      throw new Error(
-        result.error
-      );
+      throw new Error(result.error);
     }
 
     if (result?.detail) {
-      throw new Error(
-        result.detail
-      );
+      throw new Error(result.detail);
     }
 
     throw new Error(

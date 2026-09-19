@@ -6,25 +6,16 @@ import type {
   JobReviewsResponse,
 } from "../../shared/types/job";
 
-const API_BASE_URL =
-  "http://127.0.0.1:8000/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
 
-/**
- * Create a new job
- *
- * POST /api/jobs/create/
- */
-export async function createJob(
+/* =========================================================
+   CREATE JOB
+   ========================================================= */
+
+export const createJob = async (
   data: CreateJobData
-): Promise<CreateJobResponse> {
-  const accessToken =
-    localStorage.getItem("access_token");
-
-  if (!accessToken) {
-    throw new Error(
-      "You are not authenticated. Please log in."
-    );
-  }
+): Promise<CreateJobResponse> => {
+  const token = localStorage.getItem("access_token");
 
   const response = await fetch(
     `${API_BASE_URL}/jobs/create/`,
@@ -33,158 +24,82 @@ export async function createJob(
 
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
       },
 
       body: JSON.stringify(data),
     }
   );
 
-  let result: any = null;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      "The server returned an invalid response."
-    );
-  }
+  const result = await response.json();
 
   if (!response.ok) {
-    if (result?.detail) {
-      throw new Error(result.detail);
-    }
+    const errorMessage =
+      result?.detail ||
+      result?.error ||
+      Object.values(result || {})[0] ||
+      "Failed to create job.";
 
-    if (result?.error) {
-      throw new Error(result.error);
-    }
-
-    if (
-      result &&
-      typeof result === "object"
-    ) {
-      const firstError =
-        Object.values(result)[0];
-
-      if (Array.isArray(firstError)) {
-        throw new Error(
-          String(firstError[0])
-        );
-      }
-
-      if (
-        typeof firstError === "string"
-      ) {
-        throw new Error(firstError);
-      }
-    }
-
-    throw new Error(
-      "Failed to create job. Please try again."
-    );
+    throw new Error(String(errorMessage));
   }
 
-  return result as CreateJobResponse;
-}
+  return result;
+};
 
-/**
- * Get jobs posted by the current user
- *
- * GET /api/jobs/my-jobs/
- */
-export async function getMyJobs(): Promise<MyJobsResponse> {
-  const accessToken =
-    localStorage.getItem("access_token");
+/* =========================================================
+   GET MY JOBS
+   ========================================================= */
 
-  if (!accessToken) {
-    throw new Error(
-      "You are not authenticated. Please log in."
-    );
-  }
+export const getMyJobs =
+  async (): Promise<MyJobsResponse> => {
+    const token =
+      localStorage.getItem("access_token");
 
-  const response = await fetch(
-    `${API_BASE_URL}/jobs/my-jobs/`,
-    {
-      method: "GET",
+    const response = await fetch(
+      `${API_BASE_URL}/jobs/my-jobs/`,
+      {
+        method: "GET",
 
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
+        headers: {
+          "Content-Type": "application/json",
 
-  let result: any = null;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      "The server returned an invalid response."
-    );
-  }
-
-  if (!response.ok) {
-    if (result?.detail) {
-      throw new Error(result.detail);
-    }
-
-    if (result?.error) {
-      throw new Error(result.error);
-    }
-
-    if (
-      result &&
-      typeof result === "object"
-    ) {
-      const firstError =
-        Object.values(result)[0];
-
-      if (Array.isArray(firstError)) {
-        throw new Error(
-          String(firstError[0])
-        );
+          ...(token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : {}),
+        },
       }
+    );
 
-      if (
-        typeof firstError === "string"
-      ) {
-        throw new Error(firstError);
-      }
+    const result = await response.json();
+
+    if (!response.ok) {
+      const errorMessage =
+        result?.detail ||
+        result?.error ||
+        "Failed to load your jobs.";
+
+      throw new Error(String(errorMessage));
     }
 
-    throw new Error(
-      "Failed to load your jobs."
-    );
-  }
+    return result;
+  };
 
-  return result as MyJobsResponse;
-}
+/* =========================================================
+   GET JOB DETAILS
+   ========================================================= */
 
-/**
- * Get details for a specific job
- *
- * GET /api/jobs/{job_id}/
- *
- * The API returns:
- *
- * {
- *   "job": {
- *     ...
- *   }
- * }
- */
-export async function getJobDetails(
+export const getJobDetails = async (
   jobId: number
-): Promise<MyJob> {
-  const accessToken =
+): Promise<MyJob> => {
+  const token =
     localStorage.getItem("access_token");
-
-  if (!accessToken) {
-    throw new Error(
-      "You are not authenticated. Please log in."
-    );
-  }
 
   const response = await fetch(
     `${API_BASE_URL}/jobs/${jobId}/`,
@@ -192,98 +107,40 @@ export async function getJobDetails(
       method: "GET",
 
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
       },
     }
   );
 
-  let result: any = null;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      "The server returned an invalid response."
-    );
-  }
+  const result = await response.json();
 
   if (!response.ok) {
-    if (result?.detail) {
-      throw new Error(result.detail);
-    }
+    const errorMessage =
+      result?.detail ||
+      result?.error ||
+      "Failed to load job details.";
 
-    if (result?.error) {
-      throw new Error(result.error);
-    }
-
-    if (
-      result &&
-      typeof result === "object"
-    ) {
-      const firstError =
-        Object.values(result)[0];
-
-      if (Array.isArray(firstError)) {
-        throw new Error(
-          String(firstError[0])
-        );
-      }
-
-      if (
-        typeof firstError === "string"
-      ) {
-        throw new Error(firstError);
-      }
-    }
-
-    throw new Error(
-      "Failed to load job details."
-    );
+    throw new Error(String(errorMessage));
   }
 
-  /*
-   * The backend wraps the job inside
-   * a "job" property.
-   *
-   * Backend:
-   *
-   * {
-   *   "job": {
-   *     "id": 6,
-   *     "status": "OPEN",
-   *     "status_display": "Open"
-   *   }
-   * }
-   *
-   * We return result.job so that
-   * JobDetails.tsx receives:
-   *
-   * {
-   *   id: 6,
-   *   status: "OPEN",
-   *   status_display: "Open"
-   * }
-   */
-  return result.job as MyJob;
-}
+  return result.job;
+};
 
-/**
- * Get reviews for a specific job
- *
- * GET /api/reviews/job/{job_id}/
- */
-export async function getJobReviews(
+/* =========================================================
+   GET JOB REVIEWS
+   ========================================================= */
+
+export const getJobReviews = async (
   jobId: number
-): Promise<JobReviewsResponse> {
-  const accessToken =
+): Promise<JobReviewsResponse> => {
+  const token =
     localStorage.getItem("access_token");
-
-  if (!accessToken) {
-    throw new Error(
-      "You are not authenticated. Please log in."
-    );
-  }
 
   const response = await fetch(
     `${API_BASE_URL}/reviews/job/${jobId}/`,
@@ -291,82 +148,40 @@ export async function getJobReviews(
       method: "GET",
 
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
       },
     }
   );
 
-  let result: any = null;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      "The server returned an invalid response."
-    );
-  }
+  const result = await response.json();
 
   if (!response.ok) {
-    if (result?.detail) {
-      throw new Error(result.detail);
-    }
+    const errorMessage =
+      result?.detail ||
+      result?.error ||
+      "Failed to load job reviews.";
 
-    if (result?.error) {
-      throw new Error(result.error);
-    }
-
-    if (
-      result &&
-      typeof result === "object"
-    ) {
-      const firstError =
-        Object.values(result)[0];
-
-      if (Array.isArray(firstError)) {
-        throw new Error(
-          String(firstError[0])
-        );
-      }
-
-      if (
-        typeof firstError === "string"
-      ) {
-        throw new Error(firstError);
-      }
-    }
-
-    throw new Error(
-      "Failed to load job reviews."
-    );
+    throw new Error(String(errorMessage));
   }
 
-  return result as JobReviewsResponse;
-}
+  return result;
+};
 
-/**
- * Cancel a job
- *
- * POST /api/jobs/{job_id}/cancel/
- */
-export async function cancelJob(
+/* =========================================================
+   CANCEL JOB
+   ========================================================= */
+
+export const cancelJob = async (
   jobId: number
-): Promise<{
-  message: string;
-  job: {
-    id: number;
-    status: string;
-    status_display: string;
-  };
-}> {
-  const accessToken =
+) => {
+  const token =
     localStorage.getItem("access_token");
-
-  if (!accessToken) {
-    throw new Error(
-      "You are not authenticated. Please log in."
-    );
-  }
 
   const response = await fetch(
     `${API_BASE_URL}/jobs/${jobId}/cancel/`,
@@ -375,80 +190,42 @@ export async function cancelJob(
 
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
       },
 
       body: JSON.stringify({}),
     }
   );
 
-  let result: any = null;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      "The server returned an invalid response."
-    );
-  }
+  const result = await response.json();
 
   if (!response.ok) {
-    if (result?.detail) {
-      throw new Error(result.detail);
-    }
+    const errorMessage =
+      result?.detail ||
+      result?.error ||
+      Object.values(result || {})[0] ||
+      "Failed to cancel job.";
 
-    if (result?.error) {
-      throw new Error(result.error);
-    }
-
-    if (
-      result &&
-      typeof result === "object"
-    ) {
-      const firstError =
-        Object.values(result)[0];
-
-      if (Array.isArray(firstError)) {
-        throw new Error(
-          String(firstError[0])
-        );
-      }
-
-      if (
-        typeof firstError === "string"
-      ) {
-        throw new Error(firstError);
-      }
-    }
-
-    throw new Error(
-      "Failed to cancel the job."
-    );
+    throw new Error(String(errorMessage));
   }
 
   return result;
-}
+};
 
-/**
- * Delete a job
- *
- * DELETE /api/jobs/{job_id}/delete/
- *
- * This performs a soft delete.
- */
-export async function deleteJob(
+/* =========================================================
+   DELETE JOB
+   ========================================================= */
+
+export const deleteJob = async (
   jobId: number
-): Promise<{
-  message: string;
-}> {
-  const accessToken =
+) => {
+  const token =
     localStorage.getItem("access_token");
-
-  if (!accessToken) {
-    throw new Error(
-      "You are not authenticated. Please log in."
-    );
-  }
 
   const response = await fetch(
     `${API_BASE_URL}/jobs/${jobId}/delete/`,
@@ -456,54 +233,72 @@ export async function deleteJob(
       method: "DELETE",
 
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
       },
     }
   );
 
-  let result: any = null;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      "The server returned an invalid response."
-    );
-  }
+  const result = await response.json();
 
   if (!response.ok) {
-    if (result?.detail) {
-      throw new Error(result.detail);
-    }
+    const errorMessage =
+      result?.detail ||
+      result?.error ||
+      Object.values(result || {})[0] ||
+      "Failed to delete job.";
 
-    if (result?.error) {
-      throw new Error(result.error);
-    }
-
-    if (
-      result &&
-      typeof result === "object"
-    ) {
-      const firstError =
-        Object.values(result)[0];
-
-      if (Array.isArray(firstError)) {
-        throw new Error(
-          String(firstError[0])
-        );
-      }
-
-      if (
-        typeof firstError === "string"
-      ) {
-        throw new Error(firstError);
-      }
-    }
-
-    throw new Error(
-      "Failed to delete the job."
-    );
+    throw new Error(String(errorMessage));
   }
 
   return result;
-}
+};
+
+/* =========================================================
+   CONFIRM JOB COMPLETION
+   ========================================================= */
+
+export const confirmJob = async (
+  jobId: number
+) => {
+  const token =
+    localStorage.getItem("access_token");
+
+  const response = await fetch(
+    `${API_BASE_URL}/jobs/${jobId}/confirm/`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+      },
+
+      body: JSON.stringify({}),
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    const errorMessage =
+      result?.detail ||
+      result?.error ||
+      Object.values(result || {})[0] ||
+      "Failed to confirm job completion.";
+
+    throw new Error(String(errorMessage));
+  }
+
+  return result;
+};

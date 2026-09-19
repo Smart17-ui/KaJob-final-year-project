@@ -95,14 +95,17 @@ export const cancelJob = async (
 };
 
 // ============================================
-// COMPLETE JOB
-// POST /api/jobs/{job_id}/complete/
+// WORKER STARTS WORK
+// POST /api/jobs/{job_id}/start/
 // ============================================
+//
+// The worker starts the assigned job.
+// The job moves from ASSIGNED to IN_PROGRESS.
 
-export const completeJob = async (
+export const startJob = async (
   jobId: number
 ): Promise<JobResponse> => {
-  return apiClient(`/jobs/${jobId}/complete/`, {
+  return apiClient(`/jobs/${jobId}/start/`, {
     method: "POST",
   });
 };

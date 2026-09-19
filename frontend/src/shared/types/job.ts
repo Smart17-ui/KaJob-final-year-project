@@ -18,9 +18,9 @@ export type ApplicationStatus =
   | "REJECTED"
   | "WITHDRAWN";
 
-// ============================================
-// JOB FORM
-// ============================================
+/* =========================================================
+   JOB FORM
+   ========================================================= */
 
 export interface JobForm {
   title: string;
@@ -30,9 +30,9 @@ export interface JobForm {
 
   jobDate: string;
   jobTime: string;
-
   durationHours: string;
   urgency: Urgency;
+
   isFlexible: boolean;
 
   location: string;
@@ -43,9 +43,9 @@ export interface JobForm {
   requiredSkills: number[];
 }
 
-// ============================================
-// FORM ERRORS
-// ============================================
+/* =========================================================
+   FORM ERRORS
+   ========================================================= */
 
 export interface FormErrors {
   title?: string;
@@ -55,7 +55,6 @@ export interface FormErrors {
 
   jobDate?: string;
   jobTime?: string;
-
   durationHours?: string;
   urgency?: string;
 
@@ -64,9 +63,9 @@ export interface FormErrors {
   [key: string]: string | undefined;
 }
 
-// ============================================
-// CATEGORY
-// ============================================
+/* =========================================================
+   CATEGORIES & SKILLS
+   ========================================================= */
 
 export interface JobCategory {
   id: number;
@@ -74,18 +73,14 @@ export interface JobCategory {
   description?: string;
 }
 
-// ============================================
-// SKILL
-// ============================================
-
 export interface SkillOption {
   id: number;
   name: string;
 }
 
-// ============================================
-// JOB
-// ============================================
+/* =========================================================
+   JOB
+   ========================================================= */
 
 export interface Job {
   id: number;
@@ -144,9 +139,15 @@ export interface Job {
   can_view_full_details?: boolean;
 }
 
-// ============================================
-// CREATE JOB
-// ============================================
+/* =========================================================
+   MY JOB
+   ========================================================= */
+
+export type MyJob = Job;
+
+/* =========================================================
+   CREATE JOB
+   ========================================================= */
 
 export interface CreateJobData {
   title: string;
@@ -172,9 +173,18 @@ export interface CreateJobData {
   required_skills: number[];
 }
 
-// ============================================
-// UPDATE JOB
-// ============================================
+/* =========================================================
+   CREATE JOB RESPONSE
+   ========================================================= */
+
+export interface CreateJobResponse {
+  message?: string;
+  job: Job;
+}
+
+/* =========================================================
+   UPDATE JOB
+   ========================================================= */
 
 export interface UpdateJobData {
   title?: string;
@@ -200,26 +210,78 @@ export interface UpdateJobData {
   required_skills?: number[];
 }
 
-// ============================================
-// JOB RESPONSES
-// ============================================
+/* =========================================================
+   JOB RESPONSE
+   ========================================================= */
 
 export interface JobResponse {
   message?: string;
   job: Job;
 }
 
+/* =========================================================
+   JOBS RESPONSE
+   ========================================================= */
+
 export interface JobsResponse {
   results?: Job[];
+
   jobs?: Job[];
+
   count?: number;
+
   next?: string | null;
+
   previous?: string | null;
 }
 
-// ============================================
-// WORKER JOB DETAILS
-// ============================================
+/* =========================================================
+   MY JOBS RESPONSE
+   ========================================================= */
+
+export interface MyJobsResponse {
+  results: MyJob[];
+
+  count?: number;
+
+  next?: string | null;
+
+  previous?: string | null;
+}
+
+/* =========================================================
+   JOB REVIEWS
+   ========================================================= */
+
+export interface JobReview {
+  id: number;
+
+  job_id?: number;
+
+  reviewer_id?: number;
+
+  reviewer_name?: string;
+
+  rating: number;
+
+  comment?: string;
+
+  created_at?: string;
+}
+
+export interface JobReviewsResponse {
+  results?: JobReview[];
+
+  reviews?: JobReview[];
+
+  count?: number;
+
+  average_rating?: number;
+}
+
+/* =========================================================
+   WORKER JOB RESPONSE
+   ========================================================= */
 
 export interface WorkerJobResponse {
   job: Job;
@@ -231,20 +293,23 @@ export interface WorkerJobResponse {
   application_status?: ApplicationStatus | null;
 }
 
-// ============================================
-// JOB APPLICATION
-// ============================================
+/* =========================================================
+   JOB APPLICATION
+   ========================================================= */
 
 export interface JobApplication {
   id: number;
 
   jobId: number;
+
   jobTitle?: string;
 
   workerId?: number;
+
   workerName?: string;
 
   status: ApplicationStatus;
+
   statusDisplay?: string;
 
   appliedAt?: string;
@@ -252,9 +317,9 @@ export interface JobApplication {
   jobAvailable?: boolean;
 }
 
-// ============================================
-// WORKER PROFILE
-// ============================================
+/* =========================================================
+   WORKER
+   ========================================================= */
 
 export interface Worker {
   id: number;
@@ -262,6 +327,7 @@ export interface Worker {
   full_name: string;
 
   email?: string;
+
   phone_number?: string;
 
   bio?: string | null;
@@ -275,9 +341,9 @@ export interface Worker {
   availability_status?: string | null;
 }
 
-// ============================================
-// CLIENT APPLICATION / APPLICANT
-// ============================================
+/* =========================================================
+   CLIENT APPLICANT
+   ========================================================= */
 
 export interface ClientApplicant {
   application_id: number;
@@ -287,45 +353,60 @@ export interface ClientApplicant {
   applied_at?: string;
 
   distance_km?: number | null;
+
   distance_display?: string | null;
 
   worker: Worker;
 }
 
-// ============================================
-// FILTERS
-// ============================================
+/* =========================================================
+   JOB FILTERS
+   ========================================================= */
 
 export interface JobFilters {
   category?: number;
+
   min_budget?: number;
+
   max_budget?: number;
+
   urgency?: Urgency;
 }
 
-// ============================================
-// JOB STATUS HELPERS
-// ============================================
+/* =========================================================
+   JOB STATUS LABELS
+   ========================================================= */
 
 export const JOB_STATUS_LABELS: Record<
   JobStatus,
   string
 > = {
   OPEN: "Open",
+
   ASSIGNED: "Assigned",
+
   IN_PROGRESS: "In Progress",
-  AWAITING_CONFIRMATION:
-    "Awaiting Confirmation",
+
+  AWAITING_CONFIRMATION: "Awaiting Confirmation",
+
   COMPLETED: "Completed",
+
   CANCELLED: "Cancelled",
 };
+
+/* =========================================================
+   APPLICATION STATUS LABELS
+   ========================================================= */
 
 export const APPLICATION_STATUS_LABELS: Record<
   ApplicationStatus,
   string
 > = {
   PENDING: "Pending",
+
   ACCEPTED: "Accepted",
+
   REJECTED: "Rejected",
+
   WITHDRAWN: "Withdrawn",
 };

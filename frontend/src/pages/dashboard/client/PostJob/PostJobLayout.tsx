@@ -55,44 +55,8 @@ const PostJobLayout = ({
   onAddressChange,
 }: PostJobLayoutProps) => {
   return (
-    <div
-      className="
-        flex
-        h-[calc(100vh-140px)]
-        min-h-0
-        w-full
-        min-w-0
-        flex-col
-      "
-    >
-      {/* =====================================================
-          COMPACT FIXED PAGE HEADER
-      ===================================================== */}
-
-      <div
-        className="
-          flex
-          w-full
-          shrink-0
-          items-baseline
-          justify-between
-          gap-6
-          pb-3
-        "
-      >
-        <h1 className="shrink-0 text-2xl font-semibold text-slate-900">
-          Post a Job
-        </h1>
-
-        <p className="text-right text-sm text-slate-500">
-          Create a job and find the right person for the work.
-        </p>
-      </div>
-
-      {/* =====================================================
-          MAIN CONTENT
-      ===================================================== */}
-
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      {/* Main Content */}
       <div className="min-h-0 w-full flex-1">
         <div
           className="
@@ -108,10 +72,7 @@ const PostJobLayout = ({
             shadow-sm
           "
         >
-          {/* =================================================
-              LEFT COLUMN
-          ================================================= */}
-
+          {/* Left Column */}
           <section
             className="
               min-h-0
@@ -140,10 +101,7 @@ const PostJobLayout = ({
             </div>
           </section>
 
-          {/* =================================================
-              RIGHT COLUMN
-          ================================================= */}
-
+          {/* Right Column */}
           <section
             className="
               min-h-0
@@ -166,40 +124,52 @@ const PostJobLayout = ({
                 onAddressChange={onAddressChange}
                 error={errors.location}
               />
-
-              {/* =================================================
-                  POST JOB ACTION
-              ================================================= */}
-
-              <div className="mt-6 flex justify-end border-t border-slate-200 pt-5">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="
-                    inline-flex
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-slate-900
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-semibold
-                    text-white
-                    transition
-                    hover:bg-slate-800
-                    disabled:cursor-not-allowed
-                    disabled:opacity-60
-                  "
-                >
-                  {isSubmitting
-                    ? "Posting..."
-                    : "Post Job"}
-                </button>
-              </div>
             </div>
           </section>
         </div>
+      </div>
+
+      {/* Sticky Bottom Action Bar */}
+      <div
+        className="
+          sticky
+          bottom-0
+          z-20
+          flex
+          w-full
+          shrink-0
+          justify-end
+          border-t
+          border-slate-200
+          bg-white
+          px-6
+          py-4
+          shadow-[0_-4px_12px_rgba(0,0,0,0.04)]
+        "
+      >
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="
+            inline-flex
+            min-w-[130px]
+            items-center
+            justify-center
+            rounded-xl
+            bg-slate-900
+            px-5
+            py-2.5
+            text-sm
+            font-semibold
+            text-white
+            transition
+            hover:bg-slate-800
+            disabled:cursor-not-allowed
+            disabled:opacity-60
+          "
+        >
+          {isSubmitting ? "Posting..." : "Post Job"}
+        </button>
       </div>
     </div>
   );

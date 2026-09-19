@@ -74,6 +74,7 @@ import FindJobs from "@/pages/dashboard/worker/FindJobs";
 import WorkerJobDetails from "@/pages/dashboard/worker/JobDetails";
 import MyApplications from "@/pages/dashboard/worker/MyApplications";
 import MyWork from "@/pages/dashboard/worker/MyWork";
+import WorkerDirections from "@/pages/dashboard/worker/Directions/Directions";
 import WorkerMessages from "@/pages/dashboard/worker/Messages";
 import Performance from "@/pages/dashboard/worker/Performance";
 
@@ -99,7 +100,7 @@ import { AdminRoutes } from "@/features/admin/routes";
 
 /* =========================================================
    GET USER DASHBOARD
-   ========================================================= */
+========================================================= */
 
 function getUserDashboard(): string | null {
   const user = getCurrentUser();
@@ -180,7 +181,7 @@ function getUserDashboard(): string | null {
 
 /* =========================================================
    PUBLIC LANDING PAGE
-   ========================================================= */
+========================================================= */
 
 function PublicLandingPage() {
   const [selectedPage, setSelectedPage] =
@@ -270,7 +271,7 @@ function PublicLandingPage() {
 
 /* =========================================================
    PUBLIC AUTH ROUTE
-   ========================================================= */
+========================================================= */
 
 function PublicAuthRoute({
   children,
@@ -301,7 +302,7 @@ function PublicAuthRoute({
 
 /* =========================================================
    PROTECTED DASHBOARD ROUTE
-   ========================================================= */
+========================================================= */
 
 function ProtectedDashboard({
   role,
@@ -403,7 +404,7 @@ function ProtectedDashboard({
 
 /* =========================================================
    APP
-   ========================================================= */
+========================================================= */
 
 function App() {
   return (
@@ -679,6 +680,15 @@ function App() {
           path="jobs/:jobId"
           element={
             <WorkerJobDetails />
+          }
+        />
+
+        {/* Worker Directions */}
+
+        <Route
+          path="directions/:jobId"
+          element={
+            <WorkerDirections />
           }
         />
 

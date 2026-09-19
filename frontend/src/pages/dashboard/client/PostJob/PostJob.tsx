@@ -346,8 +346,30 @@ const PostJob = () => {
         general_location:
           form.location.trim(),
 
-        latitude: form.latitude,
-        longitude: form.longitude,
+        /*
+         * Round coordinates to 6 decimal places
+         * before sending them to the backend.
+         *
+         * This prevents JavaScript floating-point
+         * values such as:
+         *
+         * -15.414486999999998
+         *
+         * from being sent to Django.
+         */
+        latitude:
+          form.latitude !== null
+            ? Number(
+                form.latitude.toFixed(6)
+              )
+            : null,
+
+        longitude:
+          form.longitude !== null
+            ? Number(
+                form.longitude.toFixed(6)
+              )
+            : null,
 
         job_date: form.jobDate,
 
