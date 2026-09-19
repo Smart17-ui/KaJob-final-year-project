@@ -19,47 +19,71 @@ class AdminVerificationService:
     Service for admin verification operations.
     Single Responsibility: Manage admin review of verifications.
     """
-    
+
     def __init__(self):
         self.verification_repo = VerificationRepository()
         self.email_service = EmailService()
-    
+
     # ============================================
-    # GET PENDING VERIFICATIONS
+    # PRIVATE HELPER — SERIALIZE A VERIFICATION
     # ============================================
-    
+
+    def _serialize_verification(self, verification) -> Dict[str, Any]:
+        """Shared shape for admin list responses."""
+        return {
+            'id': verification.id,
+            'user': {
+                'id': verification.user.id,
+                'full_name': verification.user.full_name,
+                'email': verification.user.email,
+                'phone_number': verification.user.phone_number,
+                'account_status': verification.user.account_status,
+                'is_verified': verification.user.is_verified,
+            },
+            'document_type': verification.document_type,
+            'document_number': verification.document_number,
+            'status': verification.verification_status,
+            'status_display': verification.get_verification_status_display(),
+            'submitted_at': verification.submitted_at.isoformat() if verification.submitted_at else None,
+            'document_count': verification.documents.count(),
+        }
+
+    # ============================================
+    # GET PENDING VERIFICATIONS (default tab)
+    # ============================================
+
     def get_pending_verifications(self, admin) -> List[Dict[str, Any]]:
         """
-        Get all pending verifications for admin review.
+        Get all verifications awaiting admin review:
+        both PENDING and UNDER_REVIEW.
         """
         pending = self.verification_repo.get_pending_verifications()
-        
-        result = []
-        for verification in pending:
-            result.append({
-                'id': verification.id,
-                'user': {
-                    'id': verification.user.id,
-                    'full_name': verification.user.full_name,
-                    'email': verification.user.email,
-                    'phone_number': verification.user.phone_number,
-                    'account_status': verification.user.account_status,
-                    'is_verified': verification.user.is_verified,
-                },
-                'document_type': verification.document_type,
-                'document_number': verification.document_number,
-                'status': verification.verification_status,
-                'status_display': verification.get_verification_status_display(),
-                'submitted_at': verification.submitted_at.isoformat() if verification.submitted_at else None,
-                'document_count': verification.documents.count(),
-            })
-        
-        return result
-    
+        return [self._serialize_verification(v) for v in pending]
+
+    # ============================================
+    # GET VERIFICATIONS BY STATUS (tab filter)
+    # ============================================
+
+    def get_verifications_by_status(self, admin, status: str) -> List[Dict[str, Any]]:
+        """
+        Return verifications filtered to a single status.
+
+        Used by the admin UI tabs:
+            PENDING    → review queue (PENDING + UNDER_REVIEW)
+            VERIFIED   → approved
+            REJECTED   → rejected
+        """
+        # The UI's "pending" tab means "the review queue" — both statuses.
+        if status in (VerificationStatus.PENDING, VerificationStatus.UNDER_REVIEW):
+            return self.get_pending_verifications(admin)
+
+        records = self.verification_repo.get_verifications_by_status(status)
+        return [self._serialize_verification(v) for v in records]
+
     # ============================================
     # GET VERIFICATION DETAIL
     # ============================================
-    
+
     def get_verification_detail(self, admin, verification_id: int) -> Dict[str, Any]:
         """
         Get detailed verification information for admin review.
@@ -67,21 +91,28 @@ class AdminVerificationService:
         verification = self.verification_repo.get_by_id(verification_id)
         if not verification:
             raise ResourceNotFound("Verification not found.")
-        
+
         # Get all documents
         documents = []
         for doc in verification.documents.all():
+            file_url = None
+            if doc.file:
+                try:
+                    file_url = doc.file.url
+                except Exception:
+                    file_url = None
+
             documents.append({
                 'id': doc.id,
                 'document_type': doc.document_type,
                 'document_type_display': doc.get_document_type_display(),
-                'file_path': doc.file_path,
+                'file_url': file_url,
                 'file_name': doc.file_name,
                 'file_size': doc.file_size,
                 'mime_type': doc.mime_type,
                 'uploaded_at': doc.uploaded_at.isoformat() if doc.uploaded_at else None,
             })
-        
+
         return {
             'id': verification.id,
             'user': {
@@ -103,11 +134,11 @@ class AdminVerificationService:
             'documents': documents,
             'verification_notes': verification.verification_notes,
         }
-    
+
     # ============================================
     # REVIEW VERIFICATION
     # ============================================
-    
+
     @transaction.atomic
     def approve_verification(self, admin, verification_id: int, notes: str = None) -> Dict[str, Any]:
         """
@@ -116,16 +147,14 @@ class AdminVerificationService:
         verification = self.verification_repo.get_by_id(verification_id)
         if not verification:
             raise ResourceNotFound("Verification not found.")
-        
+
         if verification.verification_status not in [VerificationStatus.PENDING, VerificationStatus.UNDER_REVIEW]:
             raise BusinessRuleViolation(
                 f"Cannot approve verification with status '{verification.verification_status}'."
             )
-        
-        # Approve verification
+
         verification = self.verification_repo.approve_verification(verification, admin, notes)
-        
-        # Audit log
+
         AuditLog.objects.create(
             user=admin,
             action='VERIFICATION_APPROVED',
@@ -137,15 +166,14 @@ class AdminVerificationService:
                 'notes': notes,
             }
         )
-        
+
         logger.info(f"Verification approved for user {verification.user.email} (ID: {verification.id})")
-        
-        # Send email notification
+
         try:
             self.email_service.send_verification_approved_email(verification.user)
         except Exception as e:
             logger.error(f"Failed to send approval email: {str(e)}")
-        
+
         return {
             'verification': {
                 'id': verification.id,
@@ -154,13 +182,13 @@ class AdminVerificationService:
             },
             'message': f'Verification for {verification.user.full_name} has been approved.',
         }
-    
+
     @transaction.atomic
     def reject_verification(
-        self, 
-        admin, 
-        verification_id: int, 
-        reason: str, 
+        self,
+        admin,
+        verification_id: int,
+        reason: str,
         notes: str = None
     ) -> Dict[str, Any]:
         """
@@ -168,20 +196,18 @@ class AdminVerificationService:
         """
         if not reason:
             raise BusinessRuleViolation("Rejection reason is required.")
-        
+
         verification = self.verification_repo.get_by_id(verification_id)
         if not verification:
             raise ResourceNotFound("Verification not found.")
-        
+
         if verification.verification_status not in [VerificationStatus.PENDING, VerificationStatus.UNDER_REVIEW]:
             raise BusinessRuleViolation(
                 f"Cannot reject verification with status '{verification.verification_status}'."
             )
-        
-        # Reject verification
+
         verification = self.verification_repo.reject_verification(verification, admin, reason, notes)
-        
-        # Audit log
+
         AuditLog.objects.create(
             user=admin,
             action='VERIFICATION_REJECTED',
@@ -194,15 +220,14 @@ class AdminVerificationService:
                 'notes': notes,
             }
         )
-        
+
         logger.info(f"Verification rejected for user {verification.user.email} (ID: {verification.id})")
-        
-        # Send email notification
+
         try:
             self.email_service.send_verification_rejected_email(verification.user, reason)
         except Exception as e:
             logger.error(f"Failed to send rejection email: {str(e)}")
-        
+
         return {
             'verification': {
                 'id': verification.id,
@@ -211,17 +236,19 @@ class AdminVerificationService:
             },
             'message': f'Verification for {verification.user.full_name} has been rejected.',
         }
-    
+
     # ============================================
     # GET STATISTICS
     # ============================================
-    
+
     def get_statistics(self, admin) -> Dict[str, Any]:
         """
         Get verification statistics for admin dashboard.
         """
         return {
-            'pending': self.verification_repo.count_pending(),
+            'pending': self.verification_repo.count_by_status(
+                VerificationStatus.UNDER_REVIEW
+            ),
             'verified': self.verification_repo.count_by_status(VerificationStatus.VERIFIED),
             'rejected': self.verification_repo.count_by_status(VerificationStatus.REJECTED),
             'total': self.verification_repo.count(),

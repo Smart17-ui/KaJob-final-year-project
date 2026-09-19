@@ -26,6 +26,13 @@ const TABS = [
     { id: 'REJECTED', label: 'Rejected' },
 ];
 
+// Map UI tab id → backend status value
+const TAB_TO_STATUS: Record<string, string> = {
+    PENDING: 'UNDER_REVIEW',
+    VERIFIED: 'VERIFIED',
+    REJECTED: 'REJECTED',
+};
+
 // ============================================
 // COMPONENT
 // ============================================
@@ -61,21 +68,17 @@ export const VerificationsPage = () => {
         try {
             setLoading(true);
 
-            // Map tab to status filter
-            const statusMap: Record<string, string | undefined> = {
-                PENDING: 'PENDING',
-                VERIFIED: 'VERIFIED',
-                REJECTED: 'REJECTED',
-            };
+            // Backend filters by status — one request per tab.
+            const wantedStatus = TAB_TO_STATUS[activeTab];
 
             const data = await adminVerificationsApi.getVerifications({
-                status: statusMap[activeTab] as any,
+                status: wantedStatus as any,
                 page,
                 page_size: pageSize,
             });
 
-            // Handle wrapped response { count, results } OR { data: { ... } }
-            const results = (data as any)?.results || [];
+            const results: PendingVerification[] =
+                (data as any)?.results || [];
             const count = (data as any)?.count || 0;
 
             setVerifications(results);

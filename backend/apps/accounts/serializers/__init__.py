@@ -26,6 +26,7 @@ from .auth_serializer import (
     LogoutResponseSerializer,
     TokenResponseSerializer,
     UpdatePhoneSerializer,
+    UpdateEmailSerializer,   # 🆕
 )
 
 # Profile Serializers
@@ -44,12 +45,12 @@ __all__ = [
     'UserDetailSerializer',
     'UserListSerializer',
     'RoleSerializer',
-    
+
     # Role Management Serializers
     'AddRoleSerializer',
     'SwitchRoleSerializer',
     'RoleResponseSerializer',
-    
+
     # Auth Serializers
     'RegisterSerializer',
     'LoginSerializer',
@@ -63,7 +64,8 @@ __all__ = [
     'LogoutResponseSerializer',
     'TokenResponseSerializer',
     'UpdatePhoneSerializer',
-    
+    'UpdateEmailSerializer',   # 🆕
+
     # Profile Serializers
     'ProfileUpdateSerializer',
     'WorkerProfileSerializer',

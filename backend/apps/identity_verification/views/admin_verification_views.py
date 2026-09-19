@@ -13,6 +13,7 @@ from apps.identity_verification.serializers import (
 )
 from apps.common.permissions import IsAdmin
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
+from apps.common.constants import VerificationStatus
 
 
 # Service instance
@@ -21,16 +22,36 @@ admin_verification_service = AdminVerificationService()
 
 class AdminPendingVerificationsView(APIView):
     """
-    Get all pending verifications for admin review.
+    List verifications for admin review.
+
+    Query param:
+        ?status=PENDING | UNDER_REVIEW | VERIFIED | REJECTED | EXPIRED
+    If omitted, defaults to the review queue (PENDING + UNDER_REVIEW).
     """
     permission_classes = [IsAuthenticated, IsAdmin]
-    
+
     def get(self, request):
-        pending = admin_verification_service.get_pending_verifications(request.user)
-        serializer = AdminVerificationListSerializer(pending, many=True)
+        status_filter = request.query_params.get('status')
+
+        if status_filter:
+            valid = [s[0] for s in VerificationStatus.CHOICES]
+            if status_filter not in valid:
+                return Response(
+                    {'error': f'Invalid status. Must be one of: {valid}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            results = admin_verification_service.get_verifications_by_status(
+                request.user, status_filter
+            )
+        else:
+            results = admin_verification_service.get_pending_verifications(
+                request.user
+            )
+
+        serializer = AdminVerificationListSerializer(results, many=True)
         return Response({
             'count': len(serializer.data),
-            'results': serializer.data
+            'results': serializer.data,
         }, status=status.HTTP_200_OK)
 
 
@@ -39,7 +60,7 @@ class AdminVerificationDetailView(APIView):
     Get detailed verification information for admin review.
     """
     permission_classes = [IsAuthenticated, IsAdmin]
-    
+
     def get(self, request, verification_id):
         try:
             detail = admin_verification_service.get_verification_detail(
@@ -48,7 +69,7 @@ class AdminVerificationDetailView(APIView):
             )
             serializer = AdminVerificationDetailSerializer(detail)
             return Response(serializer.data, status=status.HTTP_200_OK)
-            
+
         except ResourceNotFound as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -60,13 +81,13 @@ class AdminReviewVerificationView(APIView):
     Admin approve or reject a verification request.
     """
     permission_classes = [IsAuthenticated, IsAdmin]
-    
+
     def post(self, request, verification_id):
         serializer = AdminReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         action = serializer.validated_data['action']
-        
+
         try:
             if action == 'approve':
                 result = admin_verification_service.approve_verification(
@@ -81,13 +102,13 @@ class AdminReviewVerificationView(APIView):
                     reason=serializer.validated_data.get('reason'),
                     notes=serializer.validated_data.get('notes')
                 )
-            
+
             return Response({
                 'message': result['message'],
                 'verification_id': result['verification'].id,
                 'status': result['verification'].verification_status,
             }, status=status.HTTP_200_OK)
-            
+
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -99,7 +120,7 @@ class AdminVerificationStatsView(APIView):
     Get verification statistics for admin dashboard.
     """
     permission_classes = [IsAuthenticated, IsAdmin]
-    
+
     def get(self, request):
         stats = admin_verification_service.get_statistics(request.user)
         return Response(stats, status=status.HTTP_200_OK)

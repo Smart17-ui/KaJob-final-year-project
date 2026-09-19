@@ -199,3 +199,15 @@ class TokenResponseSerializer(serializers.Serializer):
     Serializer for token refresh response.
     """
     access = serializers.CharField()
+
+class UpdateEmailSerializer(serializers.Serializer):
+    """
+    Serializer for updating email address.
+
+    Used by: UpdateEmailView (PUT /api/auth/profile/email/)
+    """
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        """Normalize email to lowercase."""
+        return value.lower().strip()
