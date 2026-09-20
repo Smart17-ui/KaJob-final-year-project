@@ -1,0 +1,27 @@
+<!-- backend/templates/emails/job_assigned.html -->
+{% extends "emails/base.html" %}
+
+{% block title %}You've Been Assigned{% endblock %}
+
+{% block content %}
+<h2>You've Been Assigned to a Job</h2>
+
+<p>Hello {{ full_name }},</p>
+
+<p>Congratulations! You have been assigned to the following job:</p>
+
+<div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0 0 8px 0; font-size: 16px;"><strong>{{ job_title }}</strong></p>
+    <p style="margin: 0;">Budget: <strong>K{{ budget }}</strong></p>
+</div>
+
+<p>Please contact the client to confirm the details of the job.</p>
+
+<p style="text-align: center; margin: 30px 0;">
+    <a href="{{ job_url }}" class="button" style="background: #4F46E5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block;">
+        View Job Details
+    </a>
+</p>
+
+<p>KaJob Team</p>
+{% endblock %}

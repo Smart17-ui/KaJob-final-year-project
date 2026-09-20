@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+// frontend/src/components/dashboard/TopBar/NotificationBell.tsx
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { BellIcon } from "@heroicons/react/24/outline";
 
 import {
@@ -9,13 +12,19 @@ import {
   type Notification,
 } from "@/api/notifications";
 
+import { getSelectedRole } from "@/shared/auth";
+
 type NotificationBellProps = {
   onNotificationsClick?: () => void;
 };
 
+const POLL_INTERVAL_MS = 30_000; // 30 s
+
 const NotificationBell = ({
   onNotificationsClick,
 }: NotificationBellProps) => {
+  const navigate = useNavigate();
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -25,41 +34,66 @@ const NotificationBell = ({
   const notificationRef = useRef<HTMLDivElement>(null);
 
   /* =========================================================
+     WHERE DOES "VIEW ALL" GO?
+     ========================================================= */
+
+  const notificationsPagePath = (() => {
+    const role = getSelectedRole();
+    return role === "WORKER"
+      ? "/worker/dashboard/notifications"
+      : "/client/dashboard/notifications";
+  })();
+
+  /* =========================================================
      LOAD NOTIFICATIONS
      ========================================================= */
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      const [notificationResponse, unreadResponse] =
-        await Promise.all([
-          getNotifications(),
-          getUnreadNotificationCount(),
-        ]);
+      const [notificationResponse, unreadResponse] = await Promise.all([
+        getNotifications(),
+        getUnreadNotificationCount(),
+      ]);
 
-      setNotifications(notificationResponse.results ?? []);
+      // Backend may return a plain array or { count, results }.
+      const list = Array.isArray(notificationResponse)
+        ? notificationResponse
+        : notificationResponse.results ?? [];
+
+      setNotifications(list);
       setUnreadCount(unreadResponse.count ?? 0);
     } catch (error) {
-      console.error(
-        "Failed to load notifications:",
-        error
-      );
-
+      console.error("Failed to load notifications:", error);
       setNotifications([]);
       setUnreadCount(0);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   /* =========================================================
-     INITIAL LOAD
+     INITIAL LOAD + POLLING
      ========================================================= */
 
   useEffect(() => {
     loadNotifications();
-  }, []);
+
+    const interval = setInterval(() => {
+      // Only poll the count when the dropdown is closed,
+      // so we don't hammer the API while the user is looking.
+      if (!isOpen) {
+        getUnreadNotificationCount()
+          .then((res) => setUnreadCount(res.count ?? 0))
+          .catch(() => {
+            /* swallow — transient network errors */
+          });
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [loadNotifications, isOpen]);
 
   /* =========================================================
      CLOSE WHEN CLICKING OUTSIDE
@@ -68,40 +102,18 @@ const NotificationBell = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-
-      /*
-       * If the click happened anywhere inside the notification
-       * component, do nothing.
-       *
-       * This means:
-       * - Bell click stays open/closed normally
-       * - Clicking inside the dropdown keeps it open
-       * - Clicking buttons inside the dropdown keeps it open
-       */
       if (
         notificationRef.current &&
         notificationRef.current.contains(target)
       ) {
         return;
       }
-
-      /*
-       * Anything outside the notification component closes
-       * the dropdown.
-       */
       setIsOpen(false);
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
-
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -115,18 +127,22 @@ const NotificationBell = ({
     event.preventDefault();
     event.stopPropagation();
 
-    setIsOpen((previous) => !previous);
+    const willOpen = !isOpen;
+    setIsOpen(willOpen);
+
+    // Refresh the list every time the user opens the dropdown.
+    if (willOpen) {
+      loadNotifications();
+    }
 
     onNotificationsClick?.();
   };
 
   /* =========================================================
-     MARK SINGLE NOTIFICATION AS READ
+     MARK SINGLE NOTIFICATION AS READ + NAVIGATE
      ========================================================= */
 
-  const handleNotificationClick = async (
-    notification: Notification
-  ) => {
+  const handleNotificationClick = async (notification: Notification) => {
     try {
       if (!notification.is_read) {
         await markNotificationAsRead(notification.id);
@@ -143,24 +159,27 @@ const NotificationBell = ({
           )
         );
 
-        setUnreadCount((current) =>
-          Math.max(0, current - 1)
-        );
+        setUnreadCount((current) => Math.max(0, current - 1));
       }
 
-      /*
-       * Only navigate if the notification actually has
-       * a redirect URL.
-       */
+      setIsOpen(false);
+
       if (notification.redirect_url) {
-        window.location.href = notification.redirect_url;
+        // SPA navigation — no full page reload.
+        navigate(notification.redirect_url);
       }
     } catch (error) {
-      console.error(
-        "Failed to mark notification as read:",
-        error
-      );
+      console.error("Failed to open notification:", error);
     }
+  };
+
+  /* =========================================================
+     VIEW ALL
+     ========================================================= */
+
+  const handleViewAll = () => {
+    setIsOpen(false);
+    navigate(notificationsPagePath);
   };
 
   /* =========================================================
@@ -168,17 +187,13 @@ const NotificationBell = ({
      ========================================================= */
 
   const handleMarkAllAsRead = async () => {
-    if (unreadCount === 0) {
-      return;
-    }
+    if (unreadCount === 0) return;
 
     try {
       setIsMarkingAllRead(true);
-
       await markAllNotificationsAsRead();
 
       const now = new Date().toISOString();
-
       setNotifications((current) =>
         current.map((notification) => ({
           ...notification,
@@ -186,50 +201,32 @@ const NotificationBell = ({
           read_at: notification.read_at ?? now,
         }))
       );
-
       setUnreadCount(0);
     } catch (error) {
-      console.error(
-        "Failed to mark all notifications as read:",
-        error
-      );
+      console.error("Failed to mark all notifications as read:", error);
     } finally {
       setIsMarkingAllRead(false);
     }
   };
 
   /* =========================================================
-     FORMAT NOTIFICATION TIME
+     FORMAT TIME
      ========================================================= */
 
   const formatNotificationTime = (date: string) => {
     const notificationDate = new Date(date);
     const now = new Date();
 
-    const difference =
-      now.getTime() - notificationDate.getTime();
-
+    const difference = now.getTime() - notificationDate.getTime();
     const seconds = Math.floor(difference / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (seconds < 60) {
-      return "Just now";
-    }
-
-    if (minutes < 60) {
-      return `${minutes}m ago`;
-    }
-
-    if (hours < 24) {
-      return `${hours}h ago`;
-    }
-
-    if (days < 7) {
-      return `${days}d ago`;
-    }
-
+    if (seconds < 60) return "Just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
     return notificationDate.toLocaleDateString();
   };
 
@@ -238,14 +235,7 @@ const NotificationBell = ({
      ========================================================= */
 
   return (
-    <div
-      ref={notificationRef}
-      className="relative"
-    >
-      {/* =====================================================
-          NOTIFICATION BUTTON
-          ===================================================== */}
-
+    <div ref={notificationRef} className="relative">
       <button
         type="button"
         onClick={handleNotificationsClick}
@@ -257,18 +247,14 @@ const NotificationBell = ({
           hover:bg-slate-100
           hover:text-emerald-600
           active:scale-95
-          focus:outline-none
-          focus:ring-2
-          focus:ring-emerald-500
-          focus:ring-offset-2
+          focus:outline-none focus:ring-2
+          focus:ring-emerald-500 focus:ring-offset-2
         "
         aria-label="View notifications"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
         <BellIcon className="h-5 w-5" />
-
-        {/* Notification Badge */}
 
         {unreadCount > 0 && (
           <span
@@ -281,43 +267,26 @@ const NotificationBell = ({
             "
             aria-label={`${unreadCount} unread notifications`}
           >
-            {unreadCount > 99
-              ? "99+"
-              : unreadCount}
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
-
-      {/* =====================================================
-          NOTIFICATION DROPDOWN
-          ===================================================== */}
 
       {isOpen && (
         <div
           className="
             absolute right-0 z-50 mt-3
-            w-[360px]
-            overflow-hidden
-            rounded-xl
-            border border-slate-200
-            bg-white
-            shadow-xl
+            w-[360px] overflow-hidden
+            rounded-xl border border-slate-200
+            bg-white shadow-xl
           "
         >
           {/* Header */}
-
-          <div
-            className="
-              flex items-center justify-between
-              border-b border-slate-200
-              px-4 py-3
-            "
-          >
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">
                 Notifications
               </h3>
-
               {unreadCount > 0 && (
                 <p className="mt-0.5 text-xs text-slate-500">
                   {unreadCount} unread
@@ -331,44 +300,28 @@ const NotificationBell = ({
                 onClick={handleMarkAllAsRead}
                 disabled={isMarkingAllRead}
                 className="
-                  text-xs font-medium
-                  text-emerald-600
+                  text-xs font-medium text-emerald-600
                   hover:text-emerald-700
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
+                  disabled:cursor-not-allowed disabled:opacity-50
                 "
               >
-                {isMarkingAllRead
-                  ? "Marking..."
-                  : "Mark all as read"}
+                {isMarkingAllRead ? "Marking..." : "Mark all as read"}
               </button>
             )}
           </div>
 
-          {/* Content */}
-
+          {/* List */}
           <div className="max-h-[420px] overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center px-4 py-10">
-                <div
-                  className="
-                    h-6 w-6
-                    animate-spin
-                    rounded-full
-                    border-2
-                    border-slate-300
-                    border-t-emerald-600
-                  "
-                />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600" />
               </div>
             ) : notifications.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <BellIcon className="mx-auto h-9 w-9 text-slate-300" />
-
                 <p className="mt-3 text-sm font-medium text-slate-700">
                   No notifications
                 </p>
-
                 <p className="mt-1 text-xs text-slate-500">
                   You're all caught up.
                 </p>
@@ -378,18 +331,10 @@ const NotificationBell = ({
                 <button
                   key={notification.id}
                   type="button"
-                  onClick={() =>
-                    handleNotificationClick(
-                      notification
-                    )
-                  }
+                  onClick={() => handleNotificationClick(notification)}
                   className={`
-                    block w-full
-                    border-b border-slate-100
-                    px-4 py-3
-                    text-left
-                    transition
-                    last:border-b-0
+                    block w-full border-b border-slate-100
+                    px-4 py-3 text-left transition last:border-b-0
                     ${
                       notification.is_read
                         ? "bg-white hover:bg-slate-50"
@@ -398,8 +343,6 @@ const NotificationBell = ({
                   `}
                 >
                   <div className="flex gap-3">
-                    {/* Unread Indicator */}
-
                     <div className="pt-1.5">
                       <span
                         className={`
@@ -412,8 +355,6 @@ const NotificationBell = ({
                         `}
                       />
                     </div>
-
-                    {/* Notification Content */}
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
@@ -429,14 +370,10 @@ const NotificationBell = ({
                         >
                           {notification.title}
                         </p>
-
                         <span className="shrink-0 text-[10px] text-slate-400">
-                          {formatNotificationTime(
-                            notification.created_at
-                          )}
+                          {formatNotificationTime(notification.created_at)}
                         </span>
                       </div>
-
                       <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
                         {notification.message}
                       </p>
@@ -445,6 +382,20 @@ const NotificationBell = ({
                 </button>
               ))
             )}
+          </div>
+
+          {/* Footer — View all */}
+          <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-center">
+            <button
+              type="button"
+              onClick={handleViewAll}
+              className="
+                text-xs font-medium text-emerald-600
+                hover:text-emerald-700
+              "
+            >
+              View all notifications
+            </button>
           </div>
         </div>
       )}

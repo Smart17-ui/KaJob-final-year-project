@@ -15,6 +15,49 @@ class EmailService:
     Service for sending email notifications.
     """
 
+    # ============================================
+    # HELPERS
+    # ============================================
+
+    @staticmethod
+    def _frontend_url() -> str:
+        return getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+
+    @staticmethod
+    def _job_url_for(user, job) -> str:
+        """
+        Return the correct job detail URL based on the recipient's role.
+
+        - Worker only          → /worker/dashboard/jobs/{id}
+        - Client only          → /client/dashboard/jobs/{id}
+        - Both roles           → client (job management is client-side)
+        - Neither (admin only) → /worker/dashboard/jobs/{id} (fallback)
+        """
+        frontend = EmailService._frontend_url()
+        is_worker = getattr(user, 'is_worker', False)
+        is_client = getattr(user, 'is_client', False)
+
+        if is_client:
+            return f"{frontend}/client/dashboard/jobs/{job.id}"
+        return f"{frontend}/worker/dashboard/jobs/{job.id}"
+
+    @staticmethod
+    def _settings_verification_url_for(user) -> str:
+        """
+        Return the verification settings URL for the user's role.
+        """
+        frontend = EmailService._frontend_url()
+        is_worker = getattr(user, 'is_worker', False)
+        is_client = getattr(user, 'is_client', False)
+
+        if is_client:
+            return f"{frontend}/client/dashboard/settings/verification"
+        return f"{frontend}/worker/dashboard/settings/verification"
+
+    # ============================================
+    # CORE SEND METHODS
+    # ============================================
+
     @staticmethod
     def send_email(
         to_email: str,
@@ -23,35 +66,19 @@ class EmailService:
         context: Dict[str, Any],
         from_email: Optional[str] = None,
     ) -> bool:
-        """
-        Send an email using a template.
-
-        Args:
-            to_email: Recipient email address
-            subject: Email subject
-            template_name: Name of the template (without .html)
-            context: Template context
-            from_email: Sender email (default: settings.DEFAULT_FROM_EMAIL)
-
-        Returns:
-            bool: True if sent successfully, False otherwise
-        """
+        """Send an email using a template."""
         try:
             if from_email is None:
                 from_email = getattr(
                     settings, 'DEFAULT_FROM_EMAIL', 'noreply@kajob.com'
                 )
 
-            # Render HTML content
             html_content = render_to_string(
                 f'emails/{template_name}.html',
                 context
             )
-
-            # Plain text content
             text_content = strip_tags(html_content)
 
-            # Create email
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,
@@ -59,8 +86,6 @@ class EmailService:
                 to=[to_email],
             )
             email.attach_alternative(html_content, "text/html")
-
-            # Send email
             email.send(fail_silently=False)
 
             logger.info(f"Email sent to {to_email}: {subject}")
@@ -77,9 +102,7 @@ class EmailService:
         message: str,
         from_email: Optional[str] = None,
     ) -> bool:
-        """
-        Send a plain-text email (no template).
-        """
+        """Send a plain-text email (no template)."""
         try:
             if from_email is None:
                 from_email = getattr(
@@ -93,7 +116,6 @@ class EmailService:
                 recipient_list=[to_email],
                 fail_silently=False,
             )
-
             logger.info(f"Plain email sent to {to_email}: {subject}")
             return True
 
@@ -111,9 +133,7 @@ class EmailService:
         context = {
             'user': user,
             'full_name': user.full_name,
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'frontend_url': EmailService._frontend_url(),
             'password': password,
         }
         return EmailService.send_email(
@@ -133,10 +153,8 @@ class EmailService:
             'job_title': job.title,
             'budget': job.budget,
             'distance': distance,
-            'job_url': f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/jobs/{job.id}",
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'job_url': EmailService._job_url_for(user, job),
+            'frontend_url': EmailService._frontend_url(),
         }
         return EmailService.send_email(
             to_email=user.email,
@@ -154,10 +172,8 @@ class EmailService:
             'job': job,
             'job_title': job.title,
             'budget': job.budget,
-            'job_url': f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/jobs/{job.id}",
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'job_url': EmailService._job_url_for(worker, job),
+            'frontend_url': EmailService._frontend_url(),
         }
         return EmailService.send_email(
             to_email=worker.email,
@@ -175,10 +191,8 @@ class EmailService:
             'job': job,
             'job_title': job.title,
             'worker_name': worker.full_name,
-            'job_url': f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/jobs/{job.id}",
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'job_url': EmailService._job_url_for(client, job),
+            'frontend_url': EmailService._frontend_url(),
         }
         return EmailService.send_email(
             to_email=client.email,
@@ -189,16 +203,14 @@ class EmailService:
 
     @staticmethod
     def send_application_accepted_email(worker, job):
-        """Send application accepted notification email."""
+        """Send application accepted notification email (currently unused)."""
         context = {
             'worker': worker,
             'full_name': worker.full_name,
             'job': job,
             'job_title': job.title,
-            'job_url': f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/jobs/{job.id}",
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'job_url': EmailService._job_url_for(worker, job),
+            'frontend_url': EmailService._frontend_url(),
         }
         return EmailService.send_email(
             to_email=worker.email,
@@ -210,15 +222,15 @@ class EmailService:
     @staticmethod
     def send_application_rejected_email(worker, job):
         """Send application rejected notification email."""
+        frontend = EmailService._frontend_url()
         context = {
             'worker': worker,
             'full_name': worker.full_name,
             'job': job,
             'job_title': job.title,
-            'job_url': f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/jobs/{job.id}",
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            # Send rejected workers to FIND JOBS, not the job detail page
+            'job_url': f"{frontend}/worker/dashboard/find-jobs",
+            'frontend_url': frontend,
         }
         return EmailService.send_email(
             to_email=worker.email,
@@ -230,6 +242,7 @@ class EmailService:
     @staticmethod
     def send_new_review_email(worker, review):
         """Send new review notification email."""
+        frontend = EmailService._frontend_url()
         context = {
             'worker': worker,
             'full_name': worker.full_name,
@@ -238,10 +251,9 @@ class EmailService:
             'comment': review.comment,
             'reviewer_name': review.reviewer.full_name,
             'job_title': review.job.title,
-            'job_url': f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/jobs/{review.job.id}",
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            # Send worker to their profile page (where reviews are shown)
+            'job_url': f"{frontend}/worker/dashboard/settings/profile",
+            'frontend_url': frontend,
         }
         return EmailService.send_email(
             to_email=worker.email,
@@ -256,9 +268,7 @@ class EmailService:
         context = {
             'user': user,
             'full_name': user.full_name,
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'frontend_url': EmailService._frontend_url(),
         }
         return EmailService.send_email(
             to_email=user.email,
@@ -274,9 +284,8 @@ class EmailService:
             'user': user,
             'full_name': user.full_name,
             'reason': reason,
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'verification_url': EmailService._settings_verification_url_for(user),
+            'frontend_url': EmailService._frontend_url(),
         }
         return EmailService.send_email(
             to_email=user.email,
@@ -288,13 +297,12 @@ class EmailService:
     @staticmethod
     def send_password_reset_email(user, token):
         """Send password reset email."""
+        frontend = EmailService._frontend_url()
         context = {
             'user': user,
             'full_name': user.full_name,
-            'reset_url': f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/reset-password?token={token}",
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'reset_url': f"{frontend}/reset-password?token={token}",
+            'frontend_url': frontend,
         }
         return EmailService.send_email(
             to_email=user.email,
@@ -311,9 +319,7 @@ class EmailService:
             'full_name': user.full_name,
             'report': report,
             'reference_number': report.reference_number,
-            'frontend_url': getattr(
-                settings, 'FRONTEND_URL', 'http://localhost:5173'
-            ),
+            'frontend_url': EmailService._frontend_url(),
         }
         return EmailService.send_email(
             to_email=user.email,
@@ -324,12 +330,8 @@ class EmailService:
 
     @staticmethod
     def send_nearby_jobs_email(worker, jobs, radius_km):
-        """
-        Send email notification to worker about nearby jobs.
-        """
-        frontend_url = getattr(
-            settings, 'FRONTEND_URL', 'http://localhost:5173'
-        )
+        """Send email notification to worker about nearby jobs."""
+        frontend_url = EmailService._frontend_url()
 
         # Format jobs for email
         job_list = ""
@@ -338,7 +340,7 @@ class EmailService:
             job_list += f"""
             • {job.title}
               💰 K{job.budget} | 📍 {item['distance_display']} away
-              {frontend_url}/jobs/{job.id}
+              {frontend_url}/worker/dashboard/jobs/{job.id}
 
             """
 
@@ -352,7 +354,8 @@ class EmailService:
             'job_list': job_list,
             'radius_km': radius_km,
             'frontend_url': frontend_url,
-            'jobs_url': f"{frontend_url}/nearby-jobs",
+            # Worker job list page (route confirmed in App.tsx)
+            'jobs_url': f"{frontend_url}/worker/dashboard/find-jobs",
         }
 
         subject = f"🔔 {len(jobs)} new jobs found near you!"

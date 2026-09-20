@@ -34,7 +34,7 @@ urlpatterns = [
     path('api/', include('apps.audit.urls')),
     path('api/', include('apps.analytics.urls')),
     path('api/', include('apps.admin_panel.urls')),
-    path('api/', include('apps.notifications.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
     
     # ============================================
     # API DOCUMENTATION

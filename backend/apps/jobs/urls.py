@@ -25,6 +25,7 @@ from apps.jobs.views import (
     JobApplicationsView,
     PendingApplicationsView,
     UpdateApplicationStatusView,
+    WithdrawApplicationView,          # ← NEW
     MyApplicationsView,
     MyJobApplicationsView,
     ClientApplicationsView,
@@ -65,6 +66,7 @@ urlpatterns = [
     path('<int:job_id>/applications/summary/', ApplicationStatusSummaryView.as_view(), name='application-status-summary'),
     path('applications/client/', ClientApplicationsView.as_view(), name='client-applications'),
     path('applications/<int:application_id>/status/', UpdateApplicationStatusView.as_view(), name='update-application-status'),
+    path('applications/<int:application_id>/withdraw/', WithdrawApplicationView.as_view(), name='withdraw-application'),   # ← NEW
 
     # ============================================
     # APPLICATION STATUS MANAGEMENT

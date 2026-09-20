@@ -130,9 +130,6 @@ class JobApplicationsView(APIView):
             return Response(
                 {
                     "count": len(applications),
-
-                    # Use the enhanced serializer so the
-                    # frontend receives worker profile details.
                     "results": ClientApplicationSerializer(
                         applications,
                         many=True
@@ -220,6 +217,7 @@ class UpdateApplicationStatusView(APIView):
     3. Job status becomes ASSIGNED.
     4. All other pending applications are REJECTED.
     5. Worker becomes BUSY.
+    6. Worker is notified via "Worker Assigned" email.
 
     The operation is atomic.
     """
@@ -373,6 +371,19 @@ class UpdateApplicationStatusView(APIView):
         except Exception:
             pass
 
+        # 🆕 Notify the worker — single notification when they get the job
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_job_assigned(
+                worker=worker,
+                job=job,
+            )
+            logger.info(
+                f"[notify] job_assigned sent to worker {worker.id}"
+            )
+        except Exception as e:
+            logger.error(f"[notify] _accept_application_atomic failed: {e}")
+
         return {
             "message": (
                 "Application accepted and worker "
@@ -442,6 +453,20 @@ class UpdateApplicationStatusView(APIView):
 
         application.status = ApplicationStatus.REJECTED
         application.save()
+
+        # 🆕 Notify the worker their application was rejected
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_application_rejected(
+                worker=application.worker,
+                job=application.job,
+            )
+            logger.info(
+                f"[notify] application_rejected sent to worker "
+                f"{application.worker.id}"
+            )
+        except Exception as e:
+            logger.error(f"[notify] _reject_application failed: {e}")
 
         return {
             "message": (
@@ -519,6 +544,34 @@ class MyJobApplicationsView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class WithdrawApplicationView(APIView):
+    """
+    POST /api/jobs/applications/{id}/withdraw/
+
+    Worker withdraws their own PENDING application.
+    Once accepted, they must use /api/jobs/{job_id}/withdraw/ instead.
+    """
+    permission_classes = [
+        IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser,
+    ]
+
+    def post(self, request, application_id):
+        try:
+            result = job_application_service.withdraw_application(
+                request.user, application_id
+            )
+            return Response({
+                'message': result['message'],
+                'application': result['application'].id,
+                'status': result['application'].status,
+            }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 # ============================================================

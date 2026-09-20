@@ -1,0 +1,22 @@
+<!-- backend/templates/emails/report_resolved.html -->
+{% extends "emails/base.html" %}
+
+{% block title %}Report Resolved{% endblock %}
+
+{% block content %}
+<h2>Your Report Has Been Resolved</h2>
+
+<p>Hello {{ full_name }},</p>
+
+<p>The report you submitted (<strong>{{ reference_number }}</strong>) has been reviewed and resolved by our team.</p>
+
+<p>Thank you for helping keep KaJob a safe community. Actions taken as a result of your report help protect other users.</p>
+
+<p style="text-align: center; margin: 30px 0;">
+    <a href="{{ frontend_url }}" class="button" style="background: #4F46E5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block;">
+        Go to KaJob
+    </a>
+</p>
+
+<p>KaJob Team</p>
+{% endblock %}

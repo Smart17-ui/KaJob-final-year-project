@@ -24,6 +24,7 @@ from .job_application_views import (
     JobApplicationsView,
     PendingApplicationsView,
     UpdateApplicationStatusView,
+    WithdrawApplicationView,          # ← NEW
     MyApplicationsView,
     MyJobApplicationsView,
     ClientApplicationsView,
@@ -65,6 +66,7 @@ __all__ = [
     'JobApplicationsView',
     'PendingApplicationsView',
     'UpdateApplicationStatusView',
+    'WithdrawApplicationView',        # ← NEW
     'MyApplicationsView',
     'MyJobApplicationsView',
     'ClientApplicationsView',
