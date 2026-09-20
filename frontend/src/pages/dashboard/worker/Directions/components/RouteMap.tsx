@@ -4,6 +4,7 @@ import {
 } from "react";
 
 import L from "leaflet";
+
 import "leaflet/dist/leaflet.css";
 
 import type {
@@ -20,16 +21,19 @@ interface RouteMapProps {
   destination: Coordinates;
   route: RouteResult | null;
   destinationLabel?: string;
+  clientName?: string;
+  clientPhone?: string | null;
 }
 
 const RouteMap = ({
   workerLocation,
   destination,
   route,
-  destinationLabel,
 }: RouteMapProps) => {
   const mapContainerRef =
-    useRef<HTMLDivElement | null>(null);
+    useRef<HTMLDivElement | null>(
+      null
+    );
 
   const mapRef =
     useRef<L.Map | null>(null);
@@ -41,11 +45,13 @@ const RouteMap = ({
     useRef<L.Marker | null>(null);
 
   const routeLayerRef =
-    useRef<L.FeatureGroup | null>(null);
+    useRef<L.FeatureGroup | null>(
+      null
+    );
 
-  /* =========================================================
-     CREATE MAP
-  ========================================================= */
+  /* =======================================================
+     INITIALIZE MAP
+  ======================================================= */
 
   useEffect(() => {
     if (
@@ -55,38 +61,26 @@ const RouteMap = ({
       return;
     }
 
-    const map =
-      L.map(
-        mapContainerRef.current,
-        {
-          center: [
-            destination.latitude,
-            destination.longitude,
-          ],
+    const map = L.map(
+      mapContainerRef.current,
+      {
+        center: [
+          destination.latitude,
+          destination.longitude,
+        ],
 
-          zoom: 14,
+        zoom: 14,
 
-          /*
-           * Prevent normal page scrolling
-           * from zooming the map.
-           */
-          scrollWheelZoom: false,
-
-          dragging: true,
-
-          touchZoom: true,
-
-          doubleClickZoom: true,
-
-          boxZoom: true,
-
-          keyboard: true,
-
-          zoomControl: true,
-
-          attributionControl: true,
-        }
-      );
+        scrollWheelZoom: false,
+        dragging: true,
+        touchZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        zoomControl: true,
+        attributionControl: true,
+      }
+    );
 
     L.tileLayer(
       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -98,8 +92,7 @@ const RouteMap = ({
       }
     ).addTo(map);
 
-    mapRef.current =
-      map;
+    mapRef.current = map;
 
     window.setTimeout(() => {
       map.invalidateSize();
@@ -108,118 +101,48 @@ const RouteMap = ({
     return () => {
       map.remove();
 
-      mapRef.current =
-        null;
-
-      workerMarkerRef.current =
-        null;
-
-      destinationMarkerRef.current =
-        null;
-
-      routeLayerRef.current =
-        null;
+      mapRef.current = null;
+      workerMarkerRef.current = null;
+      destinationMarkerRef.current = null;
+      routeLayerRef.current = null;
     };
   }, [
     destination.latitude,
     destination.longitude,
   ]);
 
-  /* =========================================================
+  /* =======================================================
      DESTINATION MARKER
-  ========================================================= */
+     
+     The red destination pin intentionally has NO popup.
+     Client details are handled by the "View Client Details"
+     button on the My Work card.
+  ======================================================= */
 
   useEffect(() => {
-    const map =
-      mapRef.current;
+    const map = mapRef.current;
 
     if (!map) {
       return;
     }
 
-    const position =
-      L.latLng(
-        destination.latitude,
-        destination.longitude
-      );
+    const position = L.latLng(
+      destination.latitude,
+      destination.longitude
+    );
 
     if (
       !destinationMarkerRef.current
     ) {
       const marker =
-        L.marker(
-          position,
-          {
-            icon:
-              createLocationMarker(
-                "destination"
-              ),
-
-            /*
-             * Keep destination above
-             * route and worker marker.
-             */
-            zIndexOffset: 3000,
-
-            riseOnHover: true,
-          }
-        ).addTo(map);
-
-      const popup =
-        document.createElement(
-          "div"
-        );
-
-      popup.style.minWidth =
-        "180px";
-
-      popup.style.fontFamily =
-        "Arial, sans-serif";
-
-      const title =
-        document.createElement(
-          "strong"
-        );
-
-      title.textContent =
-        "Job Destination";
-
-      title.style.fontSize =
-        "14px";
-
-      title.style.color =
-        "#111827";
-
-      popup.appendChild(
-        title
-      );
-
-      if (destinationLabel) {
-        const label =
-          document.createElement(
-            "div"
-          );
-
-        label.style.marginTop =
-          "5px";
-
-        label.style.fontSize =
-          "12px";
-
-        label.style.color =
-          "#6b7280";
-
-        label.textContent =
-          destinationLabel;
-
-        popup.appendChild(
-          label
-        );
-      }
-
-      marker.bindPopup(
-        popup
-      );
+        L.marker(position, {
+          icon:
+            createLocationMarker(
+              "destination"
+            ),
+          zIndexOffset: 3000,
+          riseOnHover: true,
+        }).addTo(map);
 
       destinationMarkerRef.current =
         marker;
@@ -235,26 +158,20 @@ const RouteMap = ({
   }, [
     destination.latitude,
     destination.longitude,
-    destinationLabel,
   ]);
 
-  /* =========================================================
-     WORKER MARKER
-  ========================================================= */
+  /* =======================================================
+     WORKER LOCATION MARKER
+  ======================================================= */
 
   useEffect(() => {
-    const map =
-      mapRef.current;
+    const map = mapRef.current;
 
     if (!map) {
       return;
     }
 
-    /*
-     * Remove worker marker when
-     * location is unavailable.
-     */
-    if (!workerLocation) {
+    if (workerLocation === null) {
       if (
         workerMarkerRef.current
       ) {
@@ -269,32 +186,23 @@ const RouteMap = ({
       return;
     }
 
-    const position =
-      L.latLng(
-        workerLocation.latitude,
-        workerLocation.longitude
-      );
+    const position = L.latLng(
+      workerLocation.latitude,
+      workerLocation.longitude
+    );
 
     if (
       !workerMarkerRef.current
     ) {
       const marker =
-        L.marker(
-          position,
-          {
-            icon:
-              createLocationMarker(
-                "worker"
-              ),
-
-            /*
-             * Worker is above the route.
-             */
-            zIndexOffset: 2500,
-
-            riseOnHover: true,
-          }
-        ).addTo(map);
+        L.marker(position, {
+          icon:
+            createLocationMarker(
+              "worker"
+            ),
+          zIndexOffset: 2500,
+          riseOnHover: true,
+        }).addTo(map);
 
       const popup =
         document.createElement(
@@ -321,13 +229,9 @@ const RouteMap = ({
       title.style.color =
         "#111827";
 
-      popup.appendChild(
-        title
-      );
+      popup.appendChild(title);
 
-      marker.bindPopup(
-        popup
-      );
+      marker.bindPopup(popup);
 
       workerMarkerRef.current =
         marker;
@@ -344,24 +248,18 @@ const RouteMap = ({
     workerLocation,
   ]);
 
-  /* =========================================================
-     ROUTE LINE
-  ========================================================= */
+  /* =======================================================
+     ROUTE
+  ======================================================= */
 
   useEffect(() => {
-    const map =
-      mapRef.current;
+    const map = mapRef.current;
 
     if (!map) {
       return;
     }
 
-    /*
-     * Remove previous route.
-     */
-    if (
-      routeLayerRef.current
-    ) {
+    if (routeLayerRef.current) {
       map.removeLayer(
         routeLayerRef.current
       );
@@ -370,9 +268,6 @@ const RouteMap = ({
         null;
     }
 
-    /*
-     * No route to draw.
-     */
     if (!route) {
       return;
     }
@@ -383,71 +278,35 @@ const RouteMap = ({
       properties: {},
 
       geometry: {
-        type:
-          "LineString" as const,
+        type: "LineString" as const,
 
         coordinates:
           route.geometry,
       },
     };
 
-    /* =====================================================
-       WHITE ROUTE OUTLINE
-    ===================================================== */
-
     const routeOutline =
-      L.geoJSON(
-        geoJson,
-        {
-          style: {
-            color:
-              "#ffffff",
-
-            weight: 10,
-
-            opacity: 1,
-
-            lineCap:
-              "round",
-
-            lineJoin:
-              "round",
-          },
-        }
-      );
-
-    /* =====================================================
-       MAIN BLUE ROUTE
-    ===================================================== */
+      L.geoJSON(geoJson, {
+        style: {
+          color: "#ffffff",
+          weight: 10,
+          opacity: 1,
+          lineCap: "round",
+          lineJoin: "round",
+        },
+      });
 
     const routeLine =
-      L.geoJSON(
-        geoJson,
-        {
-          style: {
-            color:
-              "#2563eb",
+      L.geoJSON(geoJson, {
+        style: {
+          color: "#2563eb",
+          weight: 6,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        },
+      });
 
-            weight: 6,
-
-            opacity: 0.95,
-
-            lineCap:
-              "round",
-
-            lineJoin:
-              "round",
-          },
-        }
-      );
-
-    /*
-     * FeatureGroup supports getBounds().
-     *
-     * This is important because we use the
-     * route bounds to automatically fit the
-     * map around both locations.
-     */
     const routeGroup =
       L.featureGroup([
         routeOutline,
@@ -457,10 +316,6 @@ const RouteMap = ({
     routeLayerRef.current =
       routeGroup;
 
-    /* =====================================================
-       FIT MAP TO ROUTE
-    ===================================================== */
-
     const bounds =
       routeGroup.getBounds();
 
@@ -468,21 +323,12 @@ const RouteMap = ({
       map.fitBounds(
         bounds,
         {
-          padding: [
-            90,
-            90,
-          ],
-
+          padding: [90, 90],
           maxZoom: 16,
-
           animate: true,
         }
       );
     }
-
-    /* =====================================================
-       KEEP MARKERS ABOVE ROUTE
-    ===================================================== */
 
     if (
       workerMarkerRef.current
@@ -499,26 +345,22 @@ const RouteMap = ({
         3000
       );
     }
-  }, [
-    route,
-  ]);
+  }, [route]);
 
-  /* =========================================================
-     RESIZE
-  ========================================================= */
+  /* =======================================================
+     MAP RESIZE
+  ======================================================= */
 
   useEffect(() => {
-    const map =
-      mapRef.current;
+    const map = mapRef.current;
 
     if (!map) {
       return;
     }
 
-    const handleResize =
-      () => {
-        map.invalidateSize();
-      };
+    const handleResize = () => {
+      map.invalidateSize();
+    };
 
     window.addEventListener(
       "resize",
@@ -533,56 +375,50 @@ const RouteMap = ({
     };
   }, []);
 
-  /* =========================================================
-     RENDER
-  ========================================================= */
+  /* =======================================================
+     PAGE
+  ======================================================= */
 
   return (
     <div className="relative z-30 h-full w-full overflow-hidden bg-white">
-
       <div
         ref={mapContainerRef}
         className="h-full w-full bg-white"
       />
 
-      {/* ===================================================
+      {/* =================================================
           MAP LEGEND
-      =================================================== */}
+      ================================================= */}
 
       <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] rounded-xl border border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
-
         <div className="space-y-2">
-
           <div className="flex items-center gap-2">
-
             <span className="h-3 w-3 rounded-full bg-blue-600 ring-2 ring-blue-100" />
 
             <span className="text-xs font-medium text-gray-700">
               Current position
             </span>
-
           </div>
 
           <div className="flex items-center gap-2">
-
             <span className="h-3 w-3 rounded-full bg-red-600 ring-2 ring-red-100" />
 
             <span className="text-xs font-medium text-gray-700">
               Job destination
             </span>
-
           </div>
-
         </div>
-
       </div>
+
+      {/* =================================================
+          LOCATION STATUS
+      ================================================= */}
 
       {!workerLocation && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-[1000] -translate-x-1/2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800 shadow-sm">
           Waiting for your location...
         </div>
       )}
-
     </div>
   );
 };

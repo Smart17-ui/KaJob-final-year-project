@@ -1,95 +1,141 @@
 import {
-  ArrowPathIcon,
-  BriefcaseIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  EyeIcon,
-  MapPinIcon,
-  CalendarDaysIcon,
-  ClockIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline";
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useNavigate } from "react-router-dom";
 
-import { useEffect, useMemo, useState } from "react";
+import { getWorkerJobDetails } from "@/api/jobs";
+import {
+  getMyApplications,
+} from "@/components/services/applicationService";
+import type {
+  JobApplication,
+} from "@/shared/types/application";
 
-import apiClient from "@/api/client";
-
-import DetailsModal from "@/components/pop/DetailsModal/DetailsModal";
+import ApplicationStatusSidebar from "@/components/my-applications/ApplicationStatusSidebar";
 import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
 
-/* =========================
-   APPLICATION TYPES
-========================= */
-
-type BackendApplication = {
-  id: number;
-  job: number;
-  job_title: string;
-  worker: number;
-  worker_name: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
-  status_display: string;
-  applied_at: string;
-};
-
-type MyApplicationsResponse = {
-  count: number;
-  results: BackendApplication[];
-};
+// ============================================
+// TYPES
+// ============================================
 
 type ApplicationStatus =
-  | "Pending"
-  | "Accepted"
-  | "Rejected";
+  | "ALL"
+  | "PENDING"
+  | "ACCEPTED"
+  | "REJECTED";
 
-type Application = {
+type FeedbackType =
+  | "success"
+  | "error"
+  | "info";
+
+interface Application {
   id: number;
   jobId: number;
   jobTitle: string;
   status: ApplicationStatus;
   appliedAt: string;
   jobAvailable: boolean;
-};
+}
 
-/* =========================
-   JOB DETAILS TYPE
-========================= */
-
-type JobDetails = {
-  id: number;
+interface FeedbackState {
+  isOpen: boolean;
+  type: FeedbackType;
   title: string;
-  description: string | null;
-  budget: number | string;
-  category_name: string | null;
-  general_location: string | null;
-  status: string;
-  status_display: string | null;
-  job_display_date: string | null;
-  duration_hours: number | null;
-  urgency_display: string | null;
-  is_urgent: boolean;
+  message: string;
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+const getApplicationStatus = (
+  status: string
+): ApplicationStatus => {
+  const normalizedStatus = status.toUpperCase();
+
+  if (normalizedStatus === "ACCEPTED") {
+    return "ACCEPTED";
+  }
+
+  if (normalizedStatus === "REJECTED") {
+    return "REJECTED";
+  }
+
+  return "PENDING";
 };
 
-/* =========================
-   FILTER TYPE
-========================= */
+const formatDate = (date?: string): string => {
+  if (!date) {
+    return "Date not available";
+  }
 
-type Filter =
-  | "All"
-  | "Pending"
-  | "Accepted"
-  | "Rejected";
+  const parsedDate = new Date(date);
 
-/* =========================
-   COMPONENT
-========================= */
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Date not available";
+  }
+
+  return parsedDate.toLocaleDateString(
+    "en-ZM",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  );
+};
+
+const getStatusClasses = (
+  status: ApplicationStatus
+): string => {
+  switch (status) {
+    case "ACCEPTED":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+
+    case "REJECTED":
+      return "border-red-200 bg-red-50 text-red-700";
+
+    case "PENDING":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+
+    default:
+      return "border-gray-200 bg-gray-50 text-gray-700";
+  }
+};
+
+const getStatusIndicator = (
+  status: ApplicationStatus
+): string => {
+  switch (status) {
+    case "ACCEPTED":
+      return "✓";
+
+    case "REJECTED":
+      return "×";
+
+    case "PENDING":
+      return "•";
+
+    default:
+      return "•";
+  }
+};
+
+// ============================================
+// COMPONENT
+// ============================================
 
 const MyApplications = () => {
+  const navigate = useNavigate();
+
   const [applications, setApplications] =
     useState<Application[]>([]);
 
   const [filter, setFilter] =
-    useState<Filter>("All");
+    useState<ApplicationStatus>("ALL");
 
   const [isLoading, setIsLoading] =
     useState(true);
@@ -97,132 +143,82 @@ const MyApplications = () => {
   const [errorMessage, setErrorMessage] =
     useState("");
 
-  /* =========================
-     VIEW JOB MODAL
-  ========================= */
-
-  const [selectedApplication, setSelectedApplication] =
-    useState<Application | null>(null);
-
-  const [selectedJob, setSelectedJob] =
-    useState<JobDetails | null>(null);
-
-  const [isLoadingJob, setIsLoadingJob] =
-    useState(false);
-
-  const [jobError, setJobError] =
-    useState(false);
-
-  /* =========================
-     CANCEL APPLICATION MODAL
-  ========================= */
-
   const [applicationToCancel, setApplicationToCancel] =
     useState<Application | null>(null);
 
   const [isCancelling, setIsCancelling] =
     useState(false);
 
-  /* =========================
-     FEEDBACK MODAL
-  ========================= */
-
   const [feedback, setFeedback] =
-    useState<{
-      type:
-        | "error"
-        | "success"
-        | "warning"
-        | "info"
-        | "cancelled"
-        | "unavailable"
-        | "confirm";
-      title: string;
-      message: string;
-    } | null>(null);
+    useState<FeedbackState>({
+      isOpen: false,
+      type: "info",
+      title: "",
+      message: "",
+    });
 
-  /* =========================
-     LOAD APPLICATIONS
-  ========================= */
+  // ============================================
+  // LOAD APPLICATIONS
+  // ============================================
 
   const loadApplications = async () => {
-    setIsLoading(true);
-    setErrorMessage("");
-
     try {
-      const response =
-        (await apiClient(
-          "/jobs/my-applications/"
-        )) as MyApplicationsResponse;
+      setIsLoading(true);
+      setErrorMessage("");
 
-      /*
-       * Keep every application even if its job
-       * is no longer available.
-       */
-      const mappedApplications: Application[] =
-        response.results.map((application) => ({
-          id: application.id,
+      const response = await getMyApplications();
 
-          jobId: application.job,
+      const results = response?.results ?? [];
 
-          jobTitle: application.job_title,
-
-          status:
-            application.status === "ACCEPTED"
-              ? "Accepted"
-              : application.status === "REJECTED"
-                ? "Rejected"
-                : "Pending",
-
-          appliedAt: application.applied_at,
-
-          jobAvailable: true,
-        }));
-
-      /*
-       * Check whether each application's job
-       * is still available.
-       */
-      const applicationsWithAvailability =
+      const mappedApplications =
         await Promise.all(
-          mappedApplications.map(
-            async (application) => {
-              try {
-                await apiClient(
-                  `/jobs/${application.jobId}/worker/`
+          results.map(
+            async (
+              application: JobApplication
+            ): Promise<Application> => {
+              const status =
+                getApplicationStatus(
+                  String(application.status ?? "")
                 );
 
-                return {
-                  ...application,
-                  jobAvailable: true,
-                };
+              let jobAvailable = true;
+
+              try {
+                await getWorkerJobDetails(
+                  Number(application.job)
+                );
               } catch {
-                return {
-                  ...application,
-                  jobAvailable: false,
-                };
+                jobAvailable = false;
               }
+
+              return {
+                id: Number(application.id),
+                jobId: Number(application.job),
+                jobTitle:
+                  application.job_title ||
+                  "Untitled Job",
+                status,
+                appliedAt:
+                  application.applied_at,
+                jobAvailable,
+              };
             }
           )
         );
 
-      applicationsWithAvailability.sort(
+      mappedApplications.sort(
         (a, b) =>
           new Date(b.appliedAt).getTime() -
           new Date(a.appliedAt).getTime()
       );
 
-      setApplications(
-        applicationsWithAvailability
-      );
+      setApplications(mappedApplications);
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(
-          "Failed to load your applications."
-        );
-      }
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to load your applications."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -232,121 +228,62 @@ const MyApplications = () => {
     loadApplications();
   }, []);
 
-  /* =========================
-     FILTER APPLICATIONS
-  ========================= */
+  // ============================================
+  // FILTERED APPLICATIONS
+  // ============================================
 
-  const filteredApplications =
-    useMemo(() => {
-      if (filter === "All") {
-        return applications;
-      }
+  const filteredApplications = useMemo(() => {
+    if (filter === "ALL") {
+      return applications;
+    }
 
-      return applications.filter(
+    return applications.filter(
+      (application) =>
+        application.status === filter
+    );
+  }, [applications, filter]);
+
+  // ============================================
+  // APPLICATION COUNTS
+  // ============================================
+
+  const counts = useMemo(
+    () => ({
+      ALL: applications.length,
+
+      PENDING: applications.filter(
         (application) =>
-          application.status === filter
-      );
-    }, [applications, filter]);
+          application.status === "PENDING"
+      ).length,
 
-  /* =========================
-     STATUS COUNTS
-  ========================= */
+      ACCEPTED: applications.filter(
+        (application) =>
+          application.status === "ACCEPTED"
+      ).length,
 
-  const pendingCount =
-    applications.filter(
-      (application) =>
-        application.status === "Pending"
-    ).length;
+      REJECTED: applications.filter(
+        (application) =>
+          application.status === "REJECTED"
+      ).length,
+    }),
+    [applications]
+  );
 
-  const acceptedCount =
-    applications.filter(
-      (application) =>
-        application.status === "Accepted"
-    ).length;
+  // ============================================
+  // VIEW APPLICATION
+  // ============================================
 
-  const rejectedCount =
-    applications.filter(
-      (application) =>
-        application.status === "Rejected"
-    ).length;
-
-  /* =========================
-     VIEW JOB
-  ========================= */
-
-  const handleViewJob = async (
-    application: Application
+  const handleViewApplication = (
+    applicationId: number
   ) => {
-    setSelectedApplication(application);
-    setSelectedJob(null);
-    setJobError(false);
-
-    /*
-     * If the application already knows the job
-     * is unavailable, don't make another request.
-     */
-    if (!application.jobAvailable) {
-      return;
-    }
-
-    try {
-      setIsLoadingJob(true);
-
-      const response =
-        (await apiClient(
-          `/jobs/${application.jobId}/worker/`
-        )) as JobDetails | {
-          job: JobDetails;
-        };
-
-      /*
-       * Support both:
-       * { ...job }
-       *
-       * and:
-       * { job: { ...job } }
-       */
-      const job =
-        "job" in response
-          ? response.job
-          : response;
-
-      setSelectedJob(job);
-    } catch (error) {
-      console.error(
-        "Failed to load job details:",
-        error
-      );
-
-      setJobError(true);
-    } finally {
-      setIsLoadingJob(false);
-    }
+    navigate(
+      `/worker/dashboard/applications/${applicationId}`
+    );
   };
 
-  /* =========================
-     CLOSE JOB DETAILS
-  ========================= */
-
-  const closeJobDetails = () => {
-    setSelectedApplication(null);
-    setSelectedJob(null);
-    setJobError(false);
-  };
-
-  /* =========================
-     OPEN CANCEL APPLICATION
-  ========================= */
-
-  const handleCancelClick = (
-    application: Application
-  ) => {
-    setApplicationToCancel(application);
-  };
-
-  /* =========================
-     CANCEL APPLICATION
-  ========================= */
+  // ============================================
+  // CANCEL APPLICATION
+  // ============================================
 
   const handleCancelApplication = async () => {
     if (!applicationToCancel) {
@@ -357,14 +294,13 @@ const MyApplications = () => {
       setIsCancelling(true);
 
       /*
-       * IMPORTANT:
+       * There is currently no cancel-application
+       * endpoint in applicationService.ts.
        *
-       * The actual cancellation endpoint has not
-       * been wired here because we should use the
-       * exact backend endpoint that exists in KaJob.
-       *
-       * For now this opens the confirmation UI.
+       * This will be connected once the backend
+       * endpoint is implemented.
        */
+
       console.log(
         "Cancel application:",
         applicationToCancel.id
@@ -373,982 +309,470 @@ const MyApplications = () => {
       setApplicationToCancel(null);
 
       setFeedback({
-        type: "success",
-        title: "Application Cancelled",
+        isOpen: true,
+        type: "info",
+        title: "Coming Soon",
         message:
-          "Your application has been cancelled successfully.",
-      });
-    } catch (error) {
-      console.error(
-        "Failed to cancel application:",
-        error
-      );
-
-      setFeedback({
-        type: "error",
-        title: "Unable to Cancel Application",
-        message:
-          "We couldn't cancel your application. Please try again.",
+          "Application cancellation will be available once the backend endpoint is added.",
       });
     } finally {
       setIsCancelling(false);
     }
   };
 
-  /* =========================
-     LOADING STATE
-  ========================= */
+  // ============================================
+  // CLOSE FEEDBACK
+  // ============================================
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <section>
-          <h1 className="text-2xl font-bold text-slate-900">
-            My Applications
-          </h1>
+  const handleCloseFeedback = () => {
+    setFeedback((current) => ({
+      ...current,
+      isOpen: false,
+    }));
+  };
 
-          <p className="mt-1 text-sm text-slate-500">
-            Track the jobs you've applied for.
-          </p>
-        </section>
+  // ============================================
+  // RENDER
+  // ============================================
 
-        <section className="flex min-h-[320px] items-center justify-center rounded-xl border border-slate-200 bg-white">
-          <div className="text-center">
-            <ArrowPathIcon className="mx-auto h-8 w-8 animate-spin text-emerald-600" />
+  return (
+    <>
+      <div
+        className="
+          flex
+          h-[calc(100vh-136px)]
+          min-h-0
+          min-w-0
+          flex-col
+          sm:h-[calc(100vh-144px)]
+          lg:h-[calc(100vh-152px)]
+        "
+      >
+        {/* ========================================
+            HEADER
+        ======================================== */}
 
-            <h2 className="mt-4 font-semibold text-slate-900">
-              Loading applications...
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Please wait while we fetch your
-              applications.
-            </p>
-          </div>
-        </section>
-      </div>
-    );
-  }
-
-  /* =========================
-     ERROR STATE
-  ========================= */
-
-  if (errorMessage) {
-    return (
-      <div className="space-y-6">
-        <section>
-          <h1 className="text-2xl font-bold text-slate-900">
-            My Applications
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Track the jobs you've applied for.
-          </p>
-        </section>
-
-        <section className="rounded-xl border border-red-200 bg-red-50 p-6">
-          <div className="flex items-start gap-3">
-            <ExclamationCircleIcon className="mt-0.5 h-6 w-6 shrink-0 text-red-600" />
+        <section className="shrink-0 pb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+              <span className="text-lg font-bold text-emerald-600">
+                A
+              </span>
+            </div>
 
             <div>
-              <h2 className="font-semibold text-red-800">
+              <h1 className="text-2xl font-bold text-gray-900">
+                My Applications
+              </h1>
+
+              <p className="mt-0.5 text-sm text-gray-500">
+                Track the jobs you've applied for.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================
+            CONTENT
+        ======================================== */}
+
+        {isLoading ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <div className="text-center">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-600" />
+
+              <p className="mt-3 text-sm text-gray-500">
+                Loading your applications...
+              </p>
+            </div>
+          </div>
+        ) : errorMessage ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-lg font-bold text-red-600">
+                !
+              </div>
+
+              <h2 className="mt-3 text-lg font-semibold text-gray-900">
                 Unable to load applications
               </h2>
 
-              <p className="mt-1 text-sm text-red-700">
+              <p className="mt-2 text-sm text-gray-600">
                 {errorMessage}
               </p>
 
               <button
                 type="button"
                 onClick={loadApplications}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                className="
+                  mt-5
+                  rounded-xl
+                  bg-gray-900
+                  px-4
+                  py-2.5
+                  text-sm
+                  font-semibold
+                  text-white
+                  transition
+                  hover:bg-gray-800
+                "
               >
-                <ArrowPathIcon className="h-4 w-4" />
-                Try again
+                Try Again
               </button>
             </div>
           </div>
-        </section>
-      </div>
-    );
-  }
+        ) : (
+          <div className="flex min-h-0 min-w-0 flex-1 gap-6">
+            {/* ====================================
+                SIDEBAR
+            ==================================== */}
 
-  /* =========================
-     MAIN CONTENT
-  ========================= */
-
-  return (
-    <div className="space-y-6">
-
-      {/* =========================
-          HEADER
-      ========================= */}
-
-      <section>
-        <h1 className="text-2xl font-bold text-slate-900">
-          My Applications
-        </h1>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Track the jobs you've applied for.
-        </p>
-      </section>
-
-      {/* =========================
-          APPLICATION SUMMARY
-      ========================= */}
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-
-        {/* TOTAL */}
-
-        <button
-          type="button"
-          onClick={() => setFilter("All")}
-          className={`rounded-xl border bg-white p-4 text-left transition ${
-            filter === "All"
-              ? "border-emerald-500 ring-1 ring-emerald-500"
-              : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <p className="text-sm text-slate-500">
-            Total
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {applications.length}
-          </p>
-        </button>
-
-        {/* PENDING */}
-
-        <button
-          type="button"
-          onClick={() => setFilter("Pending")}
-          className={`rounded-xl border bg-white p-4 text-left transition ${
-            filter === "Pending"
-              ? "border-amber-500 ring-1 ring-amber-500"
-              : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <p className="text-sm text-slate-500">
-            Pending
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {pendingCount}
-          </p>
-        </button>
-
-        {/* ACCEPTED */}
-
-        <button
-          type="button"
-          onClick={() => setFilter("Accepted")}
-          className={`rounded-xl border bg-white p-4 text-left transition ${
-            filter === "Accepted"
-              ? "border-emerald-500 ring-1 ring-emerald-500"
-              : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <p className="text-sm text-slate-500">
-            Accepted
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {acceptedCount}
-          </p>
-        </button>
-
-        {/* REJECTED */}
-
-        <button
-          type="button"
-          onClick={() => setFilter("Rejected")}
-          className={`rounded-xl border bg-white p-4 text-left transition ${
-            filter === "Rejected"
-              ? "border-red-500 ring-1 ring-red-500"
-              : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <p className="text-sm text-slate-500">
-            Rejected
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {rejectedCount}
-          </p>
-        </button>
-      </div>
-
-      {/* =========================
-          FILTER TABS
-      ========================= */}
-
-      <section className="rounded-xl border border-slate-200 bg-white p-2">
-        <div className="flex flex-wrap gap-1">
-
-          {(
-            [
-              "All",
-              "Pending",
-              "Accepted",
-              "Rejected",
-            ] as Filter[]
-          ).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setFilter(item)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                filter === item
-                  ? "bg-emerald-600 text-white"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-
-        </div>
-      </section>
-
-      {/* =========================
-          APPLICATIONS
-      ========================= */}
-
-      {filteredApplications.length > 0 ? (
-        <div className="space-y-4">
-
-          {filteredApplications.map(
-            (application) => (
-              <ApplicationCard
-                key={application.id}
-                application={application}
-                onViewJob={() =>
-                  handleViewJob(application)
-                }
-                onCancel={() =>
-                  handleCancelClick(application)
-                }
+            <aside className="-mt-4 w-60 shrink-0">
+              <ApplicationStatusSidebar
+                status={filter}
+                setStatus={setFilter}
+                counts={counts}
               />
-            )
-          )}
+            </aside>
 
-        </div>
-      ) : (
+            {/* ====================================
+                APPLICATION LIST
+            ==================================== */}
 
-        /* =========================
-           EMPTY STATE
-        ========================= */
-
-        <section className="rounded-xl border border-slate-200 bg-white">
-          <div className="flex min-h-64 items-center justify-center px-6 py-10">
-
-            <div className="text-center">
-
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <BriefcaseIcon className="h-6 w-6 text-slate-400" />
-              </div>
-
-              <h3 className="mt-4 text-sm font-semibold text-slate-900">
-                {applications.length === 0
-                  ? "No applications yet"
-                  : "No applications found"}
-              </h3>
-
-              <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-slate-500">
-                {applications.length === 0
-                  ? "Jobs you apply for will appear here so you can track your applications."
-                  : "You don't have any applications matching this filter."}
-              </p>
-
-              {filter !== "All" && (
-                <button
-                  type="button"
-                  onClick={() => setFilter("All")}
-                  className="mt-4 text-sm font-semibold text-emerald-600 hover:text-emerald-700"
-                >
-                  View all applications
-                </button>
-              )}
-
-            </div>
-
-          </div>
-        </section>
-      )}
-
-      {/* ==================================================
-          JOB DETAILS MODAL
-      ================================================== */}
-
-      {selectedApplication && (
-        <DetailsModal
-          title={
-            jobError || !selectedApplication.jobAvailable
-              ? "Job Not Available"
-              : "Job Details"
-          }
-          onClose={closeJobDetails}
-          width="lg"
-          footer={
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={closeJobDetails}
-                className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-              >
-                Close
-              </button>
-            </div>
-          }
-        >
-
-          {/* =========================
-              JOB UNAVAILABLE
-          ========================= */}
-
-          {jobError ||
-          !selectedApplication.jobAvailable ? (
-            <div className="flex min-h-[280px] items-center justify-center">
-              <div className="max-w-sm text-center">
-
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-                  <ExclamationCircleIcon className="h-7 w-7 text-slate-500" />
-                </div>
-
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">
-                  Job Not Available
-                </h3>
-
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  This job is no longer available.
-                  It may have been deleted, cancelled,
-                  or removed by the client.
-                </p>
-
-                <div className="mt-5 rounded-lg bg-slate-50 p-3 text-left">
-                  <p className="text-xs text-slate-500">
-                    Your application
-                  </p>
-
-                  <p className="mt-1 text-sm font-medium text-slate-900">
-                    {selectedApplication.jobTitle}
-                  </p>
-
-                  <div className="mt-2">
-                    <StatusBadge
-                      status={
-                        selectedApplication.status
-                      }
-                    />
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          ) : isLoadingJob ? (
-
-            /* =========================
-               LOADING JOB
-            ========================= */
-
-            <div className="flex min-h-[280px] items-center justify-center">
-              <div className="text-center">
-
-                <ArrowPathIcon className="mx-auto h-8 w-8 animate-spin text-emerald-600" />
-
-                <p className="mt-4 text-sm font-medium text-slate-900">
-                  Loading job details...
-                </p>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Please wait.
-                </p>
-
-              </div>
-            </div>
-
-          ) : selectedJob ? (
-
-            /* =========================
-               JOB DETAILS
-            ========================= */
-
-            <div className="space-y-6">
-
-              {/* JOB HEADER */}
-
-              <div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900">
-                      {selectedJob.title}
-                    </h3>
-
-                    {selectedJob.category_name && (
-                      <span className="mt-2 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                        {selectedJob.category_name}
+            <main
+              className="
+                min-h-0
+                min-w-0
+                flex-1
+                overflow-y-auto
+                overflow-x-hidden
+                pr-2
+                [scrollbar-width:none]
+                [-ms-overflow-style:none]
+                [&::-webkit-scrollbar]:hidden
+              "
+            >
+              {filteredApplications.length === 0 ? (
+                <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white">
+                  <div className="max-w-sm px-6 text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">
+                      <span className="text-lg font-bold text-gray-400">
+                        A
                       </span>
-                    )}
+                    </div>
+
+                    <h2 className="mt-4 text-base font-semibold text-gray-900">
+                      No applications found
+                    </h2>
+
+                    <p className="mt-1 text-sm leading-6 text-gray-500">
+                      {filter === "ALL"
+                        ? "You haven't applied for any jobs yet."
+                        : `You don't have any ${filter.toLowerCase()} applications.`}
+                    </p>
                   </div>
-
-                  <JobStatus
-                    status={
-                      selectedJob.status
-                    }
-                    display={
-                      selectedJob.status_display
-                    }
-                  />
-
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredApplications.map(
+                    (application) => (
+                      <article
+                        key={application.id}
+                        className="
+                          rounded-2xl
+                          border
+                          border-gray-200
+                          bg-white
+                          p-5
+                          shadow-sm
+                          transition
+                          hover:border-gray-300
+                          hover:shadow-md
+                        "
+                      >
+                        {/* TOP */}
 
-              {/* BUDGET */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h2 className="truncate text-base font-semibold text-gray-900">
+                                {application.jobTitle}
+                              </h2>
 
-              <div className="rounded-xl bg-emerald-50 p-4">
-                <p className="text-xs font-medium text-slate-500">
-                  Budget
-                </p>
+                              <span
+                                className={`
+                                  inline-flex
+                                  shrink-0
+                                  items-center
+                                  gap-1.5
+                                  rounded-full
+                                  border
+                                  px-2.5
+                                  py-1
+                                  text-xs
+                                  font-semibold
+                                  ${getStatusClasses(
+                                    application.status
+                                  )}
+                                `}
+                              >
+                                <span className="text-sm leading-none">
+                                  {getStatusIndicator(
+                                    application.status
+                                  )}
+                                </span>
 
-                <p className="mt-1 text-2xl font-bold text-emerald-600">
-                  {formatBudget(
-                    selectedJob.budget
+                                {application.status}
+                              </span>
+                            </div>
+
+                            <p className="mt-1 text-xs text-gray-500">
+                              Applied{" "}
+                              {formatDate(
+                                application.appliedAt
+                              )}
+                            </p>
+                          </div>
+
+                          <span className="shrink-0 rounded-lg bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-500">
+                            #{application.id}
+                          </span>
+                        </div>
+
+                        {/* STATUS MESSAGE */}
+
+                        {application.status ===
+                          "ACCEPTED" && (
+                          <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                            <p className="text-sm font-medium text-emerald-800">
+                              Your application was accepted.
+                            </p>
+
+                            <p className="mt-0.5 text-xs text-emerald-700">
+                              Check My Work for
+                              the next steps.
+                            </p>
+                          </div>
+                        )}
+
+                        {application.status ===
+                          "REJECTED" && (
+                          <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                            <p className="text-sm font-medium text-red-800">
+                              This application was not accepted.
+                            </p>
+                          </div>
+                        )}
+
+                        {application.status ===
+                          "PENDING" && (
+                          <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                            <p className="text-sm font-medium text-amber-800">
+                              Your application is waiting for the client to respond.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* FOOTER */}
+
+                        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span
+                              className={
+                                application.jobAvailable
+                                  ? "font-semibold text-emerald-600"
+                                  : "font-semibold text-gray-400"
+                              }
+                            >
+                              {application.jobAvailable
+                                ? "Available"
+                                : "Unavailable"}
+                            </span>
+
+                            <span>
+                              Job details
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {application.status ===
+                              "PENDING" && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setApplicationToCancel(
+                                    application
+                                  )
+                                }
+                                className="
+                                  rounded-xl
+                                  border
+                                  border-gray-200
+                                  px-3.5
+                                  py-2
+                                  text-sm
+                                  font-medium
+                                  text-gray-600
+                                  transition
+                                  hover:border-red-200
+                                  hover:bg-red-50
+                                  hover:text-red-600
+                                "
+                              >
+                                Cancel
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleViewApplication(
+                                  application.id
+                                )
+                              }
+                              className="
+                                inline-flex
+                                items-center
+                                gap-2
+                                rounded-xl
+                                bg-gray-900
+                                px-4
+                                py-2
+                                text-sm
+                                font-semibold
+                                text-white
+                                transition
+                                hover:bg-gray-800
+                              "
+                            >
+                              <span>→</span>
+                              View Application
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    )
                   )}
-                </p>
-              </div>
-
-              {/* DESCRIPTION */}
-
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900">
-                  Description
-                </h4>
-
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {selectedJob.description ||
-                    "No description provided."}
-                </p>
-              </div>
-
-              {/* JOB INFORMATION */}
-
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900">
-                  Job Information
-                </h4>
-
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-
-                  {/* LOCATION */}
-
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                    <div className="flex items-center gap-2">
-                      <MapPinIcon className="h-4 w-4 text-slate-500" />
-
-                      <p className="text-xs text-slate-500">
-                        Location
-                      </p>
-                    </div>
-
-                    <p className="mt-1 text-sm font-medium text-slate-900">
-                      {selectedJob.general_location ||
-                        "Location not specified"}
-                    </p>
-                  </div>
-
-                  {/* DATE */}
-
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                    <div className="flex items-center gap-2">
-                      <CalendarDaysIcon className="h-4 w-4 text-slate-500" />
-
-                      <p className="text-xs text-slate-500">
-                        Job Date
-                      </p>
-                    </div>
-
-                    <p className="mt-1 text-sm font-medium text-slate-900">
-                      {selectedJob.job_display_date ||
-                        "Not specified"}
-                    </p>
-                  </div>
-
-                  {/* DURATION */}
-
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                    <div className="flex items-center gap-2">
-                      <ClockIcon className="h-4 w-4 text-slate-500" />
-
-                      <p className="text-xs text-slate-500">
-                        Duration
-                      </p>
-                    </div>
-
-                    <p className="mt-1 text-sm font-medium text-slate-900">
-                      {selectedJob.duration_hours
-                        ? `${selectedJob.duration_hours} hour${
-                            selectedJob.duration_hours ===
-                            1
-                              ? ""
-                              : "s"
-                          }`
-                        : "Not specified"}
-                    </p>
-                  </div>
-
-                  {/* URGENCY */}
-
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                    <div className="flex items-center gap-2">
-                      <ClockIcon className="h-4 w-4 text-slate-500" />
-
-                      <p className="text-xs text-slate-500">
-                        Urgency
-                      </p>
-                    </div>
-
-                    <p className="mt-1 text-sm font-medium text-slate-900">
-                      {selectedJob.urgency_display ||
-                        "Normal"}
-                    </p>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* APPLICATION STATUS */}
-
-              <div className="rounded-xl border border-slate-200 p-4">
-
-                <div className="flex items-center justify-between gap-3">
-
-                  <div>
-                    <p className="text-xs text-slate-500">
-                      Your Application
-                    </p>
-
-                    <p className="mt-1 text-sm font-medium text-slate-900">
-                      Application #
-                      {selectedApplication.id}
-                    </p>
-                  </div>
-
-                  <StatusBadge
-                    status={
-                      selectedApplication.status
-                    }
-                  />
-
-                </div>
-
-                <p className="mt-3 text-xs text-slate-500">
-                  Applied{" "}
-                  {formatApplicationDate(
-                    selectedApplication.appliedAt
-                  )}
-                </p>
-
-              </div>
-
-              {/* URGENT NOTICE */}
-
-              {selectedJob.is_urgent && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex gap-3">
-
-                    <ExclamationCircleIcon className="h-5 w-5 shrink-0 text-amber-600" />
-
-                    <div>
-                      <p className="text-sm font-semibold text-amber-800">
-                        Urgent Job
-                      </p>
-
-                      <p className="mt-1 text-sm text-amber-700">
-                        This job has been marked as
-                        urgent by the client.
-                      </p>
-                    </div>
-
-                  </div>
                 </div>
               )}
+            </main>
+          </div>
+        )}
+      </div>
 
-            </div>
-
-          ) : null}
-
-        </DetailsModal>
-      )}
-
-      {/* ==================================================
-          CANCEL APPLICATION MODAL
-      ================================================== */}
+      {/* ==========================================
+          CANCEL CONFIRMATION
+      ========================================== */}
 
       {applicationToCancel && (
-        <FeedbackModal
-          type="confirm"
-          title="Cancel Application?"
-          message={`Are you sure you want to cancel your application for "${applicationToCancel.jobTitle}"? This action cannot be undone.`}
-          primaryButtonText="Cancel Application"
-          secondaryButtonText="Keep Application"
-          onPrimaryAction={
-            handleCancelApplication
-          }
-          onSecondaryAction={() =>
-            setApplicationToCancel(null)
-          }
-          onClose={() =>
-            setApplicationToCancel(null)
-          }
-          isLoading={isCancelling}
-        />
-      )}
-
-      {/* ==================================================
-          FEEDBACK MODAL
-      ================================================== */}
-
-      {feedback && (
-        <FeedbackModal
-          type={feedback.type}
-          title={feedback.title}
-          message={feedback.message}
-          onClose={() => setFeedback(null)}
-        />
-      )}
-
-    </div>
-  );
-};
-
-/* ==================================================
-   APPLICATION CARD
-================================================== */
-
-type ApplicationCardProps = {
-  application: Application;
-  onViewJob: () => void;
-  onCancel: () => void;
-};
-
-const ApplicationCard = ({
-  application,
-  onViewJob,
-  onCancel,
-}: ApplicationCardProps) => {
-  return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-md">
-
-      {/* =========================
-          TOP
-      ========================= */}
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-        {/* JOB INFO */}
-
-        <div className="flex gap-4">
-
-          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50">
-            <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
-          </div>
-
-          <div>
-
-            <h3 className="text-base font-semibold text-slate-900">
-              {application.jobTitle}
-            </h3>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Job application
-            </p>
-
-            {/* JOB AVAILABILITY */}
-
-            {!application.jobAvailable && (
-              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1">
-
-                <ExclamationCircleIcon className="h-4 w-4 text-slate-500" />
-
-                <span className="text-xs font-semibold text-slate-600">
-                  Job Not Available
-                </span>
-
-              </div>
-            )}
-
-          </div>
-        </div>
-
-        {/* APPLICATION DATE */}
-
-        <div className="sm:text-right">
-
-          <p className="text-xs font-medium text-slate-400">
-            Applied
-          </p>
-
-          <p className="mt-1 text-sm font-medium text-slate-600">
-            {formatApplicationDate(
-              application.appliedAt
-            )}
-          </p>
-
-        </div>
-
-      </div>
-
-      {/* =========================
-          APPLICATION INFO
-      ========================= */}
-
-      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500">
-
-        <div className="flex items-center gap-1.5">
-          <BriefcaseIcon className="h-4 w-4" />
-
-          <span>
-            Application #{application.id}
-          </span>
-        </div>
-
-      </div>
-
-      {/* =========================
-          BOTTOM
-      ========================= */}
-
-      <div className="mt-5 flex flex-col gap-4 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-
-        {/* STATUS */}
-
-        <div className="flex flex-wrap items-center gap-3">
-
-          <StatusBadge
-            status={application.status}
-          />
-
-          {!application.jobAvailable && (
-            <span className="text-xs text-slate-500">
-              Job no longer available
-            </span>
-          )}
-
-        </div>
-
-        {/* ACTIONS */}
-
-        <div className="flex flex-col gap-2 sm:flex-row">
-
-          {/* VIEW JOB */}
-
-          <button
-            type="button"
-            onClick={onViewJob}
-            className="flex items-center justify-center gap-2 rounded-lg border border-emerald-600 px-5 py-2.5 text-sm font-semibold text-emerald-600 transition-colors hover:bg-emerald-50"
+        <div
+          className="
+            fixed
+            inset-0
+            z-50
+            flex
+            items-center
+            justify-center
+            bg-black/40
+            p-4
+          "
+        >
+          <div
+            className="
+              w-full
+              max-w-md
+              rounded-2xl
+              bg-white
+              p-6
+              shadow-xl
+            "
           >
-            <EyeIcon className="h-4 w-4" />
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-lg font-bold text-amber-600">
+                !
+              </div>
 
-            View Job
-          </button>
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">
+                  Cancel this application?
+                </h2>
 
-          {/* CANCEL APPLICATION */}
+                <p className="mt-1 text-sm leading-6 text-gray-600">
+                  You are about to cancel your
+                  application for{" "}
+                  <span className="font-semibold text-gray-900">
+                    {applicationToCancel.jobTitle}
+                  </span>
+                  .
+                </p>
+              </div>
+            </div>
 
-          {application.status ===
-            "Pending" &&
-            application.jobAvailable && (
+            <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={onCancel}
-                className="flex items-center justify-center gap-2 rounded-lg border border-red-200 px-5 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                disabled={isCancelling}
+                onClick={() =>
+                  setApplicationToCancel(null)
+                }
+                className="
+                  rounded-xl
+                  border
+                  border-gray-200
+                  px-4
+                  py-2.5
+                  text-sm
+                  font-semibold
+                  text-gray-700
+                  transition
+                  hover:bg-gray-50
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
+                "
               >
-                <XCircleIcon className="h-4 w-4" />
-
-                Cancel Application
+                Keep Application
               </button>
-            )}
 
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={handleCancelApplication}
+                className="
+                  rounded-xl
+                  bg-red-600
+                  px-4
+                  py-2.5
+                  text-sm
+                  font-semibold
+                  text-white
+                  transition
+                  hover:bg-red-700
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
+                "
+              >
+                {isCancelling
+                  ? "Cancelling..."
+                  : "Cancel Application"}
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-      </div>
+      {/* ==========================================
+          FEEDBACK MODAL
+      ========================================== */}
 
-    </article>
+      <FeedbackModal
+        isOpen={feedback.isOpen}
+        onClose={handleCloseFeedback}
+        type={feedback.type}
+        title={feedback.title}
+        message={feedback.message}
+      />
+    </>
   );
-};
-
-/* ==================================================
-   STATUS BADGE
-================================================== */
-
-type StatusBadgeProps = {
-  status: ApplicationStatus;
-};
-
-const StatusBadge = ({
-  status,
-}: StatusBadgeProps) => {
-  if (status === "Pending") {
-    return (
-      <div className="flex items-center gap-2">
-
-        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-
-        <span className="text-sm font-medium text-amber-700">
-          Pending
-        </span>
-
-      </div>
-    );
-  }
-
-  if (status === "Accepted") {
-    return (
-      <div className="flex items-center gap-2">
-
-        <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
-
-        <span className="text-sm font-medium text-emerald-700">
-          Accepted
-        </span>
-
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-
-      <XCircleIcon className="h-5 w-5 text-red-500" />
-
-      <span className="text-sm font-medium text-red-600">
-        Rejected
-      </span>
-
-    </div>
-  );
-};
-
-/* ==================================================
-   JOB STATUS
-================================================== */
-
-type JobStatusProps = {
-  status: string;
-  display: string | null;
-};
-
-const JobStatus = ({
-  status,
-  display,
-}: JobStatusProps) => {
-  const normalizedStatus =
-    status.toUpperCase().trim();
-
-  if (normalizedStatus === "COMPLETED") {
-    return (
-      <div className="flex items-center gap-2">
-        <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
-
-        <span className="text-sm font-medium text-emerald-700">
-          {display || "Completed"}
-        </span>
-      </div>
-    );
-  }
-
-  if (normalizedStatus === "CANCELLED") {
-    return (
-      <div className="flex items-center gap-2">
-        <XCircleIcon className="h-5 w-5 text-red-600" />
-
-        <span className="text-sm font-medium text-red-700">
-          {display || "Cancelled"}
-        </span>
-      </div>
-    );
-  }
-
-  if (
-    normalizedStatus ===
-    "AWAITING_CONFIRMATION"
-  ) {
-    return (
-      <div className="flex items-center gap-2">
-        <ClockIcon className="h-5 w-5 text-amber-600" />
-
-        <span className="text-sm font-medium text-amber-700">
-          {display || "Awaiting Confirmation"}
-        </span>
-      </div>
-    );
-  }
-
-  if (
-    normalizedStatus === "ASSIGNED" ||
-    normalizedStatus === "IN_PROGRESS"
-  ) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-
-        <span className="text-sm font-medium text-blue-700">
-          {display || "Assigned"}
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-
-      <span className="text-sm font-medium text-emerald-700">
-        {display || "Open"}
-      </span>
-    </div>
-  );
-};
-
-/* ==================================================
-   FORMAT BUDGET
-================================================== */
-
-const formatBudget = (
-  budget: number | string
-): string => {
-  const numericBudget = Number(budget);
-
-  if (Number.isNaN(numericBudget)) {
-    return `K${budget}`;
-  }
-
-  return `K${numericBudget.toLocaleString()}`;
-};
-
-/* ==================================================
-   DATE FORMATTER
-================================================== */
-
-const formatApplicationDate = (
-  dateString: string
-) => {
-  const date = new Date(dateString);
-
-  if (Number.isNaN(date.getTime())) {
-    return dateString;
-  }
-
-  return date.toLocaleDateString("en-ZM", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 };
 
 export default MyApplications;

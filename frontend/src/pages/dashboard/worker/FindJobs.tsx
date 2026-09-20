@@ -4,18 +4,22 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   ArrowPathIcon,
   BriefcaseIcon,
   CalendarDaysIcon,
   ClockIcon,
-  MapIcon,
   MapPinIcon,
 } from "@heroicons/react/24/outline";
 
-import { applyForJob, getMyApplications } from "@/components/services/applicationService";
+import {
+  applyForJob,
+  getMyApplications,
+} from "@/components/services/applicationService";
 import { getMyActiveJobs } from "@/api/jobs";
+import { getVerificationStatus } from "@/api/verification";
 
 import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
 import DetailsModal from "@/components/pop/DetailsModal/DetailsModal";
@@ -26,15 +30,6 @@ import JobsGrid from "@/components/find-jobs/JobsGrid";
 const API_URL =
   import.meta.env.VITE_API_URL ||
   "http://127.0.0.1:8000/api";
-
-type LocationStatus =
-  | "idle"
-  | "requesting"
-  | "success"
-  | "denied"
-  | "error";
-
-type ViewMode = "list" | "map";
 
 type Job = {
   id: number;
@@ -51,7 +46,6 @@ type Job = {
   is_flexible: boolean;
   duration_hours: string | null;
   posted_at: string;
-
   latitude?: number | string | null;
   longitude?: number | string | null;
   is_urgent?: boolean;
@@ -164,24 +158,6 @@ const getCurrentLocation =
     });
   };
 
-const getLocationErrorMessage = (
-  error: GeolocationPositionError
-): string => {
-  switch (error.code) {
-    case error.PERMISSION_DENIED:
-      return "Location access was denied. Please enable location permission in your browser.";
-
-    case error.POSITION_UNAVAILABLE:
-      return "Your current location could not be determined. Please try again.";
-
-    case error.TIMEOUT:
-      return "Getting your location took too long. Please try again.";
-
-    default:
-      return "Unable to get your current location.";
-  }
-};
-
 const formatBudget = (
   budget: string
 ): string => {
@@ -286,8 +262,15 @@ const formatStatus = (
 };
 
 export default function FindJobs() {
+  const navigate = useNavigate();
+
   const [jobs, setJobs] =
     useState<NearbyJob[]>([]);
+
+  const [
+    hasLoadedJobs,
+    setHasLoadedJobs,
+  ] = useState(false);
 
   const [appliedJobIds, setAppliedJobIds] =
     useState<Set<number>>(new Set());
@@ -316,22 +299,22 @@ export default function FindJobs() {
     setSelectedCategory,
   ] = useState<string>("all");
 
-  const [viewMode, setViewMode] =
-    useState<ViewMode>("list");
+  const [
+    checkingVerification,
+    setCheckingVerification,
+  ] = useState(true);
 
   const [
-    locationStatus,
-    setLocationStatus,
-  ] = useState<LocationStatus>("idle");
+    showVerificationPopup,
+    setShowVerificationPopup,
+  ] = useState(false);
 
-  const [locationError, setLocationError] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(true);
-
+  /*
+   * Jobs are loading immediately when the
+   * Find Jobs page is opened.
+   */
   const [jobsLoading, setJobsLoading] =
-    useState(false);
+    useState(true);
 
   const [error, setError] =
     useState("");
@@ -358,6 +341,42 @@ export default function FindJobs() {
       title: "",
       message: "",
     });
+
+  /* CHECK WORKER VERIFICATION */
+  const checkWorkerVerification =
+    useCallback(async (): Promise<boolean> => {
+      try {
+        setCheckingVerification(true);
+
+        const verification =
+          await getVerificationStatus();
+
+        const isFullyVerified =
+          verification.fully_verified;
+
+        if (!isFullyVerified) {
+          setShowVerificationPopup(true);
+          return false;
+        }
+
+        return true;
+      } catch (err) {
+        console.error(
+          "Failed to check verification status:",
+          err
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to check your verification status."
+        );
+
+        return false;
+      } finally {
+        setCheckingVerification(false);
+      }
+    }, []);
 
   /* CHECK ACTIVE JOB */
   const checkActiveJob =
@@ -434,6 +453,12 @@ export default function FindJobs() {
   const fetchNearbyJobs =
     useCallback(
       async (selectedRadius: number) => {
+        /*
+         * Start loading immediately.
+         */
+        setJobsLoading(true);
+        setError("");
+
         const token = getToken();
 
         if (!token) {
@@ -441,6 +466,7 @@ export default function FindJobs() {
             "You are not authenticated."
           );
           setJobs([]);
+          setJobsLoading(false);
           return;
         }
 
@@ -449,12 +475,10 @@ export default function FindJobs() {
 
         if (hasActiveJob) {
           setJobs([]);
+          setHasLoadedJobs(false);
           setJobsLoading(false);
           return;
         }
-
-        setJobsLoading(true);
-        setError("");
 
         try {
           const response = await fetch(
@@ -499,6 +523,8 @@ export default function FindJobs() {
           setJobs(
             nearbyJobsResponse.results || []
           );
+
+          setHasLoadedJobs(true);
         } catch (err) {
           console.error(
             "Failed to fetch nearby jobs:",
@@ -519,13 +545,14 @@ export default function FindJobs() {
       [checkActiveJob]
     );
 
-  /* LOCATION */
-  const requestLocationAndLoadJobs =
+  /* REQUEST LOCATION */
+  const requestLocation =
     useCallback(async () => {
-      setLocationStatus("requesting");
-      setLocationError("");
-      setError("");
-      setLoading(true);
+      /*
+       * Keep loading active for the complete
+       * location → update → jobs process.
+       */
+      setJobsLoading(true);
 
       try {
         const position =
@@ -537,82 +564,89 @@ export default function FindJobs() {
         const longitude =
           position.coords.longitude;
 
+        /*
+         * Save the latest location to the
+         * worker profile.
+         */
         await updateWorkerLocation(
           latitude,
           longitude
         );
 
-        setLocationStatus("success");
-
         /*
-         * Load both nearby jobs and the
-         * worker's existing applications.
+         * Load jobs after the location
+         * has been successfully updated.
          */
-        await Promise.all([
-          fetchNearbyJobs(radius),
-          loadAppliedJobs(),
-        ]);
+        await fetchNearbyJobs(radius);
       } catch (err) {
         console.error(
-          "Location error:",
+          "Location update failed:",
           err
         );
 
-        if (
-          typeof err === "object" &&
-          err !== null &&
-          "code" in err
-        ) {
-          const geoError =
-            err as GeolocationPositionError;
-
-          setLocationStatus(
-            geoError.code === 1
-              ? "denied"
-              : "error"
-          );
-
-          setLocationError(
-            getLocationErrorMessage(
-              geoError
-            )
-          );
-        } else {
-          setLocationStatus("error");
-
-          setLocationError(
-            err instanceof Error
-              ? err.message
-              : "Unable to update your location."
-          );
-        }
-
         setJobs([]);
-      } finally {
-        setLoading(false);
+
+        setJobsLoading(false);
       }
     }, [
       fetchNearbyJobs,
-      loadAppliedJobs,
       radius,
     ]);
 
+  /* INITIALIZE FIND JOBS */
   useEffect(() => {
-    requestLocationAndLoadJobs();
-  }, [requestLocationAndLoadJobs]);
+    let isMounted = true;
+
+    const initializeFindJobs = async () => {
+      /*
+       * Loading starts immediately when the
+       * page is opened.
+       */
+      setJobsLoading(true);
+
+      const isVerified =
+        await checkWorkerVerification();
+
+      if (!isMounted || !isVerified) {
+        setJobsLoading(false);
+        return;
+      }
+
+      /*
+       * Request the worker's current location.
+       */
+      void requestLocation();
+
+      /*
+       * Load application history separately.
+       * Failure here does not block jobs.
+       */
+      await loadAppliedJobs();
+    };
+
+    void initializeFindJobs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    checkWorkerVerification,
+    requestLocation,
+    loadAppliedJobs,
+  ]);
 
   /* RADIUS */
   const handleRadiusChange =
     async (newRadius: number) => {
       setRadius(newRadius);
 
-      if (
-        locationStatus === "success"
-      ) {
-        await fetchNearbyJobs(
-          newRadius
-        );
-      }
+      /*
+       * Changing radius intentionally
+       * refreshes the jobs.
+       */
+      await fetchNearbyJobs(
+        newRadius
+      );
     };
 
   /* JOB ACTIONS */
@@ -649,8 +683,13 @@ export default function FindJobs() {
         );
 
         /*
-         * Immediately mark this job
-         * as applied.
+         * IMPORTANT:
+         *
+         * Do NOT refresh nearby jobs after
+         * applying.
+         *
+         * Keep the existing job card in place
+         * and only change its application state.
          */
         setAppliedJobIds(
           (currentIds) => {
@@ -664,10 +703,6 @@ export default function FindJobs() {
             return updatedIds;
           }
         );
-
-        /*
-         * No success feedback modal.
-         */
       } catch (err) {
         console.error(
           "Failed to apply for job:",
@@ -741,8 +776,8 @@ export default function FindJobs() {
         await applyForJob(jobId);
 
         /*
-         * Immediately mark the job
-         * as applied.
+         * Do NOT refresh nearby jobs.
+         * Only update the local application state.
          */
         setAppliedJobIds(
           (currentIds) => {
@@ -756,10 +791,6 @@ export default function FindJobs() {
         );
 
         setSelectedJob(null);
-
-        /*
-         * No success feedback modal.
-         */
       } catch (err) {
         console.error(
           "Failed to apply for job:",
@@ -850,89 +881,11 @@ export default function FindJobs() {
     selectedCategory,
   ]);
 
-  /* LOCATION SCREEN */
-  if (
-    locationStatus !== "success" &&
-    (loading ||
-      locationStatus === "idle" ||
-      locationStatus ===
-        "requesting" ||
-      locationStatus ===
-        "denied" ||
-      locationStatus === "error")
-  ) {
-    return (
-      <div className="min-h-full bg-white p-6">
-        <div className="mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-gray-200 bg-white p-8">
-            <div className="flex flex-col items-center text-center">
-              {locationStatus ===
-                "requesting" ||
-              loading ? (
-                <>
-                  <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-                    <MapPinIcon className="h-8 w-8 animate-pulse text-blue-600" />
-                  </div>
-
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Getting your location
-                  </h2>
-
-                  <p className="mt-2 max-w-lg text-sm text-gray-600">
-                    KaJob needs your current location to find
-                    available jobs near you.
-                  </p>
-
-                  <div className="mt-6 h-2 w-48 overflow-hidden rounded-full bg-gray-100">
-                    <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-600" />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
-                    <MapPinIcon className="h-8 w-8 text-amber-600" />
-                  </div>
-
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Location access is required
-                  </h2>
-
-                  <p className="mt-3 max-w-lg text-sm leading-6 text-gray-600">
-                    KaJob uses your current location to show
-                    available jobs near you. Your exact location
-                    is not shown to clients before you are
-                    assigned to a job.
-                  </p>
-
-                  {locationError && (
-                    <div className="mt-4 max-w-lg rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {locationError}
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={
-                      requestLocationAndLoadJobs
-                    }
-                    className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
-                  >
-                    <MapPinIcon className="h-5 w-5" />
-                    Enable Location
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   /* MAIN PAGE */
   return (
     <div className="min-h-full bg-white">
       <div className="mx-auto max-w-[1600px] px-6 py-2">
+
         {!activeJob && (
           <FindJobsHeader
             searchQuery={searchQuery}
@@ -948,8 +901,6 @@ export default function FindJobs() {
               setSelectedCategory
             }
             categories={categories}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
             jobsLoading={jobsLoading}
             onRefresh={() =>
               fetchNearbyJobs(radius)
@@ -1004,8 +955,33 @@ export default function FindJobs() {
           </div>
         )}
 
+        {/* GREEN LOADING ANIMATION */}
         {!activeJob &&
-          viewMode === "list" &&
+          jobsLoading && (
+            <div className="mt-8 flex min-h-[260px] items-center justify-center">
+              <div className="flex flex-col items-center text-center">
+
+                <div className="relative h-14 w-14">
+                  <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+
+                  <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-green-500" />
+                </div>
+
+                <p className="mt-5 text-sm font-semibold text-gray-800">
+                  Finding jobs near you...
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Updating available jobs within{" "}
+                  {radius} km
+                </p>
+              </div>
+            </div>
+          )}
+
+        {/* LIST VIEW */}
+        {!activeJob &&
+          hasLoadedJobs &&
           !jobsLoading && (
             <JobsGrid
               jobs={filteredJobs}
@@ -1036,92 +1012,7 @@ export default function FindJobs() {
             />
           )}
 
-        {!activeJob &&
-          viewMode === "map" &&
-          filteredJobs.length > 0 && (
-            <section className="mt-5 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
-              <div className="relative h-[600px]">
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                  <div className="text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white">
-                      <MapIcon className="h-7 w-7 text-gray-400" />
-                    </div>
-
-                    <h3 className="mt-4 text-base font-semibold text-gray-900">
-                      Jobs Map
-                    </h3>
-
-                    <p className="mt-2 text-sm text-gray-500">
-                      Map view will display available jobs around
-                      your current location.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-4 left-4 right-4 max-h-[250px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg md:left-auto md:w-[360px]">
-                  <div className="mb-2 px-1">
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      Nearby Jobs
-                    </h3>
-
-                    <p className="text-xs text-gray-500">
-                      Select a job to view details.
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {filteredJobs
-                      .slice(0, 5)
-                      .map(
-                        (item) => (
-                          <button
-                            key={
-                              item.job.id
-                            }
-                            type="button"
-                            onClick={() =>
-                              handleViewJob(
-                                item
-                              )
-                            }
-                            className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition hover:bg-gray-50"
-                          >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                              <MapPinIcon className="h-4 w-4 text-gray-500" />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-semibold text-gray-900">
-                                {
-                                  item
-                                    .job
-                                    .title
-                                }
-                              </p>
-
-                              <p className="truncate text-[11px] text-gray-500">
-                                {
-                                  item
-                                    .job
-                                    .general_location
-                                }
-                              </p>
-                            </div>
-
-                            <span className="text-[10px] font-semibold text-gray-600">
-                              {
-                                item.distance_display
-                              }
-                            </span>
-                          </button>
-                        )
-                      )}
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
+        {/* JOB DETAILS MODAL */}
         {selectedJob && (
           <DetailsModal
             title={
@@ -1376,6 +1267,21 @@ export default function FindJobs() {
           </DetailsModal>
         )}
 
+        {/* VERIFICATION POPUP */}
+        <FeedbackModal
+          isOpen={
+            showVerificationPopup
+          }
+          type="warning"
+          title="Verification Required"
+          message="You need to complete your account verification before you can find and apply for jobs."
+          onClose={() => {
+            setShowVerificationPopup(false);
+            navigate(-1);
+          }}
+        />
+
+        {/* ACTIVE JOB POPUP */}
         <FeedbackModal
           isOpen={
             showActiveJobPopup
@@ -1384,7 +1290,7 @@ export default function FindJobs() {
           title="Active Job"
           message={
             activeJob
-              ? `You already have an active job: "${activeJob.title}". Complete your current job before applying for another one.`
+              ? `You already have an active job: "${activeJob.title}". Complete your current job before applying for another job.`
               : "You already have an active job. Complete your current job before applying for another one."
           }
           onClose={() =>
@@ -1394,6 +1300,7 @@ export default function FindJobs() {
           }
         />
 
+        {/* GENERAL FEEDBACK */}
         <FeedbackModal
           isOpen={
             feedback.isOpen

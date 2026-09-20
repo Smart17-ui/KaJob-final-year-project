@@ -3,6 +3,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   MapPinIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 type Job = {
@@ -39,11 +40,10 @@ type JobCardProps = {
   isApplied: boolean;
   onViewJob: (item: NearbyJob) => void;
   onApply: (item: NearbyJob) => void;
+  onCancel: (item: NearbyJob) => void;
 };
 
-const formatBudget = (
-  budget: string
-): string => {
+const formatBudget = (budget: string): string => {
   if (!budget) {
     return "K0";
   }
@@ -55,9 +55,7 @@ const formatBudget = (
   return `K${budget}`;
 };
 
-const formatDate = (
-  date: string | null
-): string => {
+const formatDate = (date: string | null): string => {
   if (!date) {
     return "Flexible";
   }
@@ -68,19 +66,14 @@ const formatDate = (
     return date;
   }
 
-  return parsedDate.toLocaleDateString(
-    "en-ZM",
-    {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }
-  );
+  return parsedDate.toLocaleDateString("en-ZM", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 };
 
-const getUrgencyClasses = (
-  urgency: string
-): string => {
+const getUrgencyClasses = (urgency: string): string => {
   switch (urgency.toUpperCase()) {
     case "IMMEDIATE":
       return "bg-red-50 text-red-700";
@@ -105,11 +98,46 @@ const JobCard = ({
   isApplied,
   onViewJob,
   onApply,
+  onCancel,
 }: JobCardProps) => {
   const job = item.job;
 
+  const handleCardClick = () => {
+    onViewJob(item);
+  };
+
   return (
-    <article className="flex min-w-0 flex-col rounded-xl border border-gray-200 bg-white transition hover:border-gray-300 hover:shadow-sm">
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(event) => {
+        if (
+          event.key === "Enter" ||
+          event.key === " "
+        ) {
+          event.preventDefault();
+          handleCardClick();
+        }
+      }}
+      className="
+        flex
+        min-w-0
+        cursor-pointer
+        flex-col
+        rounded-xl
+        border
+        border-gray-200
+        bg-white
+        transition
+        hover:-translate-y-0.5
+        hover:border-gray-300
+        hover:shadow-sm
+        focus:outline-none
+        focus:ring-2
+        focus:ring-gray-200
+      "
+    >
       <div className="flex flex-1 flex-col p-3.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -152,6 +180,7 @@ const JobCard = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <CalendarDaysIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+
               <span className="text-[10px] text-gray-500">
                 Date
               </span>
@@ -165,6 +194,7 @@ const JobCard = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <ClockIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+
               <span className="text-[10px] text-gray-500">
                 Duration
               </span>
@@ -190,14 +220,16 @@ const JobCard = ({
           )}
 
           {job.required_skills &&
-            job.required_skills.slice(0, 1).map((skill) => (
-              <span
-                key={skill}
-                className="max-w-[100px] truncate rounded border border-gray-200 px-1.5 py-0.5 text-[9px] text-gray-500"
-              >
-                {skill}
-              </span>
-            ))}
+            job.required_skills
+              .slice(0, 1)
+              .map((skill) => (
+                <span
+                  key={skill}
+                  className="max-w-[100px] truncate rounded border border-gray-200 px-1.5 py-0.5 text-[9px] text-gray-500"
+                >
+                  {skill}
+                </span>
+              ))}
 
           {job.required_skills &&
             job.required_skills.length > 1 && (
@@ -208,27 +240,92 @@ const JobCard = ({
         </div>
 
         <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => onViewJob(item)}
-            className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
-            View Job
-          </button>
+          {/* VIEW DETAILS / CANCEL */}
+
+          {isApplied ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCancel(item);
+              }}
+              disabled={applying}
+              className="
+                flex-1
+                rounded-lg
+                border
+                border-red-200
+                bg-red-50
+                px-2
+                py-1.5
+                text-[11px]
+                font-semibold
+                text-red-700
+                transition
+                hover:bg-red-100
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+            >
+              <span className="inline-flex items-center justify-center gap-1">
+                <XMarkIcon className="h-3.5 w-3.5" />
+
+                {applying ? "Cancelling..." : "Cancel"}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onViewJob(item);
+              }}
+              className="
+                flex-1
+                rounded-lg
+                border
+                border-gray-200
+                px-2
+                py-1.5
+                text-[11px]
+                font-semibold
+                text-gray-700
+                transition
+                hover:bg-gray-50
+              "
+            >
+              View Details
+            </button>
+          )}
+
+          {/* APPLY / APPLIED */}
 
           <button
             type="button"
-            onClick={() => onApply(item)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onApply(item);
+            }}
             disabled={isApplied || applying}
-            className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition ${
-              isApplied
-                ? "cursor-not-allowed border border-green-200 bg-green-50 text-green-700"
-                : "bg-gray-900 text-white hover:bg-gray-800"
-            } ${
-              applying
-                ? "cursor-not-allowed opacity-50"
-                : ""
-            }`}
+            className={`
+              flex-1
+              rounded-lg
+              px-2
+              py-1.5
+              text-[11px]
+              font-semibold
+              transition
+              ${
+                isApplied
+                  ? "cursor-not-allowed border border-green-200 bg-green-50 text-green-700"
+                  : "bg-gray-900 text-white hover:bg-gray-800"
+              }
+              ${
+                applying
+                  ? "cursor-not-allowed opacity-50"
+                  : ""
+              }
+            `}
           >
             {isApplied ? (
               <span className="inline-flex items-center justify-center gap-1">

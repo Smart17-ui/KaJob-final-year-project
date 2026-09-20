@@ -15,7 +15,7 @@ import type { MyJob } from "../../shared/types/job";
 type ClientJobCardProps = {
   job: MyJob;
   onView: (jobId: number) => void;
-  onCancel: (jobId: number) => void;
+  onCancel?: (jobId: number) => void;
   onDelete: (jobId: number) => void;
   onConfirmCompletion: (jobId: number) => void;
 };
@@ -27,9 +27,16 @@ const ClientJobCard = ({
   onDelete,
   onConfirmCompletion,
 }: ClientJobCardProps) => {
+  /*
+   * A client can cancel a job only after
+   * a worker has been assigned.
+   *
+   * IN_PROGRESS jobs are no longer cancellable
+   * from this card.
+   */
   const canCancel =
-    job.status === "ASSIGNED" ||
-    job.status === "IN_PROGRESS";
+    job.status === "ASSIGNED" &&
+    onCancel !== undefined;
 
   // Completed jobs are kept as part of the client's
   // job history and are not deletable from the UI.

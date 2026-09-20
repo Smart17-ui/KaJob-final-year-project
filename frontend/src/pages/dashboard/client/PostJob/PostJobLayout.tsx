@@ -12,34 +12,18 @@ import type {
 type PostJobLayoutProps = {
   form: JobForm;
   errors: FormErrors;
-
   categories: JobCategory[];
   skills: SkillOption[];
-
   isSubmitting: boolean;
-
-  onChange: (
-    field: keyof JobForm,
-    value: string
-  ) => void;
-
-  onFlexibleChange: (
-    value: boolean
-  ) => void;
-
-  onSkillsChange: (
-    skillIds: number[]
-  ) => void;
-
+  onChange: (field: keyof JobForm, value: string) => void;
+  onFlexibleChange: (value: boolean) => void;
+  onSkillsChange: (skillIds: number[]) => void;
   onLocationChange: (
     latitude: number,
     longitude: number,
     accuracy?: number | null
   ) => void;
-
-  onAddressChange: (
-    location: string
-  ) => void;
+  onAddressChange: (location: string) => void;
 };
 
 const PostJobLayout = ({
@@ -55,24 +39,25 @@ const PostJobLayout = ({
   onAddressChange,
 }: PostJobLayoutProps) => {
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col">
-      {/* Main Content */}
-      <div className="min-h-0 w-full flex-1">
+    <div className="flex w-full flex-col">
+      {/* =====================================================
+          MAIN POST JOB WORKSPACE
+      ===================================================== */}
+      <div className="w-full">
         <div
           className="
             flex
-            h-full
-            min-h-0
+            min-h-[calc(100vh-220px)]
             w-full
             overflow-hidden
             rounded-xl
             border
             border-slate-200
-            bg-white
-            shadow-sm
           "
         >
-          {/* Left Column */}
+          {/* =================================================
+              LEFT COLUMN
+          ================================================= */}
           <section
             className="
               min-h-0
@@ -82,7 +67,6 @@ const PostJobLayout = ({
               overflow-y-auto
               border-r
               border-slate-200
-              bg-white
               [scrollbar-width:none]
               [-ms-overflow-style:none]
               [&::-webkit-scrollbar]:hidden
@@ -101,14 +85,15 @@ const PostJobLayout = ({
             </div>
           </section>
 
-          {/* Right Column */}
+          {/* =================================================
+              RIGHT COLUMN
+          ================================================= */}
           <section
             className="
               min-h-0
               min-w-0
               flex-1
               overflow-y-auto
-              bg-slate-50
               [scrollbar-width:none]
               [-ms-overflow-style:none]
               [&::-webkit-scrollbar]:hidden
@@ -129,22 +114,20 @@ const PostJobLayout = ({
         </div>
       </div>
 
-      {/* Sticky Bottom Action Bar */}
+      {/* =====================================================
+          ACTION BAR
+      ===================================================== */}
       <div
         className="
-          sticky
-          bottom-0
-          z-20
+          mt-4
           flex
           w-full
-          shrink-0
           justify-end
-          border-t
+          rounded-xl
+          border
           border-slate-200
-          bg-white
           px-6
           py-4
-          shadow-[0_-4px_12px_rgba(0,0,0,0.04)]
         "
       >
         <button

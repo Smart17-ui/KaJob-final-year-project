@@ -538,11 +538,15 @@ const MyJobs = () => {
                         onView={
                           handleViewJob
                         }
-                        onCancel={() =>
-                          openConfirmation(
-                            "cancel",
-                            job.id
-                          )
+                        onCancel={
+                          job.status ===
+                          "ASSIGNED"
+                            ? () =>
+                                openConfirmation(
+                                  "cancel",
+                                  job.id
+                                )
+                            : undefined
                         }
                         onDelete={() =>
                           openConfirmation(

@@ -5,6 +5,7 @@ import {
   ClockIcon,
   MapPinIcon,
   PlayIcon,
+  UserCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 
@@ -20,6 +21,7 @@ import {
 
 import {
   getMyJobs,
+  getWorkerJobDetails,
   markJobComplete,
   startJob,
 } from "@/api/jobs";
@@ -28,6 +30,8 @@ import type {
   Job,
   JobStatus,
 } from "@/shared/types/job";
+
+import ClientDetailsModal from "./Directions/components/ClientDetailsModal";
 
 /* =========================================================
    WORK STATUS
@@ -266,6 +270,15 @@ const MyWork = () => {
   const [actionSuccess, setActionSuccess] =
     useState<string | null>(null);
 
+  const [selectedClient, setSelectedClient] =
+    useState<Work | null>(null);
+
+  const [clientDetailsLoading, setClientDetailsLoading] =
+    useState(false);
+
+  const [clientDetailsError, setClientDetailsError] =
+    useState<string | null>(null);
+
   /* =======================================================
      LOAD MY WORK
   ======================================================= */
@@ -281,6 +294,14 @@ const MyWork = () => {
       const jobs =
         response?.results ?? [];
 
+      /*
+       * Keep all worker workflow statuses,
+       * including CANCELLED.
+       *
+       * Cancelled jobs are intentionally retained
+       * so workers can see them under the Cancelled
+       * filter instead of losing them from My Work.
+       */
       const workerJobs =
         jobs.filter((job) =>
           WORK_JOB_STATUSES.includes(
@@ -325,6 +346,13 @@ const MyWork = () => {
         const jobs =
           response?.results ?? [];
 
+        /*
+         * IMPORTANT:
+         * CANCELLED is deliberately included.
+         *
+         * The worker should keep a cancelled
+         * assignment in their history.
+         */
         const workerJobs =
           jobs.filter((job) =>
             WORK_JOB_STATUSES.includes(
@@ -363,6 +391,18 @@ const MyWork = () => {
   }, []);
 
   /* =======================================================
+     VIEW JOB DETAILS
+  ======================================================= */
+
+  const handleViewJobDetails = (
+    jobId: number
+  ) => {
+    navigate(
+      `/worker/dashboard/jobs/${jobId}`
+    );
+  };
+
+  /* =======================================================
      GET DIRECTIONS
   ======================================================= */
 
@@ -372,6 +412,73 @@ const MyWork = () => {
     navigate(
       `/worker/dashboard/directions/${jobId}`
     );
+  };
+
+  /* =======================================================
+     VIEW CLIENT DETAILS
+  ======================================================= */
+
+  const handleViewClient = async (
+    work: Work
+  ) => {
+    /*
+     * Cancelled jobs should not open
+     * client details.
+     */
+    if (work.status === "Cancelled") {
+      return;
+    }
+
+    try {
+      setClientDetailsLoading(true);
+      setClientDetailsError(null);
+
+      const response =
+        await getWorkerJobDetails(
+          work.id
+        );
+
+      const detailedJob =
+        response?.job;
+
+      if (!detailedJob) {
+        throw new Error(
+          "The server did not return the job details."
+        );
+      }
+
+      const detailedWork: Work = {
+        id: detailedJob.id,
+        job: detailedJob,
+        status: getWorkStatus(
+          detailedJob.status
+        ),
+      };
+
+      setSelectedClient(
+        detailedWork
+      );
+    } catch (err) {
+      console.error(
+        "Failed to load client details:",
+        err
+      );
+
+      setClientDetailsError(
+        "We couldn't load the client details. Please try again."
+      );
+    } finally {
+      setClientDetailsLoading(false);
+    }
+  };
+
+  const handleCloseClientDetails = () => {
+    if (clientDetailsLoading) {
+      return;
+    }
+
+    setSelectedClient(null);
+    setClientDetailsError(null);
   };
 
   /* =======================================================
@@ -547,281 +654,279 @@ const MyWork = () => {
   ======================================================= */
 
   return (
-    <div
-      className="
-        flex
-        h-[calc(100vh-136px)]
-        min-h-0
-        min-w-0
-        flex-col
-        sm:h-[calc(100vh-144px)]
-        lg:h-[calc(100vh-152px)]
-      "
-    >
+    <>
+      <div
+        className="
+          flex
+          h-[calc(100vh-136px)]
+          min-h-0
+          min-w-0
+          flex-col
+          sm:h-[calc(100vh-144px)]
+          lg:h-[calc(100vh-152px)]
+        "
+      >
+        {/* ===================================================
+            HEADER
+        =================================================== */}
 
-      {/* ===================================================
-          HEADER
-      =================================================== */}
-
-      <div className="shrink-0 pb-6">
-
-        <div className="flex items-center gap-3">
-
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
-
-            <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
-
-          </div>
-
-          <div>
-
-            <h1 className="text-2xl font-bold text-gray-900">
-              My Work
-            </h1>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Manage your assigned work and track each job through completion.
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* ===================================================
-          ACTION FEEDBACK
-      =================================================== */}
-
-      {(actionSuccess ||
-        actionError) && (
-        <section className="mb-4 shrink-0">
-
-          {actionSuccess && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3">
-
-              <div className="flex items-center gap-3">
-
-                <CheckCircleIcon className="h-5 w-5 shrink-0 text-emerald-600" />
-
-                <p className="text-sm font-medium text-emerald-700">
-                  {actionSuccess}
-                </p>
-
-              </div>
-
+        <div className="shrink-0 pb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+              <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
             </div>
-          )}
 
-          {actionError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-3">
-
-              <div className="flex items-center gap-3">
-
-                <XCircleIcon className="h-5 w-5 shrink-0 text-red-600" />
-
-                <p className="text-sm font-medium text-red-700">
-                  {actionError}
-                </p>
-
-              </div>
-
-            </div>
-          )}
-
-        </section>
-      )}
-
-      {/* ===================================================
-          ERROR
-      =================================================== */}
-
-      {error && (
-        <section className="mb-4 shrink-0 rounded-xl border border-red-200 bg-red-50 px-5 py-3">
-
-          <div className="flex items-center justify-between gap-4">
-
-            <p className="text-sm text-red-700">
-              {error}
-            </p>
-
-            <button
-              type="button"
-              onClick={
-                loadMyWork
-              }
-              className="
-                shrink-0
-                rounded-lg
-                bg-red-600
-                px-4
-                py-2
-                text-sm
-                font-semibold
-                text-white
-                transition
-                hover:bg-red-700
-              "
-            >
-              Try again
-            </button>
-
-          </div>
-
-        </section>
-      )}
-
-      {/* ===================================================
-          MAIN CONTENT
-      =================================================== */}
-
-      {loading ? (
-
-        <section className="min-h-0 flex-1 rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
-
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-600" />
-
-          <p className="mt-4 text-sm font-semibold text-gray-700">
-            Loading your work...
-          </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Please wait while we fetch your work.
-          </p>
-
-        </section>
-
-      ) : works.length === 0 ? (
-
-        <section className="min-h-0 flex-1 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
-
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-
-            <BriefcaseIcon className="h-6 w-6 text-gray-400" />
-
-          </div>
-
-          <h2 className="mt-4 text-lg font-semibold text-gray-900">
-            No work yet
-          </h2>
-
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
-            Jobs you are assigned to will appear here.
-            Once a client accepts your application,
-            you can manage the work from this page.
-          </p>
-
-        </section>
-
-      ) : (
-
-        <div className="flex min-h-0 min-w-0 flex-1 gap-6">
-
-          {/* =================================================
-              STATUS SIDEBAR
-          ================================================= */}
-
-          <aside className="-mt-4 w-60 shrink-0">
-
-            <WorkStatusSidebar
-              filter={filter}
-              setFilter={setFilter}
-              counts={counts}
-            />
-
-          </aside>
-
-          {/* =================================================
-              WORK LIST
-          ================================================= */}
-
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-
-            <div className="mb-4">
-
-              <h2 className="text-lg font-semibold text-gray-900">
-                {filter === "All"
-                  ? "All Work"
-                  : filter}
-              </h2>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                My Work
+              </h1>
 
               <p className="mt-1 text-sm text-gray-500">
-                {filteredWorks.length}{" "}
-                {filteredWorks.length === 1
-                  ? "job"
-                  : "jobs"}
+                Manage your assigned work and track each job through completion.
               </p>
-
             </div>
-
-            {filteredWorks.length === 0 ? (
-
-              <section className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
-
-                <BriefcaseIcon className="mx-auto h-10 w-10 text-gray-300" />
-
-                <h2 className="mt-4 text-lg font-semibold text-gray-900">
-                  No work found
-                </h2>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  There are no jobs matching the selected status.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFilter("All")
-                  }
-                  className="mt-5 rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                >
-                  Show all work
-                </button>
-
-              </section>
-
-            ) : (
-
-              <div className="space-y-3 pb-6">
-
-                {filteredWorks.map(
-                  (work) => (
-                    <WorkCard
-                      key={work.id}
-                      work={work}
-                      onGetDirections={() =>
-                        handleGetDirections(
-                          work.id
-                        )
-                      }
-                      onStartWork={() =>
-                        handleStartWork(
-                          work.id
-                        )
-                      }
-                      onMarkComplete={() =>
-                        handleMarkComplete(
-                          work.id
-                        )
-                      }
-                      actionLoading={
-                        actionLoading
-                      }
-                    />
-                  )
-                )}
-
-              </div>
-
-            )}
-
-          </main>
-
+          </div>
         </div>
 
+        {/* ===================================================
+            ACTION FEEDBACK
+        =================================================== */}
+
+        {(actionSuccess ||
+          actionError) && (
+          <section className="mb-4 shrink-0">
+            {actionSuccess && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3">
+                <div className="flex items-center gap-3">
+                  <CheckCircleIcon className="h-5 w-5 shrink-0 text-emerald-600" />
+
+                  <p className="text-sm font-medium text-emerald-700">
+                    {actionSuccess}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {actionError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-3">
+                <div className="flex items-center gap-3">
+                  <XCircleIcon className="h-5 w-5 shrink-0 text-red-600" />
+
+                  <p className="text-sm font-medium text-red-700">
+                    {actionError}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ===================================================
+            ERROR
+        =================================================== */}
+
+        {error && (
+          <section className="mb-4 shrink-0 rounded-xl border border-red-200 bg-red-50 px-5 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-red-700">
+                {error}
+              </p>
+
+              <button
+                type="button"
+                onClick={
+                  loadMyWork
+                }
+                className="
+                  shrink-0
+                  rounded-lg
+                  bg-red-600
+                  px-4
+                  py-2
+                  text-sm
+                  font-semibold
+                  text-white
+                  transition
+                  hover:bg-red-700
+                "
+              >
+                Try again
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* ===================================================
+            MAIN CONTENT
+        =================================================== */}
+
+        {loading ? (
+          <section className="min-h-0 flex-1 rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-600" />
+
+            <p className="mt-4 text-sm font-semibold text-gray-700">
+              Loading your work...
+            </p>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Please wait while we fetch your work.
+            </p>
+          </section>
+        ) : works.length === 0 ? (
+          <section className="min-h-0 flex-1 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+              <BriefcaseIcon className="h-6 w-6 text-gray-400" />
+            </div>
+
+            <h2 className="mt-4 text-lg font-semibold text-gray-900">
+              No work yet
+            </h2>
+
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
+              Jobs you are assigned to will appear here.
+              Once a client accepts your application,
+              you can manage the work from this page.
+            </p>
+          </section>
+        ) : (
+          <div className="flex min-h-0 min-w-0 flex-1 gap-6">
+            {/* =================================================
+                STATUS SIDEBAR
+            ================================================= */}
+
+            <aside className="-mt-4 w-60 shrink-0">
+              <WorkStatusSidebar
+                filter={filter}
+                setFilter={setFilter}
+                counts={counts}
+              />
+            </aside>
+
+            {/* =================================================
+                WORK LIST
+            ================================================= */}
+
+            <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {filter === "All"
+                    ? "All Work"
+                    : filter}
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  {filteredWorks.length}{" "}
+                  {filteredWorks.length === 1
+                    ? "job"
+                    : "jobs"}
+                </p>
+              </div>
+
+              {filteredWorks.length === 0 ? (
+                <section className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+                  <BriefcaseIcon className="mx-auto h-10 w-10 text-gray-300" />
+
+                  <h2 className="mt-4 text-lg font-semibold text-gray-900">
+                    No work found
+                  </h2>
+
+                  <p className="mt-2 text-sm text-gray-500">
+                    There are no jobs matching the selected status.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilter("All")
+                    }
+                    className="mt-5 rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                  >
+                    Show all work
+                  </button>
+                </section>
+              ) : (
+                <div className="space-y-3 pb-6">
+                  {filteredWorks.map(
+                    (work) => (
+                      <WorkCard
+                        key={work.id}
+                        work={work}
+                        onViewJobDetails={() =>
+                          handleViewJobDetails(
+                            work.id
+                          )
+                        }
+                        onGetDirections={() =>
+                          handleGetDirections(
+                            work.id
+                          )
+                        }
+                        onViewClient={() =>
+                          handleViewClient(
+                            work
+                          )
+                        }
+                        onStartWork={() =>
+                          handleStartWork(
+                            work.id
+                          )
+                        }
+                        onMarkComplete={() =>
+                          handleMarkComplete(
+                            work.id
+                          )
+                        }
+                        actionLoading={
+                          actionLoading
+                        }
+                      />
+                    )
+                  )}
+                </div>
+              )}
+            </main>
+          </div>
+        )}
+      </div>
+
+      {/* =====================================================
+          CLIENT DETAILS LOADING MODAL
+      ===================================================== */}
+
+      {clientDetailsLoading && (
+        <ClientDetailsLoadingModal />
       )}
 
-    </div>
+      {/* =====================================================
+          CLIENT DETAILS ERROR MODAL
+      ===================================================== */}
+
+      {clientDetailsError && (
+        <ClientDetailsErrorModal
+          message={
+            clientDetailsError
+          }
+          onClose={() =>
+            setClientDetailsError(
+              null
+            )
+          }
+        />
+      )}
+
+      {/* =====================================================
+          CLIENT DETAILS MODAL
+      ===================================================== */}
+
+      {selectedClient && (
+        <ClientDetailsModal
+          work={selectedClient}
+          onClose={
+            handleCloseClientDetails
+          }
+        />
+      )}
+    </>
   );
 };
 
@@ -840,56 +945,46 @@ const WorkStatusSidebar = ({
   setFilter,
   counts,
 }: WorkStatusSidebarProps) => {
-
   const items: {
     value: Filter;
     label: string;
     icon: typeof BriefcaseIcon;
   }[] = [
-
     {
       value: "All",
       label: "All Work",
       icon: BriefcaseIcon,
     },
-
     {
       value: "Assigned",
       label: "Assigned",
       icon: PlayIcon,
     },
-
     {
       value: "In Progress",
       label: "In Progress",
       icon: ClockIcon,
     },
-
     {
       value: "Awaiting Confirmation",
       label: "Awaiting Confirmation",
       icon: ClockIcon,
     },
-
     {
       value: "Completed",
       label: "Completed",
       icon: CheckCircleIcon,
     },
-
     {
       value: "Cancelled",
       label: "Cancelled",
       icon: XCircleIcon,
     },
-
   ];
 
   return (
     <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-3 shadow-sm lg:sticky lg:top-6">
-
       <div className="px-3 pb-3 pt-2">
-
         <h2 className="text-sm font-semibold text-gray-900">
           My Work
         </h2>
@@ -897,14 +992,11 @@ const WorkStatusSidebar = ({
         <p className="mt-1 text-xs text-gray-500">
           Filter by work status
         </p>
-
       </div>
 
       <nav className="space-y-1">
-
         {items.map(
           (item) => {
-
             const Icon =
               item.icon;
 
@@ -926,7 +1018,6 @@ const WorkStatusSidebar = ({
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 }`}
               >
-
                 <Icon
                   className={`h-5 w-5 shrink-0 ${
                     isActive
@@ -950,14 +1041,11 @@ const WorkStatusSidebar = ({
                     item.value
                   ]}
                 </span>
-
               </button>
             );
           }
         )}
-
       </nav>
-
     </aside>
   );
 };
@@ -968,7 +1056,9 @@ const WorkStatusSidebar = ({
 
 type WorkCardProps = {
   work: Work;
+  onViewJobDetails: () => void;
   onGetDirections: () => void;
+  onViewClient: () => void;
   onStartWork: () => void;
   onMarkComplete: () => void;
   actionLoading:
@@ -979,36 +1069,91 @@ type WorkCardProps = {
 
 const WorkCard = ({
   work,
+  onViewJobDetails,
   onGetDirections,
+  onViewClient,
   onStartWork,
   onMarkComplete,
   actionLoading,
 }: WorkCardProps) => {
-
   const job =
     work.job;
 
-  return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+  /*
+   * Completed and Cancelled work remain visible
+   * as historical records.
+   *
+   * They cannot be opened through the job-details
+   * workflow.
+   */
+  const canViewJobDetails =
+    work.status !== "Completed" &&
+    work.status !== "Cancelled";
 
+  /*
+   * Cancelled work has no active workflow actions.
+   */
+  const isCancelled =
+    work.status === "Cancelled";
+
+  return (
+    <article
+      onClick={
+        canViewJobDetails
+          ? onViewJobDetails
+          : undefined
+      }
+      onKeyDown={
+        canViewJobDetails
+          ? (event) => {
+              if (
+                event.key === "Enter" ||
+                event.key === " "
+              ) {
+                event.preventDefault();
+                onViewJobDetails();
+              }
+            }
+          : undefined
+      }
+      role={
+        canViewJobDetails
+          ? "button"
+          : undefined
+      }
+      tabIndex={
+        canViewJobDetails
+          ? 0
+          : undefined
+      }
+      className={`rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition ${
+        canViewJobDetails
+          ? "cursor-pointer hover:shadow-md"
+          : ""
+      }`}
+    >
       {/* =====================================================
           CARD HEADER
       ===================================================== */}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
         <div className="flex min-w-0 gap-4">
-
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
-
-            <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
-
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+              isCancelled
+                ? "bg-red-50"
+                : "bg-emerald-50"
+            }`}
+          >
+            {isCancelled ? (
+              <XCircleIcon className="h-6 w-6 text-red-600" />
+            ) : (
+              <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
+            )}
           </div>
 
           <div className="min-w-0">
-
             <div className="flex flex-wrap items-center gap-2">
-
               <h3 className="text-base font-semibold text-gray-900">
                 {job.title}
               </h3>
@@ -1018,11 +1163,9 @@ const WorkCard = ({
                   work.status
                 }
               />
-
             </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
-
               <span>
                 {job.category_name ||
                   "General Work"}
@@ -1042,15 +1185,11 @@ const WorkCard = ({
                   </span>
                 </>
               )}
-
             </div>
-
           </div>
-
         </div>
 
         <div className="shrink-0 sm:text-right">
-
           <p className="text-lg font-bold text-emerald-600">
             {formatBudget(
               job.budget
@@ -1060,10 +1199,30 @@ const WorkCard = ({
           <p className="text-xs text-gray-400">
             Agreed Amount
           </p>
-
         </div>
-
       </div>
+
+      {/* =====================================================
+          CANCELLED NOTICE
+      ===================================================== */}
+
+      {isCancelled && (
+        <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+          <div className="flex items-start gap-2">
+            <XCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+
+            <div>
+              <p className="text-sm font-semibold text-red-700">
+                This job was cancelled
+              </p>
+
+              <p className="mt-0.5 text-xs leading-5 text-red-600">
+                This assignment is no longer active and has been moved to your cancelled work history.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =====================================================
           DESCRIPTION
@@ -1079,9 +1238,7 @@ const WorkCard = ({
       ===================================================== */}
 
       <div className="mt-4 grid gap-3 text-sm text-gray-500 sm:grid-cols-2">
-
         <div className="flex items-center gap-2">
-
           <BriefcaseIcon className="h-4 w-4 shrink-0" />
 
           <span>
@@ -1091,22 +1248,18 @@ const WorkCard = ({
                 "Client"}
             </span>
           </span>
-
         </div>
 
-        <div className="flex items-center gap-2 min-w-0">
-
+        <div className="flex min-w-0 items-center gap-2">
           <MapPinIcon className="h-4 w-4 shrink-0" />
 
           <span className="truncate">
             {job.general_location ||
               "Location not specified"}
           </span>
-
         </div>
 
         <div className="flex items-center gap-2">
-
           <CalendarDaysIcon className="h-4 w-4 shrink-0" />
 
           <span>
@@ -1115,11 +1268,9 @@ const WorkCard = ({
               job.job_date
             )}
           </span>
-
         </div>
 
         <div className="flex items-center gap-2">
-
           <ClockIcon className="h-4 w-4 shrink-0" />
 
           <span>
@@ -1128,9 +1279,7 @@ const WorkCard = ({
               job.duration_hours
             )}
           </span>
-
         </div>
-
       </div>
 
       {/* =====================================================
@@ -1138,7 +1287,6 @@ const WorkCard = ({
       ===================================================== */}
 
       <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-
         <WorkStatus
           status={
             work.status
@@ -1146,7 +1294,6 @@ const WorkCard = ({
         />
 
         <div className="flex flex-col gap-2 sm:flex-row">
-
           {/* =================================================
               ASSIGNED
           ================================================= */}
@@ -1154,19 +1301,28 @@ const WorkCard = ({
           {work.status ===
             "Assigned" && (
             <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onGetDirections();
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                <MapPinIcon className="h-4 w-4" />
+                Get Directions
+              </button>
 
               <button
                 type="button"
-                onClick={
-                  onGetDirections
-                }
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onViewClient();
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
               >
-
-                <MapPinIcon className="h-4 w-4" />
-
-                Get Directions
-
+                <UserCircleIcon className="h-4 w-4" />
+                View Client Details
               </button>
 
               <button
@@ -1174,21 +1330,19 @@ const WorkCard = ({
                 disabled={
                   actionLoading !== null
                 }
-                onClick={
-                  onStartWork
-                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onStartWork();
+                }}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-
                 <PlayIcon className="h-4 w-4" />
 
                 {actionLoading ===
                 "start"
                   ? "Starting..."
                   : "Start Work"}
-
               </button>
-
             </>
           )}
 
@@ -1198,34 +1352,148 @@ const WorkCard = ({
 
           {work.status ===
             "In Progress" && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onViewClient();
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
+              >
+                <UserCircleIcon className="h-4 w-4" />
+                View Client Details
+              </button>
 
-            <button
-              type="button"
-              disabled={
-                actionLoading !== null
-              }
-              onClick={
-                onMarkComplete
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+              <button
+                type="button"
+                disabled={
+                  actionLoading !== null
+                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onMarkComplete();
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <CheckCircleIcon className="h-4 w-4" />
 
-              <CheckCircleIcon className="h-4 w-4" />
-
-              {actionLoading ===
-              "complete"
-                ? "Submitting..."
-                : "Mark Complete"}
-
-            </button>
-
+                {actionLoading ===
+                "complete"
+                  ? "Submitting..."
+                  : "Mark Complete"}
+              </button>
+            </>
           )}
 
+          {/* =================================================
+              AWAITING CONFIRMATION
+          ================================================= */}
+
+          {work.status ===
+            "Awaiting Confirmation" && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onViewClient();
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
+            >
+              <UserCircleIcon className="h-4 w-4" />
+              View Client Details
+            </button>
+          )}
+
+          {/* =================================================
+              CANCELLED
+          ================================================= */}
+
+          {work.status ===
+            "Cancelled" && (
+            <span className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">
+              <XCircleIcon className="h-4 w-4" />
+              Job Cancelled
+            </span>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+};
+
+/* =========================================================
+   CLIENT DETAILS LOADING MODAL
+========================================================= */
+
+const ClientDetailsLoadingModal = () => {
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-gray-950/50 px-4 py-6 backdrop-blur-sm">
+      <div
+        className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Loading client details"
+      >
+        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600" />
+
+        <h2 className="mt-5 text-base font-semibold text-gray-900">
+          Loading client details
+        </h2>
+
+        <p className="mt-1 text-sm text-gray-500">
+          Please wait while we retrieve the client information.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/* =========================================================
+   CLIENT DETAILS ERROR MODAL
+========================================================= */
+
+type ClientDetailsErrorModalProps = {
+  message: string;
+  onClose: () => void;
+};
+
+const ClientDetailsErrorModal = ({
+  message,
+  onClose,
+}: ClientDetailsErrorModalProps) => {
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-gray-950/50 px-4 py-6 backdrop-blur-sm">
+      <div
+        className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="client-details-error-title"
+      >
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
+          <XCircleIcon className="h-6 w-6 text-red-600" />
         </div>
 
-      </div>
+        <h2
+          id="client-details-error-title"
+          className="mt-4 text-lg font-bold text-gray-900"
+        >
+          Unable to load client details
+        </h2>
 
-    </article>
+        <p className="mt-2 text-sm leading-6 text-gray-500">
+          {message}
+        </p>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 w-full rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
+        >
+          Close
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -1240,15 +1508,11 @@ type WorkStatusProps = {
 const WorkStatus = ({
   status,
 }: WorkStatusProps) => {
-
   if (status === "Assigned") {
     return (
       <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-
         <span className="h-2 w-2 rounded-full bg-blue-500" />
-
         Assigned
-
       </span>
     );
   }
@@ -1256,11 +1520,8 @@ const WorkStatus = ({
   if (status === "In Progress") {
     return (
       <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-
         <ClockIcon className="h-4 w-4" />
-
         In Progress
-
       </span>
     );
   }
@@ -1271,11 +1532,8 @@ const WorkStatus = ({
   ) {
     return (
       <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700">
-
         <ClockIcon className="h-4 w-4" />
-
         Awaiting Confirmation
-
       </span>
     );
   }
@@ -1283,22 +1541,16 @@ const WorkStatus = ({
   if (status === "Cancelled") {
     return (
       <span className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
-
         <XCircleIcon className="h-4 w-4" />
-
         Cancelled
-
       </span>
     );
   }
 
   return (
     <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-
       <CheckCircleIcon className="h-4 w-4" />
-
       Completed
-
     </span>
   );
 };

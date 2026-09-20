@@ -1,11 +1,14 @@
-// frontend/src/App.tsx
-
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
 
 /* =========================
    PUBLIC LANDING PAGE
 ========================= */
+
 import VerifyEmailPage from "@/pages/verifyEmail/VerifyEmailPage";
 import Navbar from "@/components/navbar";
 import Home from "@/components/home";
@@ -73,6 +76,7 @@ import WorkerDashboard from "@/pages/dashboard/worker/WorkerDashboard";
 import FindJobs from "@/pages/dashboard/worker/FindJobs";
 import WorkerJobDetails from "@/pages/dashboard/worker/JobDetails";
 import MyApplications from "@/pages/dashboard/worker/MyApplications";
+import ApplicationDetails from "@/pages/dashboard/worker/ApplicationDetails";
 import MyWork from "@/pages/dashboard/worker/MyWork";
 import WorkerDirections from "@/pages/dashboard/worker/Directions/Directions";
 import WorkerMessages from "@/pages/dashboard/worker/Messages";
@@ -233,7 +237,6 @@ function PublicLandingPage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-
       {/* =========================
           NAVBAR
       ========================= */}
@@ -409,7 +412,6 @@ function ProtectedDashboard({
 function App() {
   return (
     <Routes>
-
       {/* =====================================================
           PUBLIC LANDING PAGE
       ===================================================== */}
@@ -489,7 +491,7 @@ function App() {
 
       {/* =====================================================
           EMAIL VERIFICATION
-          Accessible without login. Uses ?token=... in the URL.
+          Accessible without login. Uses ?token=... in URL.
       ===================================================== */}
 
       <Route
@@ -509,7 +511,6 @@ function App() {
           />
         }
       >
-
         {/* Dashboard home */}
 
         <Route
@@ -592,7 +593,6 @@ function App() {
             <SettingsLayout />
           }
         >
-
           {/* /client/dashboard/settings
               → /client/dashboard/settings/profile
           */}
@@ -648,9 +648,7 @@ function App() {
               <VerificationSection />
             }
           />
-
         </Route>
-
       </Route>
 
       {/* =====================================================
@@ -665,7 +663,6 @@ function App() {
           />
         }
       >
-
         {/* Dashboard home */}
 
         <Route
@@ -723,6 +720,15 @@ function App() {
           }
         />
 
+        {/* Application Details */}
+
+        <Route
+          path="applications/:applicationId"
+          element={
+            <ApplicationDetails />
+          }
+        />
+
         {/* My Work */}
 
         <Route
@@ -760,7 +766,6 @@ function App() {
             <SettingsLayout />
           }
         >
-
           {/* /worker/dashboard/settings
               → /worker/dashboard/settings/profile
           */}
@@ -823,9 +828,7 @@ function App() {
               <AvailabilitySection />
             }
           />
-
         </Route>
-
       </Route>
 
       {/* =====================================================
@@ -852,7 +855,6 @@ function App() {
           />
         }
       />
-
     </Routes>
   );
 }
