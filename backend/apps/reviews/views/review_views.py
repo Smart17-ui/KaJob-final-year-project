@@ -24,20 +24,21 @@ review_service = ReviewService()
 class CreateReviewView(APIView):
     """
     POST /api/reviews/create/
-    Create a review for a worker.
-    
-    Rules:
-    - Only clients can review
-    - Job must be completed
-    - One review per client per job
-    - Clients cannot review themselves
+    Create a review for the other party of a completed job.
+
+    Works for both directions:
+    - Client → Worker
+    - Worker → Client
+
+    The service validates that the reviewer is one of the two parties
+    and the reviewee is the other party.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+    permission_classes = [IsAuthenticated, IsActiveUser]   # ← both roles allowed
+
     def post(self, request):
         serializer = ReviewCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             result = review_service.create_review(
                 request.user,
@@ -60,7 +61,7 @@ class WorkerReviewsView(APIView):
     Get all reviews for a specific worker.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def get(self, request, worker_id):
         reviews = review_service.get_reviews_for_worker(worker_id)
         return Response({
@@ -74,8 +75,8 @@ class MyReviewsView(APIView):
     GET /api/reviews/my-reviews/
     Get all reviews for the authenticated user (as a worker).
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
     def get(self, request):
         reviews = review_service.get_reviews_for_worker(request.user.id)
         return Response({
@@ -87,10 +88,10 @@ class MyReviewsView(APIView):
 class MyReviewsGivenView(APIView):
     """
     GET /api/reviews/my-reviews-given/
-    Get all reviews given by the authenticated user (as a client).
+    Get all reviews given by the authenticated user.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
     def get(self, request):
         reviews = review_service.get_reviews_by_client(request.user.id)
         return Response({
@@ -103,17 +104,9 @@ class WorkerRatingStatsView(APIView):
     """
     GET /api/reviews/stats/{worker_id}/
     Get rating statistics for a worker.
-    
-    Returns:
-        - average_rating
-        - total_reviews
-        - completed_jobs
-        - incomplete_jobs
-        - completion_rate
-        - rating_distribution
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def get(self, request, worker_id):
         stats = review_service.get_rating_stats(worker_id)
         return Response(stats, status=status.HTTP_200_OK)
@@ -124,8 +117,8 @@ class MyRatingStatsView(APIView):
     GET /api/reviews/my-stats/
     Get rating statistics for the authenticated user (as a worker).
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
-    
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
     def get(self, request):
         stats = review_service.get_rating_stats(request.user.id)
         return Response(stats, status=status.HTTP_200_OK)
@@ -137,7 +130,7 @@ class JobReviewsView(APIView):
     Get all reviews for a job.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def get(self, request, job_id):
         reviews = review_service.get_reviews_for_job(job_id)
         return Response({
@@ -150,24 +143,20 @@ class UnratedJobsView(APIView):
     """
     GET /api/reviews/unrated-jobs/
     Get all completed jobs that the client hasn't reviewed yet.
-    
-    This is used to show clients what jobs they need to review.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def get(self, request):
         unrated_jobs = review_service.get_unrated_jobs(request.user.id)
-        
-        # Check if there are unrated jobs
+
         if unrated_jobs:
             return Response({
                 'count': len(unrated_jobs),
                 'message': 'You have unrated jobs. Please review them before posting new jobs.',
                 'results': unrated_jobs,
             }, status=status.HTTP_200_OK)
-        else:
-            return Response({
-                'count': 0,
-                'message': 'You have no unrated jobs.',
-                'results': [],
-            }, status=status.HTTP_200_OK)
+        return Response({
+            'count': 0,
+            'message': 'You have no unrated jobs.',
+            'results': [],
+        }, status=status.HTTP_200_OK)
