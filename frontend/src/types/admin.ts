@@ -345,18 +345,16 @@ export interface JobFilters {
 
 export interface AuditLog {
     id: number;
-    timestamp: string;
-    admin: {
-        id: number;
-        full_name: string;
-        email: string;
-    };
+    user?: number | null;
+    user_name: string;
+    user_email?: string | null;
     action: string;
-    action_display: string;
-    resource_type: string;
-    resource_id: string;
-    result: 'SUCCESS' | 'FAILURE' | 'ERROR';
-    metadata: Record<string, any>;
+    entity_type: string;
+    entity_id?: number | null;
+    ip_address?: string | null;
+    user_agent?: string;
+    details?: Record<string, any>;
+    created_at: string;
 }
 
 // ============================================

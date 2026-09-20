@@ -1,3 +1,5 @@
+// frontend/src/api/notifications.ts
+
 import apiClient from "@/api/client";
 
 /* =========================================================
@@ -59,102 +61,78 @@ export type NotificationPreferences = {
 /**
  * Get the current user's notifications.
  *
- * Backend:
- * GET /api/
+ * Backend: GET /api/notifications/
  */
 export const getNotifications =
   async (): Promise<NotificationListResponse> => {
-    const data = (await apiClient("/")) as NotificationListResponse;
-
-    return data;
+    return (await apiClient(
+      "/notifications/"
+    )) as NotificationListResponse;
   };
 
 /**
  * Get one notification.
  *
- * Backend:
- * GET /api/{notification_id}/
+ * Backend: GET /api/notifications/{id}/
  */
-export const getNotification =
-  async (
-    notificationId: number
-  ): Promise<{ notification: Notification }> => {
-    const data = (await apiClient(
-      `/${notificationId}/`
-    )) as { notification: Notification };
-
-    return data;
-  };
+export const getNotification = async (
+  notificationId: number
+): Promise<{ notification: Notification }> => {
+  return (await apiClient(
+    `/notifications/${notificationId}/`
+  )) as { notification: Notification };
+};
 
 /**
  * Mark one notification as read.
  *
- * Backend:
- * POST /api/{notification_id}/read/
+ * Backend: POST /api/notifications/{id}/read/
  */
-export const markNotificationAsRead =
-  async (
-    notificationId: number
-  ): Promise<MarkReadResponse> => {
-    const data = (await apiClient(
-      `/${notificationId}/read/`,
-      {
-        method: "POST",
-      }
-    )) as MarkReadResponse;
-
-    return data;
-  };
+export const markNotificationAsRead = async (
+  notificationId: number
+): Promise<MarkReadResponse> => {
+  return (await apiClient(
+    `/notifications/${notificationId}/read/`,
+    { method: "POST" }
+  )) as MarkReadResponse;
+};
 
 /**
  * Mark all notifications as read.
  *
- * Backend:
- * POST /api/mark-all-read/
+ * Backend: POST /api/notifications/mark-all-read/
  */
 export const markAllNotificationsAsRead =
   async (): Promise<MarkAllReadResponse> => {
-    const data = (await apiClient(
-      "/mark-all-read/",
-      {
-        method: "POST",
-      }
+    return (await apiClient(
+      "/notifications/mark-all-read/",
+      { method: "POST" }
     )) as MarkAllReadResponse;
-
-    return data;
   };
 
 /**
  * Get unread notification count.
  *
- * Backend:
- * GET /api/unread-count/
+ * Backend: GET /api/notifications/unread-count/
  */
 export const getUnreadNotificationCount =
   async (): Promise<UnreadCountResponse> => {
-    const data = (await apiClient(
-      "/unread-count/"
+    return (await apiClient(
+      "/notifications/unread-count/"
     )) as UnreadCountResponse;
-
-    return data;
   };
 
 /**
  * Delete all notifications.
  *
- * Backend:
- * DELETE /api/delete-all/
+ * Backend: DELETE /api/notifications/delete-all/
  */
 export const deleteAllNotifications =
   async (): Promise<DeleteAllNotificationsResponse> => {
-    const data = (await apiClient(
-      "/delete-all/",
-      {
-        method: "DELETE",
-      }
+    return (await apiClient(
+      "/notifications/delete-all/",
+      { method: "DELETE" }
     )) as DeleteAllNotificationsResponse;
-
-    return data;
   };
 
 /* =========================================================
@@ -164,35 +142,28 @@ export const deleteAllNotifications =
 /**
  * Get notification preferences.
  *
- * Backend:
- * GET /api/preferences/
+ * Backend: GET /api/notifications/preferences/
  */
 export const getNotificationPreferences =
   async (): Promise<NotificationPreferences> => {
-    const data = (await apiClient(
-      "/preferences/"
+    return (await apiClient(
+      "/notifications/preferences/"
     )) as NotificationPreferences;
-
-    return data;
   };
 
 /**
  * Update notification preferences.
  *
- * Backend:
- * PUT /api/preferences/
+ * Backend: PUT /api/notifications/preferences/
  */
-export const updateNotificationPreferences =
-  async (
-    preferences: Partial<NotificationPreferences>
-  ): Promise<NotificationPreferences> => {
-    const data = (await apiClient(
-      "/preferences/",
-      {
-        method: "PUT",
-        body: JSON.stringify(preferences),
-      }
-    )) as NotificationPreferences;
-
-    return data;
-  };
+export const updateNotificationPreferences = async (
+  preferences: Partial<NotificationPreferences>
+): Promise<NotificationPreferences> => {
+  return (await apiClient(
+    "/notifications/preferences/",
+    {
+      method: "PUT",
+      body: JSON.stringify(preferences),
+    }
+  )) as NotificationPreferences;
+};

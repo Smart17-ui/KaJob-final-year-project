@@ -1,0 +1,29 @@
+<!-- backend/templates/emails/new_review.html -->
+{% extends "emails/base.html" %}
+
+{% block title %}New Review Received{% endblock %}
+
+{% block content %}
+<h2>You've Received a New Review</h2>
+
+<p>Hello {{ full_name }},</p>
+
+<p><strong>{{ reviewer_name }}</strong> left a review for you on the job "<em>{{ job_title }}</em>":</p>
+
+<div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0 0 12px 0;"><strong>Rating:</strong> {{ rating }} / 5</p>
+    {% if comment %}
+        <p style="margin: 0;"><em>"{{ comment }}"</em></p>
+    {% endif %}
+</div>
+
+<p style="text-align: center; margin: 30px 0;">
+    <a href="{{ job_url }}" class="button" style="background: #4F46E5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block;">
+        View Job
+    </a>
+</p>
+
+<p>Keep up the great work!</p>
+
+<p>KaJob Team</p>
+{% endblock %}

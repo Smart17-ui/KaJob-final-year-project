@@ -1,0 +1,29 @@
+<!-- backend/templates/emails/verification_approved.html -->
+{% extends "emails/base.html" %}
+
+{% block title %}Identity Verified{% endblock %}
+
+{% block content %}
+<h2>Identity Verification Approved</h2>
+
+<p>Hello {{ full_name }},</p>
+
+<p>Your identity has been successfully verified. You now have full access to all KaJob features:</p>
+
+<ul>
+    <li>Apply to jobs</li>
+    <li>Post jobs (if you're a client)</li>
+    <li>Receive reviews and build your reputation</li>
+    <li>Message other users</li>
+</ul>
+
+<p style="text-align: center; margin: 30px 0;">
+    <a href="{{ frontend_url }}" class="button" style="background: #4F46E5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block;">
+        Go to KaJob
+    </a>
+</p>
+
+<p>Welcome aboard!</p>
+
+<p>KaJob Team</p>
+{% endblock %}

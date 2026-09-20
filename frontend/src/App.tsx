@@ -97,6 +97,12 @@ import VerificationSection from "@/pages/settings/Sections/VerificationSection";
 import AvailabilitySection from "@/pages/settings/Sections/AvailabilitySection";
 
 /* =========================
+   NOTIFICATIONS PAGE (full page)
+========================= */
+
+import NotificationsPage from "@/pages/dashboard/worker/Notifications";
+
+/* =========================
    ADMIN PANEL
 ========================= */
 
@@ -583,6 +589,15 @@ function App() {
           }
         />
 
+        {/* Notifications — full page */}
+
+        <Route
+          path="notifications"
+          element={
+            <NotificationsPage />
+          }
+        />
+
         {/* =================================================
             CLIENT SETTINGS
         ================================================= */}
@@ -753,6 +768,15 @@ function App() {
           path="performance"
           element={
             <Performance />
+          }
+        />
+
+        {/* Notifications — full page */}
+
+        <Route
+          path="notifications"
+          element={
+            <NotificationsPage />
           }
         />
 

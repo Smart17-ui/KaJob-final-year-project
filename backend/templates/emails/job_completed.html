@@ -1,0 +1,28 @@
+<!-- backend/templates/emails/job_completed.html -->
+{% extends "emails/base.html" %}
+
+{% block title %}Job Marked Complete{% endblock %}
+
+{% block content %}
+<h2>Job Marked Complete</h2>
+
+<p>Hello {{ full_name }},</p>
+
+<p><strong>{{ worker_name }}</strong> has marked the job as complete:</p>
+
+<div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0; font-size: 16px;"><strong>{{ job_title }}</strong></p>
+</div>
+
+<p>Please review the work and confirm completion by clicking the button below.</p>
+
+<p style="text-align: center; margin: 30px 0;">
+    <a href="{{ job_url }}" class="button" style="background: #4F46E5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block;">
+        Confirm Completion
+    </a>
+</p>
+
+<p>If you don't confirm within the grace period, the job will auto-complete.</p>
+
+<p>KaJob Team</p>
+{% endblock %}

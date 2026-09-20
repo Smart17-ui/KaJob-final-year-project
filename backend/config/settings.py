@@ -3,9 +3,27 @@ Django settings for config project.
 """
 
 import os
+import sys
+import io
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
+
+
+# ============================================
+# FORCE UTF-8 ON STDOUT/STDERR (Windows fix)
+# ============================================
+# Windows terminals default to cp1252, which can't encode emoji/star
+# characters. Wrap stdout/stderr with UTF-8 so log lines like
+# "Email sent: New Review: 5★" don't crash with UnicodeEncodeError.
+
+if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
+    sys.stdout = io.TextIOWrapper(
+        sys.stdout.buffer, encoding='utf-8', errors='replace'
+    )
+    sys.stderr = io.TextIOWrapper(
+        sys.stderr.buffer, encoding='utf-8', errors='replace'
+    )
 
 
 # ============================================
@@ -379,7 +397,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    #rest settings for drf spectacular
+
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
     'DEFAULT_RENDERER_CLASSES': (
@@ -400,9 +418,6 @@ REST_FRAMEWORK = {
         'rest_framework.pagination.PageNumberPagination',
 
     'PAGE_SIZE': 20,
-
-    'DEFAULT_SCHEMA_CLASS':
-        'drf_spectacular.openapi.AutoSchema',
 }
 
 
@@ -559,8 +574,6 @@ SPECTACULAR_SETTINGS = {
 }
 
 
-
-
 # ============================================
 # LOGGING
 # ============================================
@@ -595,6 +608,8 @@ LOGGING = {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
+            # NOTE: 'encoding' is NOT supported by StreamHandler.
+            # stdout/stderr are wrapped as UTF-8 at the top of this file instead.
         },
 
         'file': {
@@ -602,6 +617,7 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': BASE_DIR / 'logs' / 'kajob.log',
             'formatter': 'verbose',
+            'encoding': 'utf-8',   # FileHandler DOES support encoding
         },
     },
 

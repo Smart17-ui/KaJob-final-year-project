@@ -13,12 +13,20 @@ import type {
 export interface AuditLogFilters {
     user_id?: number;
     action?: string;
-    resource_type?: string;
+    entity_type?: string;
     start_date?: string;
     end_date?: string;
+    search?: string;
     page?: number;
     page_size?: number;
     ordering?: string;
+}
+
+export interface AuditStats {
+    total_actions: number;
+    by_action: { action: string; count: number }[];
+    top_users: { user_id: number; user_name: string; count: number }[];
+    daily_activity: { date: string; count: number }[];
 }
 
 // ============================================
@@ -35,9 +43,10 @@ export const adminAuditLogsApi = {
         const params: Record<string, any> = {};
         if (filters?.user_id) params.user_id = filters.user_id;
         if (filters?.action) params.action = filters.action;
-        if (filters?.resource_type) params.resource_type = filters.resource_type;
+        if (filters?.entity_type) params.entity_type = filters.entity_type;
         if (filters?.start_date) params.start_date = filters.start_date;
         if (filters?.end_date) params.end_date = filters.end_date;
+        if (filters?.search) params.search = filters.search;
         if (filters?.page) params.page = filters.page;
         if (filters?.page_size) params.page_size = filters.page_size;
         if (filters?.ordering) params.ordering = filters.ordering;
@@ -52,10 +61,32 @@ export const adminAuditLogsApi = {
     },
 
     /**
-     * GET /api/logs/actions/ — probably doesn't exist
+     * GET /api/stats/
      */
-    getActions: async () => {
-        return await http.get('/logs/actions/');
+    getStats: async (days = 7): Promise<AuditStats> => {
+        return await http.get('/stats/', { days });
+    },
+
+    /**
+     * GET /api/users/{user_id}/logs/
+     */
+    getUserLogs: async (
+        userId: number,
+        page = 1
+    ): Promise<PaginatedResponse<AuditLog>> => {
+        return await http.get(`/users/${userId}/logs/`, { page });
+    },
+
+    /**
+     * GET /api/entities/{entity_type}/{entity_id}/
+     */
+    getEntityLogs: async (
+        entityType: string,
+        entityId: number
+    ): Promise<PaginatedResponse<AuditLog>> => {
+        return await http.get(
+            `/entities/${entityType}/${entityId}/`
+        );
     },
 };
 
