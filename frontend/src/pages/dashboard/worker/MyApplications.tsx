@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { getWorkerJobDetails } from "@/api/jobs";
 import {
   getMyApplications,
+  withdrawApplication,
 } from "@/components/services/applicationService";
 import type {
   JobApplication,
@@ -24,7 +25,8 @@ type ApplicationStatus =
   | "ALL"
   | "PENDING"
   | "ACCEPTED"
-  | "REJECTED";
+  | "REJECTED"
+  | "WITHDRAWN";
 
 type FeedbackType =
   | "success"
@@ -64,6 +66,14 @@ const getApplicationStatus = (
     return "REJECTED";
   }
 
+  if (
+    normalizedStatus === "WITHDRAWN" ||
+    normalizedStatus === "CANCELLED" ||
+    normalizedStatus === "CANCELED"
+  ) {
+    return "WITHDRAWN";
+  }
+
   return "PENDING";
 };
 
@@ -101,6 +111,9 @@ const getStatusClasses = (
     case "PENDING":
       return "border-amber-200 bg-amber-50 text-amber-700";
 
+    case "WITHDRAWN":
+      return "border-gray-200 bg-gray-50 text-gray-600";
+
     default:
       return "border-gray-200 bg-gray-50 text-gray-700";
   }
@@ -118,6 +131,9 @@ const getStatusIndicator = (
 
     case "PENDING":
       return "•";
+
+    case "WITHDRAWN":
+      return "↩";
 
     default:
       return "•";
@@ -265,6 +281,11 @@ const MyApplications = () => {
         (application) =>
           application.status === "REJECTED"
       ).length,
+
+      WITHDRAWN: applications.filter(
+        (application) =>
+          application.status === "WITHDRAWN"
+      ).length,
     }),
     [applications]
   );
@@ -282,7 +303,7 @@ const MyApplications = () => {
   };
 
   // ============================================
-  // CANCEL APPLICATION
+  // CANCEL / WITHDRAW APPLICATION
   // ============================================
 
   const handleCancelApplication = async () => {
@@ -293,27 +314,37 @@ const MyApplications = () => {
     try {
       setIsCancelling(true);
 
-      /*
-       * There is currently no cancel-application
-       * endpoint in applicationService.ts.
-       *
-       * This will be connected once the backend
-       * endpoint is implemented.
-       */
-
-      console.log(
-        "Cancel application:",
+      await withdrawApplication(
         applicationToCancel.id
+      );
+
+      setApplicationToCancel(null);
+
+      await loadApplications();
+
+      setFeedback({
+        isOpen: true,
+        type: "success",
+        title: "Application Cancelled",
+        message:
+          "Your application has been successfully withdrawn.",
+      });
+    } catch (error) {
+      console.error(
+        "Failed to withdraw application:",
+        error
       );
 
       setApplicationToCancel(null);
 
       setFeedback({
         isOpen: true,
-        type: "info",
-        title: "Coming Soon",
+        type: "error",
+        title: "Unable to Cancel Application",
         message:
-          "Application cancellation will be available once the backend endpoint is added.",
+          error instanceof Error
+            ? error.message
+            : "Failed to cancel your application. Please try again.",
       });
     } finally {
       setIsCancelling(false);
@@ -569,6 +600,15 @@ const MyApplications = () => {
                           <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
                             <p className="text-sm font-medium text-amber-800">
                               Your application is waiting for the client to respond.
+                            </p>
+                          </div>
+                        )}
+
+                        {application.status ===
+                          "WITHDRAWN" && (
+                          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                            <p className="text-sm font-medium text-gray-700">
+                              You withdrew this application.
                             </p>
                           </div>
                         )}

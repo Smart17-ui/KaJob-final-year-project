@@ -6,46 +6,65 @@ import {
 import NotificationBell from "./NotificationBell";
 import ProfileDropdown from "./ProfileDropdown";
 
+type UserRole = "CLIENT" | "WORKER";
+
 type TopBarProps = {
   userName?: string;
-  userRole?: "CLIENT" | "WORKER";
+  userRole?: UserRole;
+  availableRoles?: UserRole[];
 
   onMenuOpen?: () => void;
   onNotificationsClick?: () => void;
   onProfileClick?: () => void;
   onVerifyClick?: () => void;
   onSettingsClick?: () => void;
-  onSwitchRole?: () => void;
+
+  onSwitchRole?: (role: UserRole) => void;
+  onAddRole?: (role: UserRole) => void;
+
   onLogout?: () => void;
 };
 
 const TopBar = ({
   userName = "User",
   userRole = "CLIENT",
+  availableRoles = [userRole],
+
   onMenuOpen,
   onNotificationsClick,
   onProfileClick,
   onVerifyClick,
   onSettingsClick,
   onSwitchRole,
+  onAddRole,
   onLogout,
 }: TopBarProps) => {
-  /*
-   * Notifications are now handled completely inside
-   * NotificationBell.
-   *
-   * Keep the prop available for compatibility with the
-   * existing TopBar API, but don't pass it to the bell.
-   */
   void onNotificationsClick;
+
+  const roles = Array.from(
+    new Set(
+      availableRoles.includes(userRole)
+        ? availableRoles
+        : [...availableRoles, userRole]
+    )
+  );
+
+  const hasMultipleRoles = roles.length > 1;
+
+  const handleRoleAction = (role: UserRole) => {
+    if (hasMultipleRoles) {
+      onSwitchRole?.(role);
+      return;
+    }
+
+    onAddRole?.(role);
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-        {/* =====================================================
-            LEFT SIDE - MENU TRIGGER
-            ===================================================== */}
 
+        {/* LEFT */}
         <div className="flex items-center">
           <button
             type="button"
@@ -69,10 +88,7 @@ const TopBar = ({
           </button>
         </div>
 
-        {/* =====================================================
-            CENTER - BRANDING
-            ===================================================== */}
-
+        {/* CENTER */}
         <div className="hidden flex-1 items-center justify-center lg:flex">
           <span className="text-sm font-semibold text-slate-600">
             {userRole === "CLIENT"
@@ -81,17 +97,13 @@ const TopBar = ({
           </span>
         </div>
 
-        {/* =====================================================
-            RIGHT SIDE - ACTIONS
-            ===================================================== */}
-
+        {/* RIGHT */}
         <div className="flex items-center gap-1">
-          {/* Notifications */}
 
-          <NotificationBell />
+          {/* NOTIFICATIONS */}
+          <NotificationBell userRole={userRole} />
 
-          {/* Settings Button - Hidden on Small Screens */}
-
+          {/* SETTINGS */}
           <button
             type="button"
             onClick={onSettingsClick}
@@ -113,19 +125,18 @@ const TopBar = ({
             <Cog6ToothIcon className="h-5 w-5" />
           </button>
 
-          {/* Divider */}
-
+          {/* DIVIDER */}
           <div className="mx-2 hidden h-6 w-px bg-slate-200 sm:block" />
 
-          {/* Profile Dropdown */}
-
+          {/* PROFILE */}
           <ProfileDropdown
             userName={userName}
             userRole={userRole}
+            availableRoles={roles}
             onProfileClick={onProfileClick}
             onVerifyClick={onVerifyClick}
             onSettingsClick={onSettingsClick}
-            onSwitchRole={onSwitchRole}
+            onSwitchRole={handleRoleAction}
             onLogout={onLogout}
           />
         </div>

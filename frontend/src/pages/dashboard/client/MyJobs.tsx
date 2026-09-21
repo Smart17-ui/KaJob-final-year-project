@@ -16,6 +16,7 @@ import EmptyJobs from "../../../components/my-jobs/EmptyJobs";
 import ClientJobCard from "../../../components/my-jobs/ClientJobCard";
 import JobStatusSidebar from "../../../components/my-jobs/JobStatusSidebar";
 import ConfirmationModal from "../../../components/pop/ConfirmationModal/ConfirmationModal";
+import ReviewModal from "@/components/reviews/ReviewModal";
 
 import {
   getMyJobs,
@@ -38,6 +39,13 @@ type ConfirmationAction =
 type JobStatusFilter =
   | "ALL"
   | JobStatus;
+
+interface ReviewJob {
+  jobId: number;
+  workerId: number;
+  workerName: string;
+  jobTitle: string;
+}
 
 const MyJobs = () => {
   const navigate = useNavigate();
@@ -64,6 +72,12 @@ const MyJobs = () => {
 
   const [selectedJobId, setSelectedJobId] =
     useState<number | null>(null);
+
+  const [reviewJob, setReviewJob] =
+    useState<ReviewJob | null>(null);
+
+  const [isReviewModalOpen, setIsReviewModalOpen] =
+    useState(false);
 
   const loadJobs = async () => {
     setIsLoading(true);
@@ -165,6 +179,15 @@ const MyJobs = () => {
     setSelectedJobId(null);
   };
 
+  const closeReviewModal = () => {
+    setIsReviewModalOpen(false);
+    setReviewJob(null);
+  };
+
+  const handleReviewSuccess = async () => {
+    await loadJobs();
+  };
+
   const handleConfirmAction = async () => {
     if (
       selectedJobId === null ||
@@ -183,6 +206,9 @@ const MyJobs = () => {
       if (action === "cancel") {
         await cancelJob(jobId);
         await loadJobs();
+
+        setConfirmationAction(null);
+        setSelectedJobId(null);
       }
 
       if (action === "delete") {
@@ -193,15 +219,68 @@ const MyJobs = () => {
             (job) => job.id !== jobId
           )
         );
+
+        setConfirmationAction(null);
+        setSelectedJobId(null);
       }
 
       if (action === "confirm") {
-        await confirmJob(jobId);
-        await loadJobs();
-      }
+        /*
+         * Save the job information before
+         * refreshing the jobs list.
+         *
+         * The worker information comes from
+         * the backend through JobListSerializer.
+         */
+        const jobBeingConfirmed =
+          jobs.find(
+            (job) => job.id === jobId
+          );
 
-      setConfirmationAction(null);
-      setSelectedJobId(null);
+        /*
+         * First confirm the job on the backend.
+         */
+        await confirmJob(jobId);
+
+        /*
+         * Refresh the jobs list so the UI
+         * immediately reflects COMPLETED.
+         *
+         * This must happen BEFORE opening
+         * the review modal because loadJobs()
+         * temporarily sets isLoading to true.
+         */
+        await loadJobs();
+
+        /*
+         * Close the confirmation modal first.
+         */
+        setConfirmationAction(null);
+        setSelectedJobId(null);
+
+        /*
+         * Now open the review modal.
+         *
+         * We use the worker information that
+         * was already captured before refreshing.
+         */
+        if (
+          jobBeingConfirmed?.worker_id &&
+          jobBeingConfirmed.worker_name
+        ) {
+          setReviewJob({
+            jobId: jobBeingConfirmed.id,
+            workerId:
+              jobBeingConfirmed.worker_id,
+            workerName:
+              jobBeingConfirmed.worker_name,
+            jobTitle:
+              jobBeingConfirmed.title,
+          });
+
+          setIsReviewModalOpen(true);
+        }
+      }
     } catch (error) {
       console.error(
         `Failed to ${action} job:`,
@@ -601,6 +680,18 @@ const MyJobs = () => {
           closeConfirmation
         }
       />
+
+      {reviewJob && (
+        <ReviewModal
+          isOpen={isReviewModalOpen}
+          jobId={reviewJob.jobId}
+          workerId={reviewJob.workerId}
+          workerName={reviewJob.workerName}
+          jobTitle={reviewJob.jobTitle}
+          onClose={closeReviewModal}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
     </>
   );
 };

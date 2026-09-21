@@ -346,6 +346,17 @@ const PostJob = () => {
         general_location:
           form.location.trim(),
 
+        /*
+         * Round coordinates to 6 decimal places
+         * before sending them to the backend.
+         *
+         * This prevents JavaScript floating-point
+         * values such as:
+         *
+         * -15.414486999999998
+         *
+         * from being sent to Django.
+         */
         latitude:
           form.latitude !== null
             ? Number(
@@ -416,7 +427,7 @@ const PostJob = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-full w-full bg-slate-50 p-6">
+      <div className="p-6">
         <p className="text-sm text-slate-500">
           You need to be logged in to post a job.
         </p>
@@ -426,7 +437,7 @@ const PostJob = () => {
 
   if (!isVerified) {
     return (
-      <div className="min-h-full w-full bg-slate-50 p-6">
+      <div className="p-6">
         <p className="text-sm text-slate-500">
           Verify your account before posting a job.
         </p>
@@ -439,11 +450,10 @@ const PostJob = () => {
   ========================================================= */
 
   return (
-    <div className="min-h-full w-full bg-slate-50">
+    <>
       <form
         id="post-job-form"
         onSubmit={handleSubmit}
-        className="min-h-full w-full bg-slate-50"
       >
         <PostJobLayout
           form={form}
@@ -466,7 +476,7 @@ const PostJob = () => {
         message={feedback.message}
         onClose={closeFeedback}
       />
-    </div>
+    </>
   );
 };
 

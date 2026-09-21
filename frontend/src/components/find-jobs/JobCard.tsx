@@ -21,7 +21,6 @@ type Job = {
   is_flexible: boolean;
   duration_hours: string | null;
   posted_at: string;
-
   latitude?: number | string | null;
   longitude?: number | string | null;
   is_urgent?: boolean;
@@ -37,6 +36,7 @@ type NearbyJob = {
 type JobCardProps = {
   item: NearbyJob;
   applying: boolean;
+  cancelling: boolean;
   isApplied: boolean;
   onViewJob: (item: NearbyJob) => void;
   onApply: (item: NearbyJob) => void;
@@ -95,6 +95,7 @@ const getUrgencyClasses = (urgency: string): string => {
 const JobCard = ({
   item,
   applying,
+  cancelling,
   isApplied,
   onViewJob,
   onApply,
@@ -239,105 +240,127 @@ const JobCard = ({
             )}
         </div>
 
+        {/* ACTION BUTTONS */}
+
         <div className="mt-3 flex gap-2">
-          {/* VIEW DETAILS / CANCEL */}
-
           {isApplied ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onCancel(item);
-              }}
-              disabled={applying}
-              className="
-                flex-1
-                rounded-lg
-                border
-                border-red-200
-                bg-red-50
-                px-2
-                py-1.5
-                text-[11px]
-                font-semibold
-                text-red-700
-                transition
-                hover:bg-red-100
-                disabled:cursor-not-allowed
-                disabled:opacity-50
-              "
-            >
-              <span className="inline-flex items-center justify-center gap-1">
-                <XMarkIcon className="h-3.5 w-3.5" />
+            <>
+              {/* CANCEL */}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onCancel(item);
+                }}
+                disabled={cancelling}
+                className="
+                  flex-1
+                  rounded-lg
+                  border
+                  border-red-200
+                  bg-red-50
+                  px-2
+                  py-1.5
+                  text-[11px]
+                  font-semibold
+                  text-red-700
+                  transition
+                  hover:bg-red-100
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
+              >
+                <span className="inline-flex items-center justify-center gap-1">
+                  <XMarkIcon className="h-3.5 w-3.5" />
 
-                {applying ? "Cancelling..." : "Cancel"}
-              </span>
-            </button>
+                  {cancelling
+                    ? "Cancelling..."
+                    : "Cancel"}
+                </span>
+              </button>
+
+              {/* APPLIED */}
+              <button
+                type="button"
+                disabled
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+                className="
+                  flex-1
+                  cursor-not-allowed
+                  rounded-lg
+                  border
+                  border-green-200
+                  bg-green-50
+                  px-2
+                  py-1.5
+                  text-[11px]
+                  font-semibold
+                  text-green-700
+                "
+              >
+                <span className="inline-flex items-center justify-center gap-1">
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                  Applied
+                </span>
+              </button>
+            </>
           ) : (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onViewJob(item);
-              }}
-              className="
-                flex-1
-                rounded-lg
-                border
-                border-gray-200
-                px-2
-                py-1.5
-                text-[11px]
-                font-semibold
-                text-gray-700
-                transition
-                hover:bg-gray-50
-              "
-            >
-              View Details
-            </button>
+            <>
+              {/* VIEW DETAILS */}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onViewJob(item);
+                }}
+                className="
+                  flex-1
+                  rounded-lg
+                  border
+                  border-gray-200
+                  px-2
+                  py-1.5
+                  text-[11px]
+                  font-semibold
+                  text-gray-700
+                  transition
+                  hover:bg-gray-50
+                "
+              >
+                View Details
+              </button>
+
+              {/* APPLY */}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onApply(item);
+                }}
+                disabled={applying}
+                className="
+                  flex-1
+                  rounded-lg
+                  bg-gray-900
+                  px-2
+                  py-1.5
+                  text-[11px]
+                  font-semibold
+                  text-white
+                  transition
+                  hover:bg-gray-800
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
+              >
+                {applying
+                  ? "Applying..."
+                  : "Apply"}
+              </button>
+            </>
           )}
-
-          {/* APPLY / APPLIED */}
-
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onApply(item);
-            }}
-            disabled={isApplied || applying}
-            className={`
-              flex-1
-              rounded-lg
-              px-2
-              py-1.5
-              text-[11px]
-              font-semibold
-              transition
-              ${
-                isApplied
-                  ? "cursor-not-allowed border border-green-200 bg-green-50 text-green-700"
-                  : "bg-gray-900 text-white hover:bg-gray-800"
-              }
-              ${
-                applying
-                  ? "cursor-not-allowed opacity-50"
-                  : ""
-              }
-            `}
-          >
-            {isApplied ? (
-              <span className="inline-flex items-center justify-center gap-1">
-                <CheckCircleIcon className="h-3.5 w-3.5" />
-                Applied
-              </span>
-            ) : applying ? (
-              "Applying..."
-            ) : (
-              "Apply"
-            )}
-          </button>
         </div>
       </div>
     </article>

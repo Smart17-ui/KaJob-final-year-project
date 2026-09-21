@@ -207,6 +207,74 @@ export async function applyForJob(
 
 /*
  * =========================
+ * WITHDRAW APPLICATION
+ * =========================
+ *
+ * POST /api/jobs/applications/{applicationId}/withdraw/
+ *
+ * Allows the authenticated worker to
+ * withdraw their pending application.
+ */
+
+export async function withdrawApplication(
+  applicationId: number
+): Promise<{
+  message: string;
+  application?: JobApplication;
+}> {
+  const accessToken =
+    localStorage.getItem("access_token");
+
+  if (!accessToken) {
+    throw new Error(
+      "You are not authenticated. Please log in."
+    );
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/jobs/applications/${applicationId}/withdraw/`,
+    {
+      method: "POST",
+
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  let result: any = null;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      "The server returned an invalid response."
+    );
+  }
+
+  if (!response.ok) {
+    if (result?.error) {
+      throw new Error(result.error);
+    }
+
+    if (result?.detail) {
+      throw new Error(result.detail);
+    }
+
+    throw new Error(
+      "Failed to withdraw your application."
+    );
+  }
+
+  return result as {
+    message: string;
+    application?: JobApplication;
+  };
+}
+
+/*
+ * =========================
  * UPDATE APPLICATION STATUS
  * =========================
  *

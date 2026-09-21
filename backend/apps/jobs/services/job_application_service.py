@@ -28,6 +28,7 @@ class JobApplicationService:
     # APPLY FOR JOB
     # ============================================
 
+  
     @transaction.atomic
     def apply_for_job(self, worker, job_id: int) -> Dict[str, Any]:
         """
@@ -36,39 +37,89 @@ class JobApplicationService:
         Worker must be verified
         Worker must be available
         Worker cannot apply to their own job
+
+        If the worker previously withdrew or was rejected,
+        the existing application record is reused and changed
+        back to PENDING because the database enforces a unique
+        job + worker combination.
         """
         # Get the job
         job = self.job_repo.get_by_id(job_id)
+
         if not job:
             raise ResourceNotFound("Job not found.")
 
         # Check if job is open
         if job.status != JobStatus.OPEN:
-            raise BusinessRuleViolation(f"Cannot apply for a {job.status} job.")
-
-        # Check if worker has already applied
-        if self.application_repo.has_applied(job_id, worker.id):
-            raise BusinessRuleViolation("You have already applied for this job.")
+            raise BusinessRuleViolation(
+                f"Cannot apply for a {job.status} job."
+            )
 
         # Check if worker is verified
         if not worker.is_verified:
-            raise BusinessRuleViolation("You must be verified to apply for jobs.")
+            raise BusinessRuleViolation(
+                "You must be verified to apply for jobs."
+            )
 
-        # NEW: Check if worker is applying to their own job
+        # Check if worker is applying to their own job
         if job.client_id == worker.id:
-            raise BusinessRuleViolation("You cannot apply to a job you created.")
+            raise BusinessRuleViolation(
+                "You cannot apply to a job you created."
+            )
 
         # Check if worker is available (not busy)
         worker_profile = self.worker_repo.get_by_user_id(worker.id)
-        if worker_profile and not worker_profile.is_available:
-            raise BusinessRuleViolation("You are currently busy with another job.")
 
-        # Create application
-        application = self.application_repo.create(
-            job=job,
-            worker=worker,
-            status=ApplicationStatus.PENDING,
+        if worker_profile and not worker_profile.is_available:
+            raise BusinessRuleViolation(
+                "You are currently busy with another job."
+            )
+
+        # Get any existing application for this job and worker.
+        # The database has a unique constraint on job + worker,
+        # so we must reuse an existing withdrawn/rejected record
+        # instead of creating a second one.
+        existing_application = (
+            self.application_repo.get_by_job_and_worker(
+                job_id,
+                worker.id
+            )
         )
+
+        if existing_application:
+            # Active applications cannot be submitted again.
+            if existing_application.status in [
+                ApplicationStatus.PENDING,
+                ApplicationStatus.ACCEPTED,
+            ]:
+                raise BusinessRuleViolation(
+                    "You have already applied for this job."
+                )
+
+            # Withdrawn/rejected applications can be submitted again.
+            if existing_application.status in [
+                ApplicationStatus.WITHDRAWN,
+                ApplicationStatus.REJECTED,
+            ]:
+                application = self.application_repo.update(
+                    existing_application,
+                    status=ApplicationStatus.PENDING,
+                    applied_at=timezone.now(),
+                )
+
+            else:
+                raise BusinessRuleViolation(
+                    f"Cannot apply again while your application "
+                    f"has status '{existing_application.status}'."
+                )
+
+        else:
+            # No previous application exists, so create a new one.
+            application = self.application_repo.create(
+                job=job,
+                worker=worker,
+                status=ApplicationStatus.PENDING,
+            )
 
         # Audit log
         AuditLog.objects.create(
@@ -82,11 +133,14 @@ class JobApplicationService:
             }
         )
 
-        logger.info(f"Worker {worker.id} applied for job {job_id}")
+        logger.info(
+            f"Worker {worker.id} applied for job {job_id}"
+        )
 
-        # 🆕 Notify the client
+        # Notify the client
         try:
             from apps.notifications.services import NotificationService
+
             NotificationService().create_notification(
                 recipient_id=job.client_id,
                 notification_type='APPLICATION_RECEIVED',
@@ -105,16 +159,22 @@ class JobApplicationService:
                 send_email=True,
                 send_push=True,
             )
+
             logger.info(
-                f"[notify] application_received sent to client {job.client_id}"
+                f"[notify] application_received sent to client "
+                f"{job.client_id}"
             )
+
         except Exception as e:
-            logger.error(f"[notify] apply_for_job failed: {e}")
+            logger.error(
+                f"[notify] apply_for_job failed: {e}"
+            )
 
         return {
             'application': application,
             'message': 'Application submitted successfully!'
         }
+
 
     # ============================================
     # GET APPLICATIONS

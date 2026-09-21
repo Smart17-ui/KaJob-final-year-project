@@ -31,6 +31,8 @@ import type {
   JobStatus,
 } from "@/shared/types/job";
 
+import ReviewModal from "@/components/reviews/ReviewModal";
+
 import ClientDetailsModal from "./Directions/components/ClientDetailsModal";
 
 /* =========================================================
@@ -60,6 +62,17 @@ type Work = {
   id: number;
   job: Job;
   status: WorkStatus;
+};
+
+/* =========================================================
+   REVIEW JOB
+========================================================= */
+
+type ReviewJob = {
+  jobId: number;
+  clientId: number;
+  clientName: string;
+  jobTitle: string;
 };
 
 /* =========================================================
@@ -280,6 +293,16 @@ const MyWork = () => {
     useState<string | null>(null);
 
   /* =======================================================
+     REVIEW STATE
+  ======================================================= */
+
+  const [reviewJob, setReviewJob] =
+    useState<ReviewJob | null>(null);
+
+  const [isReviewModalOpen, setIsReviewModalOpen] =
+    useState(false);
+
+  /* =======================================================
      LOAD MY WORK
   ======================================================= */
 
@@ -479,6 +502,107 @@ const MyWork = () => {
 
     setSelectedClient(null);
     setClientDetailsError(null);
+  };
+
+  /* =======================================================
+     RATE CLIENT
+  ======================================================= */
+
+  const handleReviewClient = async (
+    work: Work
+  ) => {
+    /*
+     * Only completed jobs can be reviewed.
+     *
+     * The backend should only move the job to
+     * COMPLETED after the client confirms completion.
+     */
+    if (work.status !== "Completed") {
+      return;
+    }
+
+    try {
+      setActionError(null);
+      setActionSuccess(null);
+
+      /*
+       * The normal My Work response may not include
+       * client_id, so retrieve the full worker job details.
+       *
+       * This is the same endpoint already used by
+       * "View Client Details".
+       */
+      const response =
+        await getWorkerJobDetails(
+          work.id
+        );
+
+      const detailedJob =
+        response?.job;
+
+      if (!detailedJob) {
+        throw new Error(
+          "The server did not return the completed job details."
+        );
+      }
+
+      /*
+       * The detailed job should contain the client
+       * information needed by the review endpoint.
+       */
+      const clientId =
+        detailedJob.client_id;
+
+      if (!clientId) {
+        throw new Error(
+          "The server did not return the client information for this job."
+        );
+      }
+
+      setReviewJob({
+        jobId:
+          detailedJob.id,
+        clientId,
+        clientName:
+          detailedJob.client_name ||
+          "Client",
+        jobTitle:
+          detailedJob.title ||
+          work.job.title,
+      });
+
+      setIsReviewModalOpen(
+        true
+      );
+    } catch (err) {
+      console.error(
+        "Failed to prepare client review:",
+        err
+      );
+
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "We couldn't load the client information. Please try again."
+      );
+    }
+  };
+
+  /* =======================================================
+     CLOSE REVIEW MODAL
+  ======================================================= */
+
+  const closeReviewModal = () => {
+    setIsReviewModalOpen(false);
+    setReviewJob(null);
+  };
+
+  /* =======================================================
+     REVIEW SUCCESS
+  ======================================================= */
+
+  const handleReviewSuccess = async () => {
+    await loadMyWork();
   };
 
   /* =======================================================
@@ -876,6 +1000,11 @@ const MyWork = () => {
                             work.id
                           )
                         }
+                        onReviewClient={() =>
+                          handleReviewClient(
+                            work
+                          )
+                        }
                         actionLoading={
                           actionLoading
                         }
@@ -923,6 +1052,36 @@ const MyWork = () => {
           work={selectedClient}
           onClose={
             handleCloseClientDetails
+          }
+        />
+      )}
+
+      {/* =====================================================
+          CLIENT REVIEW MODAL
+      ===================================================== */}
+
+      {reviewJob && (
+        <ReviewModal
+          isOpen={
+            isReviewModalOpen
+          }
+          jobId={
+            reviewJob.jobId
+          }
+          workerId={
+            reviewJob.clientId
+          }
+          workerName={
+            reviewJob.clientName
+          }
+          jobTitle={
+            reviewJob.jobTitle
+          }
+          onClose={
+            closeReviewModal
+          }
+          onSuccess={
+            handleReviewSuccess
           }
         />
       )}
@@ -1061,6 +1220,7 @@ type WorkCardProps = {
   onViewClient: () => void;
   onStartWork: () => void;
   onMarkComplete: () => void;
+  onReviewClient: () => void;
   actionLoading:
     | "start"
     | "complete"
@@ -1074,6 +1234,7 @@ const WorkCard = ({
   onViewClient,
   onStartWork,
   onMarkComplete,
+  onReviewClient,
   actionLoading,
 }: WorkCardProps) => {
   const job =
@@ -1402,6 +1563,25 @@ const WorkCard = ({
             >
               <UserCircleIcon className="h-4 w-4" />
               View Client Details
+            </button>
+          )}
+
+          {/* =================================================
+              COMPLETED
+          ================================================= */}
+
+          {work.status ===
+            "Completed" && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onReviewClient();
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+            >
+              <CheckCircleIcon className="h-4 w-4" />
+              Rate Client
             </button>
           )}
 

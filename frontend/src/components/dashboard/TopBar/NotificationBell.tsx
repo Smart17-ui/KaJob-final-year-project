@@ -1,7 +1,12 @@
-// frontend/src/components/dashboard/TopBar/NotificationBell.tsx
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { BellIcon } from "@heroicons/react/24/outline";
 
 import {
@@ -12,52 +17,77 @@ import {
   type Notification,
 } from "@/api/notifications";
 
-import { getSelectedRole } from "@/shared/auth";
+type UserRole = "CLIENT" | "WORKER";
 
 type NotificationBellProps = {
+  userRole: UserRole;
   onNotificationsClick?: () => void;
 };
 
-const POLL_INTERVAL_MS = 30_000; // 30 s
+const POLL_INTERVAL_MS = 30_000;
 
 const NotificationBell = ({
+  userRole,
   onNotificationsClick,
 }: NotificationBellProps) => {
   const navigate = useNavigate();
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] =
+    useState<Notification[]>([]);
+
   const [unreadCount, setUnreadCount] = useState(0);
+
   const [isOpen, setIsOpen] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
-  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
-  const notificationRef = useRef<HTMLDivElement>(null);
+  const [isMarkingAllRead, setIsMarkingAllRead] =
+    useState(false);
 
-  /* =========================================================
-     WHERE DOES "VIEW ALL" GO?
-     ========================================================= */
+  const notificationRef =
+    useRef<HTMLDivElement>(null);
 
-  const notificationsPagePath = (() => {
-    const role = getSelectedRole();
-    return role === "WORKER"
+  /*
+   * Keeps track of the latest notification request.
+   *
+   * If a previous role's request finishes after the
+   * current role's request, its response is ignored.
+   */
+  const requestIdRef = useRef(0);
+
+  /*
+   * NOTIFICATION PAGE
+   */
+  const notificationsPagePath =
+    userRole === "WORKER"
       ? "/worker/dashboard/notifications"
       : "/client/dashboard/notifications";
-  })();
 
-  /* =========================================================
-     LOAD NOTIFICATIONS
-     ========================================================= */
-
+  /*
+   * LOAD NOTIFICATIONS
+   */
   const loadNotifications = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+
     try {
       setIsLoading(true);
 
-      const [notificationResponse, unreadResponse] = await Promise.all([
+      const [
+        notificationResponse,
+        unreadResponse,
+      ] = await Promise.all([
         getNotifications(),
         getUnreadNotificationCount(),
       ]);
 
-      // Backend may return a plain array or { count, results }.
+      /*
+       * Ignore the response if another request has already
+       * started after this one.
+       */
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
       const list = Array.isArray(notificationResponse)
         ? notificationResponse
         : notificationResponse.results ?? [];
@@ -65,62 +95,116 @@ const NotificationBell = ({
       setNotifications(list);
       setUnreadCount(unreadResponse.count ?? 0);
     } catch (error) {
-      console.error("Failed to load notifications:", error);
+      /*
+       * Ignore errors from stale requests.
+       */
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      console.error(
+        "Failed to load notifications:",
+        error
+      );
+
       setNotifications([]);
       setUnreadCount(0);
     } finally {
-      setIsLoading(false);
+      /*
+       * Only the current request should control loading state.
+       */
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [userRole]);
 
-  /* =========================================================
-     INITIAL LOAD + POLLING
-     ========================================================= */
-
+  /*
+   * ROLE CHANGE
+   */
   useEffect(() => {
-    loadNotifications();
+    /*
+     * Invalidate every request belonging to the
+     * previous role.
+     */
+    requestIdRef.current += 1;
 
+    setNotifications([]);
+    setUnreadCount(0);
+    setIsOpen(false);
+
+    /*
+     * Load notifications using the newly selected role/token.
+     */
+    void loadNotifications();
+  }, [userRole, loadNotifications]);
+
+  /*
+   * POLLING
+   */
+  useEffect(() => {
     const interval = setInterval(() => {
-      // Only poll the count when the dropdown is closed,
-      // so we don't hammer the API while the user is looking.
       if (!isOpen) {
+        const requestId = ++requestIdRef.current;
+
         getUnreadNotificationCount()
-          .then((res) => setUnreadCount(res.count ?? 0))
+          .then((response) => {
+            /*
+             * Ignore polling responses that belong to
+             * an older role/request.
+             */
+            if (requestId !== requestIdRef.current) {
+              return;
+            }
+
+            setUnreadCount(response.count ?? 0);
+          })
           .catch(() => {
-            /* swallow — transient network errors */
+            /*
+             * Ignore temporary network errors.
+             */
           });
       }
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [loadNotifications, isOpen]);
+  }, [isOpen, userRole]);
 
-  /* =========================================================
-     CLOSE WHEN CLICKING OUTSIDE
-     ========================================================= */
-
+  /*
+   * CLOSE WHEN CLICKING OUTSIDE
+   */
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (
+      event: MouseEvent
+    ) => {
       const target = event.target as Node;
+
       if (
         notificationRef.current &&
         notificationRef.current.contains(target)
       ) {
         return;
       }
+
       setIsOpen(false);
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
     };
   }, []);
 
-  /* =========================================================
-     TOGGLE NOTIFICATIONS
-     ========================================================= */
-
+  /*
+   * TOGGLE
+   */
   const handleNotificationsClick = (
     event: React.MouseEvent<HTMLButtonElement>
   ) => {
@@ -128,24 +212,27 @@ const NotificationBell = ({
     event.stopPropagation();
 
     const willOpen = !isOpen;
+
     setIsOpen(willOpen);
 
-    // Refresh the list every time the user opens the dropdown.
     if (willOpen) {
-      loadNotifications();
+      void loadNotifications();
     }
 
     onNotificationsClick?.();
   };
 
-  /* =========================================================
-     MARK SINGLE NOTIFICATION AS READ + NAVIGATE
-     ========================================================= */
-
-  const handleNotificationClick = async (notification: Notification) => {
+  /*
+   * MARK SINGLE AS READ
+   */
+  const handleNotificationClick = async (
+    notification: Notification
+  ) => {
     try {
       if (!notification.is_read) {
-        await markNotificationAsRead(notification.id);
+        await markNotificationAsRead(
+          notification.id
+        );
 
         setNotifications((current) =>
           current.map((item) =>
@@ -153,89 +240,128 @@ const NotificationBell = ({
               ? {
                   ...item,
                   is_read: true,
-                  read_at: new Date().toISOString(),
+                  read_at:
+                    new Date().toISOString(),
                 }
               : item
           )
         );
 
-        setUnreadCount((current) => Math.max(0, current - 1));
+        setUnreadCount((current) =>
+          Math.max(0, current - 1)
+        );
       }
 
       setIsOpen(false);
 
       if (notification.redirect_url) {
-        // SPA navigation — no full page reload.
         navigate(notification.redirect_url);
       }
     } catch (error) {
-      console.error("Failed to open notification:", error);
+      console.error(
+        "Failed to open notification:",
+        error
+      );
     }
   };
 
-  /* =========================================================
-     VIEW ALL
-     ========================================================= */
-
+  /*
+   * VIEW ALL
+   */
   const handleViewAll = () => {
     setIsOpen(false);
+
     navigate(notificationsPagePath);
   };
 
-  /* =========================================================
-     MARK ALL AS READ
-     ========================================================= */
-
+  /*
+   * MARK ALL AS READ
+   */
   const handleMarkAllAsRead = async () => {
-    if (unreadCount === 0) return;
+    if (unreadCount === 0) {
+      return;
+    }
 
     try {
       setIsMarkingAllRead(true);
+
       await markAllNotificationsAsRead();
 
       const now = new Date().toISOString();
+
       setNotifications((current) =>
         current.map((notification) => ({
           ...notification,
           is_read: true,
-          read_at: notification.read_at ?? now,
+          read_at:
+            notification.read_at ?? now,
         }))
       );
+
       setUnreadCount(0);
     } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
+      console.error(
+        "Failed to mark all notifications as read:",
+        error
+      );
     } finally {
       setIsMarkingAllRead(false);
     }
   };
 
-  /* =========================================================
-     FORMAT TIME
-     ========================================================= */
-
-  const formatNotificationTime = (date: string) => {
+  /*
+   * FORMAT TIME
+   */
+  const formatNotificationTime = (
+    date: string
+  ) => {
     const notificationDate = new Date(date);
     const now = new Date();
 
-    const difference = now.getTime() - notificationDate.getTime();
-    const seconds = Math.floor(difference / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
+    const difference =
+      now.getTime() -
+      notificationDate.getTime();
 
-    if (seconds < 60) return "Just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
+    const seconds = Math.floor(
+      difference / 1000
+    );
+
+    const minutes = Math.floor(
+      seconds / 60
+    );
+
+    const hours = Math.floor(
+      minutes / 60
+    );
+
+    const days = Math.floor(
+      hours / 24
+    );
+
+    if (seconds < 60) {
+      return "Just now";
+    }
+
+    if (minutes < 60) {
+      return `${minutes}m ago`;
+    }
+
+    if (hours < 24) {
+      return `${hours}h ago`;
+    }
+
+    if (days < 7) {
+      return `${days}d ago`;
+    }
+
     return notificationDate.toLocaleDateString();
   };
 
-  /* =========================================================
-     RENDER
-     ========================================================= */
-
   return (
-    <div ref={notificationRef} className="relative">
+    <div
+      ref={notificationRef}
+      className="relative"
+    >
       <button
         type="button"
         onClick={handleNotificationsClick}
@@ -247,8 +373,10 @@ const NotificationBell = ({
           hover:bg-slate-100
           hover:text-emerald-600
           active:scale-95
-          focus:outline-none focus:ring-2
-          focus:ring-emerald-500 focus:ring-offset-2
+          focus:outline-none
+          focus:ring-2
+          focus:ring-emerald-500
+          focus:ring-offset-2
         "
         aria-label="View notifications"
         aria-expanded={isOpen}
@@ -267,7 +395,9 @@ const NotificationBell = ({
             "
             aria-label={`${unreadCount} unread notifications`}
           >
-            {unreadCount > 99 ? "99+" : unreadCount}
+            {unreadCount > 99
+              ? "99+"
+              : unreadCount}
           </span>
         )}
       </button>
@@ -281,12 +411,19 @@ const NotificationBell = ({
             bg-white shadow-xl
           "
         >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          {/* HEADER */}
+          <div
+            className="
+              flex items-center justify-between
+              border-b border-slate-200
+              px-4 py-3
+            "
+          >
             <div>
               <h3 className="text-sm font-semibold text-slate-900">
                 Notifications
               </h3>
+
               {unreadCount > 0 && (
                 <p className="mt-0.5 text-xs text-slate-500">
                   {unreadCount} unread
@@ -300,28 +437,41 @@ const NotificationBell = ({
                 onClick={handleMarkAllAsRead}
                 disabled={isMarkingAllRead}
                 className="
-                  text-xs font-medium text-emerald-600
+                  text-xs font-medium
+                  text-emerald-600
                   hover:text-emerald-700
-                  disabled:cursor-not-allowed disabled:opacity-50
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
                 "
               >
-                {isMarkingAllRead ? "Marking..." : "Mark all as read"}
+                {isMarkingAllRead
+                  ? "Marking..."
+                  : "Mark all as read"}
               </button>
             )}
           </div>
 
-          {/* List */}
+          {/* LIST */}
           <div className="max-h-[420px] overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center px-4 py-10">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600" />
+                <div
+                  className="
+                    h-6 w-6 animate-spin
+                    rounded-full border-2
+                    border-slate-300
+                    border-t-emerald-600
+                  "
+                />
               </div>
             ) : notifications.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <BellIcon className="mx-auto h-9 w-9 text-slate-300" />
+
                 <p className="mt-3 text-sm font-medium text-slate-700">
                   No notifications
                 </p>
+
                 <p className="mt-1 text-xs text-slate-500">
                   You're all caught up.
                 </p>
@@ -331,10 +481,17 @@ const NotificationBell = ({
                 <button
                   key={notification.id}
                   type="button"
-                  onClick={() => handleNotificationClick(notification)}
+                  onClick={() =>
+                    handleNotificationClick(
+                      notification
+                    )
+                  }
                   className={`
-                    block w-full border-b border-slate-100
-                    px-4 py-3 text-left transition last:border-b-0
+                    block w-full
+                    border-b border-slate-100
+                    px-4 py-3
+                    text-left transition
+                    last:border-b-0
                     ${
                       notification.is_read
                         ? "bg-white hover:bg-slate-50"
@@ -370,11 +527,27 @@ const NotificationBell = ({
                         >
                           {notification.title}
                         </p>
-                        <span className="shrink-0 text-[10px] text-slate-400">
-                          {formatNotificationTime(notification.created_at)}
+
+                        <span
+                          className="
+                            shrink-0
+                            text-[10px]
+                            text-slate-400
+                          "
+                        >
+                          {formatNotificationTime(
+                            notification.created_at
+                          )}
                         </span>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+
+                      <p
+                        className="
+                          mt-1 line-clamp-2
+                          text-xs leading-5
+                          text-slate-500
+                        "
+                      >
                         {notification.message}
                       </p>
                     </div>
@@ -384,14 +557,28 @@ const NotificationBell = ({
             )}
           </div>
 
-          {/* Footer — View all */}
-          <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-center">
+          {/* FOOTER */}
+          <div
+            className="
+              border-t border-slate-200
+              bg-slate-50
+              px-4 py-2.5 text-center
+            "
+          >
             <button
               type="button"
               onClick={handleViewAll}
               className="
-                text-xs font-medium text-emerald-600
+                rounded-lg px-3 py-1.5
+                text-xs font-medium
+                text-emerald-600
+                transition
+                hover:bg-emerald-50
                 hover:text-emerald-700
+                focus:outline-none
+                focus:ring-2
+                focus:ring-emerald-500
+                focus:ring-offset-1
               "
             >
               View all notifications
