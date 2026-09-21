@@ -4,53 +4,87 @@ from django.db.models import Q
 
 from apps.jobs.models import Job, JobApplication, JobAssignment
 from apps.common.constants import (
-    ApplicationStatus, AssignmentStatus,
+    ApplicationStatus, AssignmentStatus, JobStatus,
 )
 from apps.reports.models import Report
 
 
-def get_reportable_jobs(user):
+# Job statuses where a report makes sense
+REPORTABLE_JOB_STATUSES = [
+    JobStatus.ASSIGNED,
+    JobStatus.IN_PROGRESS,
+    JobStatus.AWAITING_CONFIRMATION,
+    JobStatus.COMPLETED,
+    JobStatus.CANCELLED,
+]
+
+
+def get_reportable_jobs(user, role=None):
     """
-    Returns jobs where `user` was a participant.
+    Return jobs the user can file a report on, scoped to `role`.
 
-    A user is a participant if:
-      1. They are the client (posted the job), OR
-      2. They had an ACCEPTED/COMPLETED application for the job, OR
-      3. They had an ACTIVE/IN_PROGRESS/COMPLETED assignment for the job.
+    role='CLIENT':
+        Jobs the user posted (as client) that have an assigned worker.
+        Other party = the assigned worker.
 
-    Excludes jobs the user already filed a report on.
+    role='WORKER':
+        Jobs the user was actually assigned to.
+        Other party = the job's client.
+
+    role=None or any other value:
+        Empty list — the caller must select a role.
+
+    Already-reported jobs are excluded.
     """
-    # Jobs where I'm the client
-    as_client = Q(client=user)
+    if role not in ('CLIENT', 'WORKER'):
+        return Job.objects.none()
 
-    # Jobs where my application was accepted/completed
-    accepted_app_jobs = JobApplication.objects.filter(
-        worker=user,
-        status__in=[
-            ApplicationStatus.ACCEPTED,
-            ApplicationStatus.COMPLETED,
-        ],
-    ).values_list('job_id', flat=True)
-
-    # Jobs where I had an assignment
-    assignment_jobs = JobAssignment.objects.filter(
-        worker=user,
-        status__in=[
-            AssignmentStatus.ACTIVE,
-            AssignmentStatus.IN_PROGRESS,
-            AssignmentStatus.COMPLETED,
-        ],
-    ).values_list('job_id', flat=True)
-
-    # Already reported jobs (don't show again)
+    # Jobs the user already reported on (job-specific reports only)
     already_reported = Report.objects.filter(
-        reporter=user
+        reporter=user,
+        job__isnull=False,
     ).values_list('job_id', flat=True)
 
-    jobs = Job.objects.filter(
-        as_client | Q(id__in=list(accepted_app_jobs)) | Q(id__in=list(assignment_jobs))
-    ).exclude(
-        id__in=list(already_reported)
-    ).select_related('client').order_by('-posted_at')
+    if role == 'CLIENT':
+        # Jobs where I'm the client AND there's an assignment
+        jobs = (
+            Job.objects
+            .filter(
+                client_id=user.id,
+                status__in=REPORTABLE_JOB_STATUSES,
+                deleted_at__isnull=True,
+                assignments__isnull=False,
+            )
+            .exclude(id__in=list(already_reported))
+            .select_related('client')
+            .distinct()
+        )
+        return jobs.order_by('-posted_at')
 
-    return jobs
+    # role == 'WORKER'
+    assigned_job_ids = (
+        JobAssignment.objects
+        .filter(
+            worker_id=user.id,
+            status__in=[
+                AssignmentStatus.ACTIVE,
+                AssignmentStatus.IN_PROGRESS,
+                AssignmentStatus.COMPLETED,
+                AssignmentStatus.CANCELLED,
+            ],
+        )
+        .values_list('job_id', flat=True)
+    )
+
+    jobs = (
+        Job.objects
+        .filter(
+            id__in=assigned_job_ids,
+            status__in=REPORTABLE_JOB_STATUSES,
+            deleted_at__isnull=True,
+        )
+        .exclude(id__in=list(already_reported))
+        .select_related('client')
+    )
+
+    return jobs.order_by('-posted_at')

@@ -19,7 +19,7 @@ from apps.jobs.models import Job, JobApplication, JobAssignment
 class OtherPartySerializer(serializers.Serializer):
     id = serializers.IntegerField()
     full_name = serializers.CharField()
-    role = serializers.CharField()  # "CLIENT" or "WORKER"
+    role = serializers.CharField()
 
 
 class ReportableJobSerializer(serializers.Serializer):
@@ -71,11 +71,20 @@ class ReportableJobSerializer(serializers.Serializer):
 
 
 # ============================================
-# CREATE REPORT
+# CREATE REPORT (job-specific OR general)
 # ============================================
 
 class CreateReportSerializer(serializers.Serializer):
-    job_id = serializers.IntegerField(required=True)
+    """
+    Supports two forms:
+
+    1. Job-specific complaint:
+         { "job_id": 4, "category": "FRAUD", "description": "..." }
+
+    2. General complaint (no job):
+         { "category": "OTHER", "description": "..." }
+    """
+    job_id = serializers.IntegerField(required=False, allow_null=True)
     category = serializers.ChoiceField(
         choices=ReportCategory.CHOICES, required=True
     )
@@ -87,6 +96,9 @@ class CreateReportSerializer(serializers.Serializer):
     )
 
     def validate_job_id(self, value):
+        if value is None:
+            return None
+
         user = self.context['request'].user
 
         try:
@@ -94,7 +106,6 @@ class CreateReportSerializer(serializers.Serializer):
         except Job.DoesNotExist:
             raise serializers.ValidationError("Job does not exist.")
 
-        # Must be a participant
         is_client = (job.client_id == user.id)
 
         is_worker = JobApplication.objects.filter(
@@ -125,21 +136,53 @@ class CreateReportSerializer(serializers.Serializer):
 
     def validate(self, data):
         user = self.context['request'].user
-        job = Job.objects.get(id=data['job_id'])
+        job_id = data.get('job_id')
 
-        # Prevent duplicate reports on the same job
-        if Report.objects.filter(job=job, reporter=user).exists():
-            raise serializers.ValidationError(
-                "You have already reported an issue on this job."
-            )
+        if job_id is not None:
+            # Job-specific: prevent duplicate reports on the same job
+            if Report.objects.filter(
+                job_id=job_id, reporter=user
+            ).exists():
+                raise serializers.ValidationError(
+                    "You have already reported an issue on this job."
+                )
+        else:
+            # General complaint: prevent duplicate general reports
+            # of the same category
+            if Report.objects.filter(
+                reporter=user,
+                job__isnull=True,
+                category=data['category'],
+                status__in=[
+                    ReportStatus.PENDING,
+                    ReportStatus.UNDER_INVESTIGATION,
+                ],
+            ).exists():
+                raise serializers.ValidationError(
+                    "You already have an open general report in "
+                    "this category."
+                )
 
         return data
 
     def create(self, validated_data):
         user = self.context['request'].user
-        job = Job.objects.get(id=validated_data['job_id'])
+        job_id = validated_data.get('job_id')
 
-        # Determine the reported user (the other party)
+        # ── General complaint ───────────────────────────
+        if job_id is None:
+            return Report.objects.create(
+                job=None,
+                reporter=user,
+                reported_user=None,
+                category=validated_data['category'],
+                description=validated_data['description'],
+                status=ReportStatus.PENDING,
+            )
+
+        # ── Job-specific ────────────────────────────────
+        job = Job.objects.get(id=job_id)
+
         if job.client_id == user.id:
             assignment = job.assignments.filter(
                 status__in=[
@@ -156,7 +199,7 @@ class CreateReportSerializer(serializers.Serializer):
         else:
             reported_user = job.client
 
-        report = Report.objects.create(
+        return Report.objects.create(
             job=job,
             reporter=user,
             reported_user=reported_user,
@@ -165,19 +208,15 @@ class CreateReportSerializer(serializers.Serializer):
             status=ReportStatus.PENDING,
         )
 
-        return report
-
 
 # ============================================
 # MY REPORT — list
 # ============================================
 
 class MyReportListSerializer(serializers.ModelSerializer):
-    job_id = serializers.IntegerField(source='job.id', read_only=True)
-    job_title = serializers.CharField(source='job.title', read_only=True)
-    reported_user_name = serializers.CharField(
-        source='reported_user.full_name', read_only=True
-    )
+    job_id = serializers.SerializerMethodField()
+    job_title = serializers.SerializerMethodField()
+    reported_user_name = serializers.SerializerMethodField()
     category_display = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
 
@@ -196,6 +235,15 @@ class MyReportListSerializer(serializers.ModelSerializer):
             'submitted_at',
         ]
 
+    def get_job_id(self, obj):
+        return obj.job_id
+
+    def get_job_title(self, obj):
+        return obj.job.title if obj.job else None
+
+    def get_reported_user_name(self, obj):
+        return obj.reported_user.full_name if obj.reported_user else None
+
     def get_category_display(self, obj):
         return dict(ReportCategory.CHOICES).get(obj.category)
 
@@ -208,8 +256,8 @@ class MyReportListSerializer(serializers.ModelSerializer):
 # ============================================
 
 class MyReportDetailSerializer(serializers.ModelSerializer):
-    job_id = serializers.IntegerField(source='job.id', read_only=True)
-    job_title = serializers.CharField(source='job.title', read_only=True)
+    job_id = serializers.SerializerMethodField()
+    job_title = serializers.SerializerMethodField()
     reported_user = serializers.SerializerMethodField()
     category_display = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
@@ -230,7 +278,15 @@ class MyReportDetailSerializer(serializers.ModelSerializer):
             'submitted_at',
         ]
 
+    def get_job_id(self, obj):
+        return obj.job_id
+
+    def get_job_title(self, obj):
+        return obj.job.title if obj.job else None
+
     def get_reported_user(self, obj):
+        if not obj.reported_user:
+            return None
         return {
             'id': obj.reported_user.id,
             'full_name': obj.reported_user.full_name,

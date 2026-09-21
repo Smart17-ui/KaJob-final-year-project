@@ -1,7 +1,6 @@
 # apps/reports/models/report.py
 
 from django.db import models
-from django.db.models import Max
 from django.utils import timezone
 from apps.common.models.mixins import BaseModel
 from apps.common.constants import ReportCategory, ReportStatus, AdminDecision
@@ -10,11 +9,18 @@ from apps.common.constants import ReportCategory, ReportStatus, AdminDecision
 class Report(BaseModel):
     """
     Incident report.
+
+    Two kinds:
+    - Job-related  (job + reported_user set)
+    - General      (job is NULL, reported_user is NULL — platform-level complaint)
     """
     job = models.ForeignKey(
         'jobs.Job',
         on_delete=models.CASCADE,
-        related_name='reports'
+        related_name='reports',
+        null=True,
+        blank=True,
+        help_text="Null for general complaints.",
     )
     reporter = models.ForeignKey(
         'accounts.User',
@@ -24,7 +30,10 @@ class Report(BaseModel):
     reported_user = models.ForeignKey(
         'accounts.User',
         on_delete=models.CASCADE,
-        related_name='reports_against'
+        related_name='reports_against',
+        null=True,
+        blank=True,
+        help_text="Null for general complaints.",
     )
 
     # Report Information
@@ -61,10 +70,11 @@ class Report(BaseModel):
         ]
 
     def __str__(self):
-        return f"{self.reference_number} - {self.get_category_display()}"
+        if self.job:
+            return f"{self.reference_number} - {self.get_category_display()}"
+        return f"{self.reference_number} - General ({self.get_category_display()})"
 
     def save(self, *args, **kwargs):
-        """Override save to generate reference number."""
         if not self.reference_number:
             self.reference_number = self.generate_reference_number()
         super().save(*args, **kwargs)
@@ -73,11 +83,11 @@ class Report(BaseModel):
         """
         Generate a unique reference number.
 
-        Uses _base_manager (not the soft-delete-filtered default manager)
-        so that soft-deleted reports are still counted. Their
-        reference_number still occupies the UNIQUE index in the database,
-        so MAX() must consider them to avoid duplicate-key violations.
+        Uses _base_manager so soft-deleted rows still count — their
+        reference_number occupies the UNIQUE index.
         """
+        from django.db.models import Max
+
         year = timezone.now().year
         prefix = f"REP-{year}-"
 
@@ -89,7 +99,6 @@ class Report(BaseModel):
         )
 
         if latest:
-            # latest looks like "REP-2026-0009" — extract the numeric tail
             try:
                 last_number = int(latest.rsplit('-', 1)[-1])
             except (ValueError, IndexError):
@@ -107,12 +116,10 @@ class Report(BaseModel):
         ]
 
     def escalate_to_police(self):
-        """Escalate report to police."""
         self.status = ReportStatus.ESCALATED_TO_POLICE
         self.police_report_generated = True
         self.save()
 
     def resolve(self, decision, notes=None):
-        """Resolve the report."""
         self.status = ReportStatus.RESOLVED
         self.save()

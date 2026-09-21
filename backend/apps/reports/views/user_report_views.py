@@ -22,17 +22,34 @@ from apps.reports.services.reportable_jobs_service import (
 logger = logging.getLogger(__name__)
 
 
+def _current_role(request):
+    """Extract the user's currently-selected role from the JWT."""
+    try:
+        token = request.auth
+        if token is None:
+            return None
+        role = token.get('current_role')
+        if role in ('CLIENT', 'WORKER', 'ADMIN'):
+            return role
+    except Exception:
+        pass
+    return None
+
+
 class ReportableJobsView(APIView):
     """
     GET /api/reports/reportable-jobs/
-    Jobs the authenticated user can file a report on.
+    Jobs the authenticated user can file a report on,
+    scoped to their currently-selected role.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
 
     def get(self, request):
-        jobs = get_reportable_jobs(request.user)
+        role = request.query_params.get('role') or _current_role(request)
+        jobs = get_reportable_jobs(request.user, role)
         return Response({
-            'count': len(jobs),
+            'count': jobs.count(),
+            'role': role,
             'results': ReportableJobSerializer(
                 jobs, many=True, context={'request': request}
             ).data,
@@ -42,15 +59,10 @@ class ReportableJobsView(APIView):
 class CreateReportView(APIView):
     """
     POST /api/reports/
-    Body (JSON):
-      { "job_id": 3, "category": "FRAUD", "description": "..." }
 
-    The authenticated user (client or worker) files a report against
-    the other party of a job. Validation lives in CreateReportSerializer:
-      - Job must exist
-      - User must be a participant
-        (client, accepted applicant, or assigned worker)
-      - No duplicate reports on the same job
+    Accepts either:
+      { "job_id": 4, "category": "FRAUD", "description": "..." }
+      { "category": "OTHER", "description": "..." }   ← general complaint
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
 
@@ -68,7 +80,7 @@ class CreateReportView(APIView):
 
         report = serializer.save()
 
-        # Notify admins (non-blocking; failures logged, not raised)
+        # Notify admins
         try:
             from apps.notifications.services import NotificationService
             from django.contrib.auth import get_user_model
@@ -79,17 +91,25 @@ class CreateReportView(APIView):
                 account_status='ACTIVE',
             ).distinct()
 
+            if report.job:
+                message = (
+                    f"{request.user.full_name} reported "
+                    f"{report.reported_user.full_name if report.reported_user else 'someone'} "
+                    f"({report.category}) on job: {report.job.title}"
+                )
+            else:
+                message = (
+                    f"{request.user.full_name} filed a general report "
+                    f"({report.category})"
+                )
+
             svc = NotificationService()
             for admin in admins:
                 svc.create_notification(
                     recipient_id=admin.id,
                     notification_type='REPORT_FILED',
                     title='New Report Filed',
-                    message=(
-                        f"{request.user.full_name} reported "
-                        f"{report.reported_user.full_name} "
-                        f"({report.category}) on job: {report.job.title}"
-                    ),
+                    message=message,
                     redirect_url="/admin/reports",
                     data={'report_id': report.id},
                     send_email=False,
