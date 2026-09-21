@@ -9,6 +9,7 @@ import logging
 from apps.jobs.services import JobService
 from apps.jobs.serializers import (
     JobSerializer,
+    JobDetailSerializer,           # ← new import
     JobCreateSerializer,
     JobUpdateSerializer,
     JobListSerializer,
@@ -47,18 +48,52 @@ class CreateJobView(APIView):
 
 class JobDetailView(APIView):
     """
-    Get job details by ID.
+    GET /api/jobs/{id}/
+
+    Role-aware response shape:
+
+      - Client (job owner)   → JobDetailSerializer
+                                (worker nested full, client null)
+      - Admin                → JobDetailSerializer
+                                (both nested full)
+      - Worker               → WorkerJobDetailSerializer
+                                (client nested full if assigned,
+                                 name-only if unrelated,
+                                 owner self hidden)
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
 
     def get(self, request, job_id):
         try:
             job = job_service.get_job_by_id(job_id)
-            return Response({
-                'job': JobSerializer(job).data
-            }, status=status.HTTP_200_OK)
+
+            user = request.user
+            is_client_owner = (job.client_id == user.id)
+            is_admin = getattr(user, 'is_admin', False)
+
+            if is_client_owner or is_admin:
+                serializer = JobDetailSerializer(
+                    job, context={'request': request}
+                )
+            else:
+                serializer = WorkerJobDetailSerializer(
+                    job,
+                    context={
+                        'request': request,
+                        'worker_id': user.id,
+                    },
+                )
+
+            return Response(
+                {'job': serializer.data},
+                status=status.HTTP_200_OK,
+            )
+
         except ResourceNotFound as e:
-            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
 
 class OpenJobsView(APIView):

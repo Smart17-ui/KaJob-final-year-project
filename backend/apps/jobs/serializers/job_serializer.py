@@ -1,12 +1,258 @@
-from rest_framework import serializers
-from apps.jobs.models import Job
-from apps.common.constants import JobStatus
+# apps/jobs/serializers/job_serializer.py
 
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+
+from apps.jobs.models import Job
+from apps.common.constants import JobStatus, AssignmentStatus
+
+User = get_user_model()
+
+
+# ============================================================
+# NESTED DETAIL SERIALIZERS — the counterparty on a job
+# ============================================================
+
+class JobClientDetailSerializer(serializers.ModelSerializer):
+    """
+    Full client details exposed to:
+      - the assigned worker on the job
+      - admins
+
+    Not exposed to unrelated users.
+    """
+    rating = serializers.SerializerMethodField()
+    reviews_count = serializers.SerializerMethodField()
+    jobs_posted = serializers.SerializerMethodField()
+    member_since = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'full_name',
+            'email',
+            'phone_number',
+            'is_verified',
+            'rating',
+            'reviews_count',
+            'jobs_posted',
+            'member_since',
+        ]
+
+    def get_rating(self, obj):
+        profile = getattr(obj, 'client_profile', None)
+        if profile and profile.average_rating is not None:
+            return float(profile.average_rating)
+        return 0.0
+
+    def get_reviews_count(self, obj):
+        profile = getattr(obj, 'client_profile', None)
+        if profile and profile.total_reviews is not None:
+            return profile.total_reviews
+        return 0
+
+    def get_jobs_posted(self, obj):
+        try:
+            return obj.jobs_posted.count()
+        except Exception:
+            return 0
+
+    def get_member_since(self, obj):
+        if getattr(obj, 'created_at', None):
+            return obj.created_at.isoformat()
+        return None
+
+
+class JobWorkerDetailSerializer(serializers.ModelSerializer):
+    """
+    Full worker details exposed to:
+      - the client who posted the job
+      - admins
+
+    Not exposed to unrelated users.
+    """
+    rating = serializers.SerializerMethodField()
+    reviews_count = serializers.SerializerMethodField()
+    jobs_completed = serializers.SerializerMethodField()
+    years_of_experience = serializers.SerializerMethodField()
+    skills = serializers.SerializerMethodField()
+    bio = serializers.SerializerMethodField()
+    availability_status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'full_name',
+            'email',
+            'phone_number',
+            'is_verified',
+            'rating',
+            'reviews_count',
+            'jobs_completed',
+            'years_of_experience',
+            'skills',
+            'bio',
+            'availability_status',
+        ]
+
+    def get_rating(self, obj):
+        profile = getattr(obj, 'worker_profile', None)
+        if profile and profile.average_rating is not None:
+            return float(profile.average_rating)
+        return 0.0
+
+    def get_reviews_count(self, obj):
+        profile = getattr(obj, 'worker_profile', None)
+        if profile and profile.total_reviews is not None:
+            return profile.total_reviews
+        return 0
+
+    def get_jobs_completed(self, obj):
+        profile = getattr(obj, 'worker_profile', None)
+        if profile and profile.jobs_completed is not None:
+            return profile.jobs_completed
+        return 0
+
+    def get_years_of_experience(self, obj):
+        profile = getattr(obj, 'worker_profile', None)
+        return profile.years_of_experience if profile else 0
+
+    def get_skills(self, obj):
+        profile = getattr(obj, 'worker_profile', None)
+        if not profile:
+            return []
+        try:
+            return [s.name for s in profile.skills.all()]
+        except Exception:
+            return []
+
+    def get_bio(self, obj):
+        profile = getattr(obj, 'worker_profile', None)
+        return profile.bio if profile else None
+
+    def get_availability_status(self, obj):
+        profile = getattr(obj, 'worker_profile', None)
+        return profile.availability_status if profile else None
+
+
+# ============================================================
+# POLICY HELPERS
+# ============================================================
+
+def _assignment_for(job, user):
+    """Return the assignment row for `user` on this job, if any."""
+    if not user or not user.is_authenticated:
+        return None
+
+    return (
+        job.assignments
+        .filter(
+            worker_id=user.id,
+            status__in=[
+                AssignmentStatus.ACTIVE,
+                AssignmentStatus.IN_PROGRESS,
+                AssignmentStatus.COMPLETED,
+                AssignmentStatus.CANCELLED,
+            ],
+        )
+        .order_by('-assigned_at')
+        .first()
+    )
+
+
+def _job_has_assignment(job):
+    """Return the current assignment row for the job, if any."""
+    return (
+        job.assignments
+        .filter(
+            status__in=[
+                AssignmentStatus.ACTIVE,
+                AssignmentStatus.IN_PROGRESS,
+                AssignmentStatus.COMPLETED,
+                AssignmentStatus.CANCELLED,
+            ]
+        )
+        .order_by('-assigned_at')
+        .select_related('worker')
+        .first()
+    )
+
+
+def build_client_payload(job, request_user):
+    """
+    Decide what to expose for the 'client' field.
+
+      - Admin                  → full details
+      - Assigned worker        → full details
+      - The client themselves  → None (no self-duplication)
+      - Everyone else          → name only
+    """
+    if not request_user or not request_user.is_authenticated:
+        return None
+
+    is_admin = getattr(request_user, 'is_admin', False)
+    is_client_owner = (job.client_id == request_user.id)
+
+    if is_admin:
+        return JobClientDetailSerializer(job.client).data
+
+    if is_client_owner:
+        return None
+
+    if _assignment_for(job, request_user):
+        return JobClientDetailSerializer(job.client).data
+
+    return {
+        'id': job.client.id,
+        'full_name': job.client.full_name,
+    }
+
+
+def build_worker_payload(job, request_user):
+    """
+    Decide what to expose for the 'worker' field.
+
+      - Admin                  → full details
+      - Client (job owner)     → full details
+      - The worker themselves  → None (no self-duplication)
+      - Everyone else          → name only
+    """
+    if not request_user or not request_user.is_authenticated:
+        return None
+
+    assignment = _job_has_assignment(job)
+    if not assignment:
+        return None
+
+    worker = assignment.worker
+    is_admin = getattr(request_user, 'is_admin', False)
+    is_client_owner = (job.client_id == request_user.id)
+
+    if is_admin:
+        return JobWorkerDetailSerializer(worker).data
+
+    if is_client_owner:
+        return JobWorkerDetailSerializer(worker).data
+
+    if worker.id == request_user.id:
+        return None
+
+    return {
+        'id': worker.id,
+        'full_name': worker.full_name,
+    }
+
+
+# ============================================================
+# JOB SERIALIZER — flat, for list & generic responses
+# ============================================================
 
 class JobSerializer(serializers.ModelSerializer):
     """
-    Serializer for job data - FULL DETAILS for clients and admins.
-    Shows ALL fields including exact_location, client_name, etc.
+    Serializer for job data — used in list & generic responses.
+    Keeps a flat shape for lightweight payloads.
     """
     client_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
@@ -39,7 +285,6 @@ class JobSerializer(serializers.ModelSerializer):
             'latitude',
             'longitude',
             'search_radius_km',
-            # Timing fields
             'job_date',
             'job_time',
             'timeframe',
@@ -51,7 +296,6 @@ class JobSerializer(serializers.ModelSerializer):
             'job_display_date',
             'job_display_time',
             'is_urgent',
-            # Status
             'status',
             'status_display',
             'posted_at',
@@ -78,12 +322,14 @@ class JobSerializer(serializers.ModelSerializer):
         return dict(JobStatus.CHOICES).get(obj.status)
 
     def get_assigned_worker_name(self, obj):
-        assignment = obj.assignments.filter(status='ACTIVE').first()
-
-        if assignment:
-            return assignment.worker.full_name
-
-        return None
+        assignment = obj.assignments.filter(
+            status__in=[
+                AssignmentStatus.ACTIVE,
+                AssignmentStatus.IN_PROGRESS,
+                AssignmentStatus.COMPLETED,
+            ]
+        ).order_by('-assigned_at').first()
+        return assignment.worker.full_name if assignment else None
 
     def get_timeframe_display(self, obj):
         return dict(Job.TIMEFRAME_CHOICES).get(obj.timeframe)
@@ -99,20 +345,14 @@ class JobSerializer(serializers.ModelSerializer):
 
 
 # ============================================================
-# 🆕 JOB DETAIL SERIALIZER (For Client/Admin Full Access)
+# JOB DETAIL SERIALIZER — client/admin full-access view
 # ============================================================
 
 class JobDetailSerializer(serializers.ModelSerializer):
     """
-    Detailed serializer for job (Client/Admin view with full access).
+    Detail serializer used when a client or admin opens a job.
 
-    This shows ALL fields including sensitive information like:
-    - exact_location
-    - client_name, client_phone, client_email
-    - map_url, directions_url
-
-    This is used by:
-    - JobDetailView (GET /api/jobs/{id}/) - Client/Admin only
+    Includes structured, policy-aware `client` and `worker` objects.
     """
     client_name = serializers.SerializerMethodField()
     client_phone = serializers.SerializerMethodField()
@@ -127,27 +367,31 @@ class JobDetailSerializer(serializers.ModelSerializer):
     job_display_time = serializers.SerializerMethodField()
     search_radius_km = serializers.FloatField(read_only=True)
 
+    # Nested detail objects
+    client = serializers.SerializerMethodField()
+    worker = serializers.SerializerMethodField()
+
     class Meta:
         model = Job
         fields = [
-            # Basic info
             'id',
             'title',
             'description',
             'budget',
 
-            # Client info (full access)
-            'client',
+            # Client — flat (backward-compat) + nested
             'client_name',
             'client_phone',
             'client_email',
+            'client',
+
+            # Worker — flat (backward-compat) + nested
+            'assigned_worker_name',
+            'worker',
 
             # Category
             'category',
             'category_name',
-
-            # Assignment
-            'assigned_worker_name',
 
             # Location (full access)
             'general_location',
@@ -159,7 +403,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
             'longitude',
             'search_radius_km',
 
-            # Timing fields
+            # Timing
             'job_date',
             'job_time',
             'timeframe',
@@ -182,12 +426,25 @@ class JobDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id',
-            'client',
             'posted_at',
             'completed_at',
             'created_at',
             'updated_at',
         ]
+
+    # ---------- Nested objects ----------
+
+    def get_client(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return build_client_payload(obj, user)
+
+    def get_worker(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return build_worker_payload(obj, user)
+
+    # ---------- Flat legacy fields ----------
 
     def get_client_name(self, obj):
         return obj.client.full_name if obj.client else None
@@ -202,12 +459,14 @@ class JobDetailSerializer(serializers.ModelSerializer):
         return obj.category.name if obj.category else None
 
     def get_assigned_worker_name(self, obj):
-        assignment = obj.assignments.filter(status='ACTIVE').first()
-
-        if assignment:
-            return assignment.worker.full_name
-
-        return None
+        assignment = obj.assignments.filter(
+            status__in=[
+                AssignmentStatus.ACTIVE,
+                AssignmentStatus.IN_PROGRESS,
+                AssignmentStatus.COMPLETED,
+            ]
+        ).order_by('-assigned_at').first()
+        return assignment.worker.full_name if assignment else None
 
     def get_status_display(self, obj):
         return dict(JobStatus.CHOICES).get(obj.status)
@@ -232,86 +491,53 @@ class JobDetailSerializer(serializers.ModelSerializer):
         return obj.job_display_time
 
 
-class JobCreateSerializer(serializers.Serializer):
-    """
-    Serializer for creating a job.
+# ============================================================
+# JOB CREATE / UPDATE
+# ============================================================
 
-    Note: general_location can be auto-filled from GPS coordinates.
-    map_url and directions_url are auto-generated from GPS coordinates.
-    """
-    # Basic fields
+class JobCreateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255, required=True)
     description = serializers.CharField(required=True)
     budget = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        required=True
+        max_digits=10, decimal_places=2, required=True
     )
     category_id = serializers.IntegerField(required=True)
 
-    # Location fields
     general_location = serializers.CharField(
-        max_length=255,
-        required=False,
-        allow_blank=True,
-        help_text="Human-readable address (auto-filled from GPS if not provided)"
+        max_length=255, required=False, allow_blank=True
     )
     exact_location = serializers.CharField(
-        max_length=255,
-        required=False,
-        allow_blank=True,
-        help_text="Specific address/landmark (hidden from workers until assigned)"
+        max_length=255, required=False, allow_blank=True
     )
     latitude = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=8,
-        required=False,
-        allow_null=True,
-        help_text="GPS latitude (auto-detected from device)"
+        max_digits=10, decimal_places=8,
+        required=False, allow_null=True
     )
     longitude = serializers.DecimalField(
-        max_digits=11,
-        decimal_places=8,
-        required=False,
-        allow_null=True,
-        help_text="GPS longitude (auto-detected from device)"
+        max_digits=11, decimal_places=8,
+        required=False, allow_null=True
     )
-
-    # Map fields (auto-generated, not required from client)
     place_id = serializers.CharField(
-        max_length=255,
-        required=False,
-        allow_blank=True,
-        help_text="Google Maps Place ID (auto-generated)"
+        max_length=255, required=False, allow_blank=True
     )
 
-    # Timing fields (optional)
     job_date = serializers.DateField(required=False, allow_null=True)
     job_time = serializers.TimeField(required=False, allow_null=True)
     timeframe = serializers.ChoiceField(
-        choices=Job.TIMEFRAME_CHOICES,
-        required=False,
-        default='ANYTIME'
+        choices=Job.TIMEFRAME_CHOICES, required=False, default='ANYTIME'
     )
     is_flexible = serializers.BooleanField(required=False, default=True)
     duration_hours = serializers.DecimalField(
-        max_digits=4,
-        decimal_places=1,
-        required=False,
-        allow_null=True
+        max_digits=4, decimal_places=1,
+        required=False, allow_null=True
     )
     urgency = serializers.ChoiceField(
-        choices=Job.URGENCY_CHOICES,
-        required=False,
-        default='NORMAL'
+        choices=Job.URGENCY_CHOICES, required=False, default='NORMAL'
     )
 
-    # Skills (optional)
     required_skills = serializers.ListField(
         child=serializers.IntegerField(),
-        required=False,
-        allow_empty=True,
-        help_text="List of skill IDs (optional)"
+        required=False, allow_empty=True
     )
 
     def validate_budget(self, value):
@@ -336,72 +562,49 @@ class JobCreateSerializer(serializers.Serializer):
     def validate_job_date(self, value):
         if value:
             from django.utils import timezone
-
             if value < timezone.now().date():
                 raise serializers.ValidationError(
                     "Job date cannot be in the past."
                 )
-
         return value
 
 
 class JobUpdateSerializer(serializers.Serializer):
-    """
-    Serializer for updating a job.
-    """
     title = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False)
     budget = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        required=False
+        max_digits=10, decimal_places=2, required=False
     )
-    general_location = serializers.CharField(
-        max_length=255,
-        required=False
-    )
+    general_location = serializers.CharField(max_length=255, required=False)
     exact_location = serializers.CharField(
-        max_length=255,
-        required=False,
-        allow_blank=True
+        max_length=255, required=False, allow_blank=True
     )
     latitude = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=8,
-        required=False,
-        allow_null=True
+        max_digits=10, decimal_places=8,
+        required=False, allow_null=True
     )
     longitude = serializers.DecimalField(
-        max_digits=11,
-        decimal_places=8,
-        required=False,
-        allow_null=True
+        max_digits=11, decimal_places=8,
+        required=False, allow_null=True
     )
 
-    # Timing fields
     job_date = serializers.DateField(required=False, allow_null=True)
     job_time = serializers.TimeField(required=False, allow_null=True)
     timeframe = serializers.ChoiceField(
-        choices=Job.TIMEFRAME_CHOICES,
-        required=False
+        choices=Job.TIMEFRAME_CHOICES, required=False
     )
     is_flexible = serializers.BooleanField(required=False)
     duration_hours = serializers.DecimalField(
-        max_digits=4,
-        decimal_places=1,
-        required=False,
-        allow_null=True
+        max_digits=4, decimal_places=1,
+        required=False, allow_null=True
     )
     urgency = serializers.ChoiceField(
-        choices=Job.URGENCY_CHOICES,
-        required=False
+        choices=Job.URGENCY_CHOICES, required=False
     )
 
-    # Skills
     required_skills = serializers.ListField(
         child=serializers.IntegerField(),
-        required=False,
-        allow_empty=True
+        required=False, allow_empty=True
     )
 
     def validate_budget(self, value):
@@ -409,17 +612,14 @@ class JobUpdateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Budget must be greater than zero."
             )
-
         return value
 
 
-class JobListSerializer(serializers.ModelSerializer):
-    """
-    Simplified serializer for listing jobs.
+# ============================================================
+# JOB LIST SERIALIZER — flat, lightweight
+# ============================================================
 
-    Includes the assigned worker information so clients can
-    identify who completed a job and leave a review.
-    """
+class JobListSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
@@ -467,55 +667,30 @@ class JobListSerializer(serializers.ModelSerializer):
         return dict(Job.URGENCY_CHOICES).get(obj.urgency)
 
     def _get_assigned_worker(self, obj):
-        """
-        Get the worker assigned to this job.
-
-        We do not restrict this lookup to ACTIVE assignments because
-        completed jobs may no longer have an ACTIVE assignment.
-        """
         return obj.assignments.order_by('-assigned_at').select_related(
             'worker'
         ).first()
 
     def get_worker_id(self, obj):
         assignment = self._get_assigned_worker(obj)
-
-        if assignment and assignment.worker:
-            return assignment.worker.id
-
-        return None
+        return assignment.worker.id if assignment and assignment.worker else None
 
     def get_worker_name(self, obj):
         assignment = self._get_assigned_worker(obj)
-
-        if assignment and assignment.worker:
-            return assignment.worker.full_name
-
-        return None
+        return assignment.worker.full_name if assignment and assignment.worker else None
 
 
 # ============================================================
-# 🆕 WORKER JOB DETAIL SERIALIZER (Conditional Disclosure)
+# WORKER JOB DETAIL SERIALIZER — conditional disclosure
 # ============================================================
 
 class WorkerJobDetailSerializer(serializers.ModelSerializer):
     """
-    Serializer for workers viewing job details.
+    Serializer used when a worker views a job.
 
-    🔑 CONDITIONAL DISCLOSURE:
-    - If worker is ASSIGNED: Shows exact_location, map_url, directions_url,
-      place_id, client_name, client_phone
-    - If worker is NOT assigned: Shows ONLY general_location
-
-    This protects client privacy until the job is officially assigned.
-
-    How it works:
-    1. The serializer receives worker_id in context
-    2. It checks if the worker has an active assignment
-    3. If assigned: All details are shown
-    4. If not assigned: Sensitive fields are null
-
-    Used by: JobDetailForWorkerView (GET /api/jobs/{job_id}/worker/)
+    Adds nested `client` and `worker` objects with role-aware
+    disclosure. Existing conditional-disclosure fields
+    (exact_location, map_url, etc.) are preserved for backward compat.
     """
     client_name = serializers.SerializerMethodField()
     client_phone = serializers.SerializerMethodField()
@@ -528,7 +703,6 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     is_urgent = serializers.BooleanField(read_only=True)
     search_radius_km = serializers.FloatField(read_only=True)
 
-    # Conditional fields (only visible when assigned)
     exact_location = serializers.SerializerMethodField()
     map_url = serializers.SerializerMethodField()
     directions_url = serializers.SerializerMethodField()
@@ -539,17 +713,31 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     application_status = serializers.SerializerMethodField()
     assigned_at = serializers.SerializerMethodField()
 
+    # Nested detail objects
+    client = serializers.SerializerMethodField()
+    worker = serializers.SerializerMethodField()
+
     class Meta:
         model = Job
         fields = [
-            # Basic info (always visible)
+            # Basic info
             'id',
             'title',
             'description',
             'budget',
+
+            # Client — flat + nested
             'client_name',
             'client_phone',
+            'client',
+
+            # Worker — nested
+            'worker',
+
+            # Category
             'category_name',
+
+            # Status
             'status',
             'status_display',
             'posted_at',
@@ -580,7 +768,7 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
             'job_display_time',
             'is_urgent',
 
-            # Application & Assignment
+            # Application / assignment
             'application_status',
             'assignment_status',
             'assigned_at',
@@ -588,20 +776,89 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id',
-            'client',
             'posted_at',
             'created_at',
-            'updated_at'
+            'updated_at',
         ]
 
     def __init__(self, *args, **kwargs):
-        # Extract worker_id from context
         self.worker_id = kwargs.get('context', {}).get('worker_id')
         super().__init__(*args, **kwargs)
 
-    # ============================================================
-    # REGULAR GETTERS
-    # ============================================================
+    # ---------- Nested objects ----------
+
+    def _request_user(self):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if user is None and self.worker_id:
+            user = User.objects.filter(id=self.worker_id).first()
+        return user
+
+    def get_client(self, obj):
+        return build_client_payload(obj, self._request_user())
+
+    def get_worker(self, obj):
+        return build_worker_payload(obj, self._request_user())
+
+    # ---------- Conditional disclosure for location / contact ----------
+
+    def _can_view_full_details(self, obj) -> bool:
+        if not self.worker_id:
+            return False
+        if not hasattr(self, '_cached_can_view'):
+            self._cached_can_view = obj.can_view_full_details(self.worker_id)
+        return self._cached_can_view
+
+    def get_client_name(self, obj):
+        if self._can_view_full_details(obj):
+            return obj.client.full_name if obj.client else None
+        return None
+
+    def get_client_phone(self, obj):
+        if self._can_view_full_details(obj):
+            return obj.client.phone_number if obj.client else None
+        return None
+
+    def get_exact_location(self, obj):
+        return obj.exact_location if self._can_view_full_details(obj) else None
+
+    def get_map_url(self, obj):
+        return obj.map_url if self._can_view_full_details(obj) else None
+
+    def get_directions_url(self, obj):
+        return obj.directions_url if self._can_view_full_details(obj) else None
+
+    def get_place_id(self, obj):
+        return obj.place_id if self._can_view_full_details(obj) else None
+
+    def get_location_display(self, obj):
+        if self._can_view_full_details(obj):
+            return obj.exact_location or obj.general_location
+        return obj.general_location
+
+    def get_can_view_full_details(self, obj):
+        return self._can_view_full_details(obj)
+
+    def get_assignment_status(self, obj):
+        if not self.worker_id:
+            return None
+        return obj.get_worker_assignment_status(self.worker_id)
+
+    def get_application_status(self, obj):
+        if not self.worker_id:
+            return None
+        return obj.get_worker_application_status(self.worker_id)
+
+    def get_assigned_at(self, obj):
+        if not self.worker_id:
+            return None
+        from apps.jobs.models import JobAssignment
+        assignment = JobAssignment.objects.filter(
+            job=obj, worker_id=self.worker_id
+        ).first()
+        return assignment.assigned_at if assignment else None
+
+    # ---------- Regular fields ----------
 
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
@@ -620,98 +877,3 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
 
     def get_job_display_time(self, obj):
         return obj.job_display_time
-
-    # ============================================================
-    # CONDITIONAL GETTERS (The Magic!)
-    # ============================================================
-
-    def get_client_name(self, obj):
-        """🔒 Only show client name if worker is assigned."""
-        if self._can_view_full_details(obj):
-            return obj.client.full_name if obj.client else None
-        return None
-
-    def get_client_phone(self, obj):
-        """🔒 Only show client phone if worker is assigned."""
-        if self._can_view_full_details(obj):
-            return obj.client.phone_number if obj.client else None
-        return None
-
-    def get_exact_location(self, obj):
-        """🔒 Only show exact location if worker is assigned."""
-        if self._can_view_full_details(obj):
-            return obj.exact_location
-        return None
-
-    def get_map_url(self, obj):
-        """🗺️ Only show map URL if worker is assigned."""
-        if self._can_view_full_details(obj):
-            return obj.map_url
-        return None
-
-    def get_directions_url(self, obj):
-        """🚗 Only show directions URL if worker is assigned."""
-        if self._can_view_full_details(obj):
-            return obj.directions_url
-        return None
-
-    def get_place_id(self, obj):
-        """📍 Only show place ID if worker is assigned."""
-        if self._can_view_full_details(obj):
-            return obj.place_id
-        return None
-
-    def get_location_display(self, obj):
-        """📍 Returns the appropriate location based on assignment status."""
-        if self._can_view_full_details(obj):
-            return obj.exact_location or obj.general_location
-        return obj.general_location
-
-    def get_can_view_full_details(self, obj):
-        """🚦 Boolean flag indicating if worker can see full details."""
-        return self._can_view_full_details(obj)
-
-    def get_assignment_status(self, obj):
-        """📊 Get the worker's assignment status for this job."""
-        if not self.worker_id:
-            return None
-        return obj.get_worker_assignment_status(self.worker_id)
-
-    def get_application_status(self, obj):
-        """📊 Get the worker's application status for this job."""
-        if not self.worker_id:
-            return None
-        return obj.get_worker_application_status(self.worker_id)
-
-    def get_assigned_at(self, obj):
-        """📅 Get when the worker was assigned to this job."""
-        if not self.worker_id:
-            return None
-
-        from apps.jobs.models import JobAssignment
-
-        assignment = JobAssignment.objects.filter(
-            job=obj,
-            worker_id=self.worker_id
-        ).first()
-
-        return assignment.assigned_at if assignment else None
-
-    # ============================================================
-    # PRIVATE HELPER (Cached for Performance)
-    # ============================================================
-
-    def _can_view_full_details(self, obj) -> bool:
-        """
-        🔑 KEY METHOD: Check if the current worker is assigned to this job.
-        """
-        if not self.worker_id:
-            return False
-
-        # Cache the result to avoid multiple queries
-        if not hasattr(self, '_cached_can_view'):
-            self._cached_can_view = obj.can_view_full_details(
-                self.worker_id
-            )
-
-        return self._cached_can_view
