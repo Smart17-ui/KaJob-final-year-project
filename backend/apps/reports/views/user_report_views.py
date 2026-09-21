@@ -94,6 +94,7 @@ class CreateReportView(APIView):
                     data={'report_id': report.id},
                     send_email=False,
                     send_push=True,
+                    role='ADMIN',
                 )
 
             logger.info(

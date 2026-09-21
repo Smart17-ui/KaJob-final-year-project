@@ -40,9 +40,14 @@ class NotificationService:
         data: dict = None,
         send_email: bool = True,
         send_push: bool = True,
+        role: Optional[str] = None,
     ) -> Optional[Notification]:
         """
         Create a notification and broadcast via WebSocket.
+
+        Args:
+            role: 'CLIENT' | 'WORKER' | 'ADMIN' | None
+                  None means role-agnostic (shows on every dashboard).
         """
         try:
             user = User.objects.get(
@@ -54,14 +59,13 @@ class NotificationService:
             logger.warning(f"User {recipient_id} not found or inactive")
             return None
 
-        # Check user preferences
         preferences = self.repository.get_or_create_preferences(recipient_id)
         pref_key = notification_type.lower()
 
-        # Sanitize data — convert any model instance to its PK (safety net)
+        # Sanitize data — convert any model instance to its PK
         if data:
             def _sanitize(v):
-                if hasattr(v, '_meta'):          # Django model instance
+                if hasattr(v, '_meta'):
                     return v.pk
                 if isinstance(v, dict):
                     return {k: _sanitize(val) for k, val in v.items()}
@@ -70,11 +74,11 @@ class NotificationService:
                 return v
             data = {k: _sanitize(v) for k, v in data.items()}
 
-        # Create in-app notification
         notification = None
         if preferences.in_app_enabled and preferences.is_enabled(pref_key):
             notification = self.repository.create(
                 recipient=user,
+                role=role,
                 title=title,
                 message=message,
                 notification_type=notification_type,
@@ -84,14 +88,17 @@ class NotificationService:
                 data=data or {},
                 is_read=False,
             )
-            logger.info(f"In-app notification created for user {recipient_id}: {notification_type}")
+            logger.info(
+                f"In-app notification created for user {recipient_id} "
+                f"(role={role}): {notification_type}"
+            )
 
-            # Broadcast via WebSocket
             if notification:
                 NotificationBroadcastService.send_notification_to_user(
                     recipient_id,
                     {
                         'id': notification.id,
+                        'role': notification.role,
                         'title': notification.title,
                         'message': notification.message,
                         'notification_type': notification.notification_type,
@@ -104,22 +111,16 @@ class NotificationService:
                     }
                 )
 
-        # Send email
         if send_email and preferences.email_enabled and preferences.is_enabled(pref_key):
             self._send_email_notification(user, notification_type, title, message, data)
 
-        # Send push notification via WebSocket if notification was created
         if send_push and preferences.push_enabled and preferences.is_enabled(pref_key):
             if notification:
-                pass  # Already sent via WebSocket above
+                pass  # already sent
             else:
                 self._send_push_notification(
-                    recipient_id,
-                    notification_type,
-                    title,
-                    message,
-                    redirect_url,
-                    data
+                    recipient_id, notification_type, title, message,
+                    redirect_url, data
                 )
 
         return notification
@@ -129,10 +130,7 @@ class NotificationService:
     # ============================================
 
     def _send_email_notification(self, user, notification_type, title, message, data):
-        """
-        Send email notification based on type.
-        Fetches the actual objects from the DB using IDs in `data`.
-        """
+        """Send email notification based on type."""
         try:
             from apps.notifications.services import EmailService
             from apps.jobs.models import Job
@@ -189,7 +187,6 @@ class NotificationService:
                 email_service.send_verification_rejected_email(user, reason)
 
             else:
-                # Generic fallback
                 context = {
                     'user': user,
                     'full_name': user.full_name,
@@ -214,7 +211,6 @@ class NotificationService:
     # ============================================
 
     def _send_push_notification(self, user_id, notification_type, title, message, redirect_url, data):
-        """Send push notification via WebSocket."""
         try:
             NotificationBroadcastService.send_notification_to_user(
                 user_id,
@@ -229,22 +225,27 @@ class NotificationService:
                 }
             )
             logger.info(f"Push notification sent to user {user_id}: {notification_type}")
-
         except Exception as e:
             logger.error(f"Failed to send push notification: {str(e)}")
 
     # ============================================
-    # GET NOTIFICATIONS
+    # GET NOTIFICATIONS (role-aware)
     # ============================================
 
-    def get_user_notifications(self, user_id: int, limit: int = 50) -> List[Notification]:
-        return self.repository.get_by_recipient(user_id, limit)
+    def get_user_notifications(
+        self, user_id: int, limit: int = 50, role: Optional[str] = None
+    ) -> List[Notification]:
+        return self.repository.get_by_recipient(user_id, limit, role)
 
-    def get_unread_notifications(self, user_id: int) -> List[Notification]:
-        return self.repository.get_unread_by_recipient(user_id)
+    def get_unread_notifications(
+        self, user_id: int, role: Optional[str] = None
+    ) -> List[Notification]:
+        return self.repository.get_unread_by_recipient(user_id, role)
 
-    def get_unread_count(self, user_id: int) -> int:
-        return self.repository.get_unread_count(user_id)
+    def get_unread_count(
+        self, user_id: int, role: Optional[str] = None
+    ) -> int:
+        return self.repository.get_unread_count(user_id, role)
 
     # ============================================
     # MARK OPERATIONS
@@ -263,19 +264,20 @@ class NotificationService:
             )
         return notification is not None
 
-    def mark_all_as_read(self, user_id: int) -> int:
-        count = self.repository.mark_all_as_read(user_id)
+    def mark_all_as_read(self, user_id: int, role: Optional[str] = None) -> int:
+        count = self.repository.mark_all_as_read(user_id, role)
         NotificationBroadcastService.send_notification_to_user(
             user_id,
             {
                 'type': 'all_notifications_read',
                 'count': count,
+                'role': role,
             }
         )
         return count
 
-    def delete_all(self, user_id: int) -> int:
-        return self.repository.delete_all(user_id)
+    def delete_all(self, user_id: int, role: Optional[str] = None) -> int:
+        return self.repository.delete_all(user_id, role)
 
     # ============================================
     # PREFERENCES
@@ -292,11 +294,10 @@ class NotificationService:
         return NotificationPreferenceSerializer(preferences).data
 
     # ============================================
-    # CONVENIENCE METHODS
+    # CONVENIENCE METHODS — now with roles
     # ============================================
 
     def notify_job_posted(self, worker, job, distance=None):
-        """Notify worker about a new job."""
         return self.create_notification(
             recipient_id=worker.id,
             notification_type='JOB_POSTED',
@@ -304,12 +305,12 @@ class NotificationService:
             message=f"{job.title} - {distance or 'nearby'}",
             related_entity_id=job.id,
             related_entity_type='JOB',
-            redirect_url=f"/jobs/{job.id}",
+            redirect_url=f"/worker/dashboard/jobs/{job.id}",
             data={'job_id': job.id, 'distance': distance},
+            role='WORKER',
         )
 
     def notify_job_assigned(self, worker, job):
-        """Notify worker they've been assigned to a job."""
         return self.create_notification(
             recipient_id=worker.id,
             notification_type='WORKER_ASSIGNED',
@@ -317,12 +318,12 @@ class NotificationService:
             message=f"You have been assigned to: {job.title}",
             related_entity_id=job.id,
             related_entity_type='JOB',
-            redirect_url=f"/jobs/{job.id}",
+            redirect_url=f"/worker/dashboard/jobs/{job.id}",
             data={'job_id': job.id},
+            role='WORKER',
         )
 
     def notify_job_completed(self, client, job, worker):
-        """Notify client that worker completed the job."""
         return self.create_notification(
             recipient_id=client.id,
             notification_type='JOB_COMPLETED',
@@ -330,12 +331,12 @@ class NotificationService:
             message=f"{worker.full_name} has completed: {job.title}",
             related_entity_id=job.id,
             related_entity_type='JOB',
-            redirect_url=f"/jobs/{job.id}/confirm",
+            redirect_url=f"/client/dashboard/jobs/{job.id}",
             data={'job_id': job.id, 'worker_id': worker.id},
+            role='CLIENT',
         )
 
     def notify_application_accepted(self, worker, job):
-        """Notify worker their application was accepted."""
         return self.create_notification(
             recipient_id=worker.id,
             notification_type='APPLICATION_ACCEPTED',
@@ -343,12 +344,12 @@ class NotificationService:
             message=f"Your application for {job.title} has been accepted!",
             related_entity_id=job.id,
             related_entity_type='JOB',
-            redirect_url=f"/jobs/{job.id}",
+            redirect_url=f"/worker/dashboard/jobs/{job.id}",
             data={'job_id': job.id},
+            role='WORKER',
         )
 
     def notify_application_rejected(self, worker, job):
-        """Notify worker their application was rejected."""
         return self.create_notification(
             recipient_id=worker.id,
             notification_type='APPLICATION_REJECTED',
@@ -356,26 +357,43 @@ class NotificationService:
             message=f"Your application for {job.title} has been rejected.",
             related_entity_id=job.id,
             related_entity_type='JOB',
-            redirect_url=f"/jobs/{job.id}",
+            redirect_url="/worker/dashboard/find-jobs",
             data={'job_id': job.id},
+            role='WORKER',
         )
 
-    def notify_new_review(self, worker, review):
-        """Notify worker about a new review."""
+    def notify_new_review(self, recipient, review):
+        """
+        Notify a user about a new review.
+        Role inferred from the recipient's current role on the platform.
+        """
+        # Infer role: workers get worker notifications, clients get client ones
+        if getattr(recipient, 'is_worker', False) and not getattr(recipient, 'is_client', False):
+            role = 'WORKER'
+            redirect = '/worker/dashboard/settings/profile'
+        elif getattr(recipient, 'is_client', False) and not getattr(recipient, 'is_worker', False):
+            role = 'CLIENT'
+            redirect = '/client/dashboard/settings/profile'
+        else:
+            # Dual role — keep it role-agnostic
+            role = None
+            redirect = '/dashboard'
+
         return self.create_notification(
-            recipient_id=worker.id,
+            recipient_id=recipient.id,
             notification_type='REVIEW_RECEIVED',
             title='New Review!',
             message=f"{review.reviewer.full_name} gave you {review.rating}★ for {review.job.title}",
             related_entity_id=review.id,
             related_entity_type='REVIEW',
-            redirect_url=f"/my-reviews",
+            redirect_url=redirect,
             data={'review_id': review.id, 'job_id': review.job_id},
-            send_email = False,  # Avoid sending email for reviews to prevent spam
+            send_email=False,
+            role=role,
         )
 
     def notify_verification_approved(self, user):
-        """Notify user their verification was approved."""
+        """Role-agnostic — user sees this on both dashboards."""
         return self.create_notification(
             recipient_id=user.id,
             notification_type='VERIFICATION_APPROVED',
@@ -383,15 +401,17 @@ class NotificationService:
             message='Your identity has been verified. Welcome to KaJob!',
             redirect_url="/dashboard",
             data={'reason': 'approved'},
+            role=None,
         )
 
     def notify_verification_rejected(self, user, reason):
-        """Notify user their verification was rejected."""
+        """Role-agnostic."""
         return self.create_notification(
             recipient_id=user.id,
             notification_type='VERIFICATION_REJECTED',
             title='Verification Rejected',
             message=f'Your verification was rejected. Reason: {reason}',
-            redirect_url="/verification",
+            redirect_url="/dashboard/settings/verification",
             data={'reason': reason},
+            role=None,
         )
