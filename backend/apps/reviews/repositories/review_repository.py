@@ -71,6 +71,50 @@ class ReviewRepository(BaseRepository[Review]):
         return list(jobs)
 
     # ============================================
+    # FIND UNRATED JOBS (Worker side — worker → client)
+    # ============================================
+
+    def get_unrated_completed_jobs_for_worker(self, worker_id: int) -> List:
+        """
+        Get completed jobs where this worker was the assigned worker
+        and hasn't yet reviewed the client.
+        """
+        from apps.jobs.models import Job, JobAssignment
+        from apps.common.constants import JobStatus, AssignmentStatus
+
+        # Jobs this worker has already reviewed
+        reviewed_job_ids = self.filter(
+            reviewer_id=worker_id
+        ).values_list('job_id', flat=True)
+
+        # Jobs where this worker held an assignment that progressed
+        assigned_job_ids = (
+            JobAssignment.objects
+            .filter(
+                worker_id=worker_id,
+                status__in=[
+                    AssignmentStatus.ACTIVE,
+                    AssignmentStatus.IN_PROGRESS,
+                    AssignmentStatus.COMPLETED,
+                ],
+            )
+            .values_list('job_id', flat=True)
+        )
+
+        jobs = (
+            Job.objects
+            .filter(
+                id__in=assigned_job_ids,
+                status=JobStatus.COMPLETED,
+            )
+            .exclude(id__in=reviewed_job_ids)
+            .select_related('client')
+            .order_by('-completed_at')
+        )
+
+        return list(jobs)
+
+    # ============================================
     # STATISTICS
     # ============================================
 

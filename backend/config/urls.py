@@ -16,55 +16,60 @@ urlpatterns = [
     # DJANGO ADMIN
     # ============================================
     path('admin/', admin.site.urls),
-    
+
     # ============================================
     # API ENDPOINTS - SPECIFIC PATHS FIRST
     # ============================================
-    
+
     path('api/jobs/', include('apps.jobs.urls')),
     path('api/matching/', include('apps.matching.urls')),
     path('api/reviews/', include('apps.reviews.urls')),
-    
+
+    # Reports must come BEFORE the generic 'api/' mounts below.
+    # apps.admin_panel.urls declares a 'reports/' route that would
+    # otherwise shadow this one.
+    path('api/reports/', include('apps.reports.urls')),
+
     # ============================================
     # API ENDPOINTS - GENERIC PATHS
     # ============================================
-    
+
     path('api/', include('apps.accounts.urls')),
     path('api/', include('apps.identity_verification.urls')),
     path('api/', include('apps.audit.urls')),
     path('api/', include('apps.analytics.urls')),
     path('api/', include('apps.admin_panel.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
-    
+
     # ============================================
     # API DOCUMENTATION
     # ============================================
-    
+
     # Schema (JSON/YAML) - used by Swagger and ReDoc
     path(
         'api/schema/',
         SpectacularAPIView.as_view(),
         name='schema',
     ),
-    
+
     # Swagger UI - interactive API documentation
     path(
         'api/docs/',
         SpectacularSwaggerView.as_view(url_name='schema'),
         name='swagger-ui',
     ),
-    
+
     # ReDoc - alternative API documentation
     path(
         'api/redoc/',
         SpectacularRedocView.as_view(url_name='schema'),
         name='redoc',
     ),
-    
+
     # ============================================
     # ROOT REDIRECT
     # ============================================
-    
+
     # Redirect root to Swagger docs
     path('', RedirectView.as_view(url='/api/docs/', permanent=False)),
 ]

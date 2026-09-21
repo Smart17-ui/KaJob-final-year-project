@@ -17,7 +17,7 @@ class Job(BaseModel):
     AWAITING_CONFIRMATION = 'AWAITING_CONFIRMATION'
     COMPLETED = 'COMPLETED'
     CANCELLED = 'CANCELLED'
-    
+
     STATUS_CHOICES = [
         (OPEN, 'Open'),
         (ASSIGNED, 'Assigned'),
@@ -26,7 +26,7 @@ class Job(BaseModel):
         (COMPLETED, 'Completed'),
         (CANCELLED, 'Cancelled'),
     ]
-    
+
     # Timeframe choices
     TIMEFRAME_CHOICES = [
         ('MORNING', 'Morning (6AM - 12PM)'),
@@ -34,7 +34,7 @@ class Job(BaseModel):
         ('EVENING', 'Evening (5PM - 9PM)'),
         ('ANYTIME', 'Anytime'),
     ]
-    
+
     # Urgency choices
     URGENCY_CHOICES = [
         ('IMMEDIATE', 'Immediate (Today)'),
@@ -42,11 +42,11 @@ class Job(BaseModel):
         ('NORMAL', 'Normal (Within a week)'),
         ('FLEXIBLE', 'Flexible (Any time)'),
     ]
-    
+
     # ============================================
     # BASIC JOB INFORMATION
     # ============================================
-    
+
     client = models.ForeignKey(
         'accounts.User',
         on_delete=models.CASCADE,
@@ -57,15 +57,15 @@ class Job(BaseModel):
         on_delete=models.PROTECT,
         related_name='jobs'
     )
-    
+
     title = models.CharField(max_length=255)
     description = models.TextField()
     budget = models.DecimalField(max_digits=10, decimal_places=2)
-    
+
     # ============================================
     # LOCATION (Manual + Auto from GPS)
     # ============================================
-    
+
     general_location = models.CharField(
         max_length=255,
         help_text="Human-readable address (manual entry for display)"
@@ -89,11 +89,11 @@ class Job(BaseModel):
         blank=True,
         help_text="Auto-detected from device GPS"
     )
-    
+
     # ============================================
-    # 🆕 MAP & DIRECTIONS (Hidden until assigned)
+    # MAP & DIRECTIONS (Hidden until assigned)
     # ============================================
-    
+
     map_url = models.URLField(
         max_length=500,
         blank=True,
@@ -112,35 +112,35 @@ class Job(BaseModel):
         null=True,
         help_text="Google Maps Place ID for the exact location - HIDDEN from workers until assigned"
     )
-    
+
     # ============================================
     # JOB TIMING / SCHEDULING
     # ============================================
-    
+
     job_date = models.DateField(
         null=True,
         blank=True,
         help_text="Date when the job needs to be done"
     )
-    
+
     job_time = models.TimeField(
         null=True,
         blank=True,
         help_text="Time when the job should start"
     )
-    
+
     timeframe = models.CharField(
         max_length=20,
         choices=TIMEFRAME_CHOICES,
         default='ANYTIME',
         help_text="Preferred time of day"
     )
-    
+
     is_flexible = models.BooleanField(
         default=True,
         help_text="Can the worker choose the exact time?"
     )
-    
+
     duration_hours = models.DecimalField(
         max_digits=4,
         decimal_places=1,
@@ -148,55 +148,55 @@ class Job(BaseModel):
         blank=True,
         help_text="Estimated duration in hours (e.g., 2.5)"
     )
-    
+
     urgency = models.CharField(
         max_length=20,
         choices=URGENCY_CHOICES,
         default='NORMAL',
         help_text="How urgent is the job?"
     )
-    
+
     # ============================================
     # SKILLS (Optional)
     # ============================================
-    
+
     required_skills = models.ManyToManyField(
         'accounts.Skill',
         blank=True,
         related_name='jobs',
         help_text="Skills required for this job (optional)"
     )
-    
+
     # ============================================
     # STATUS & TRACKING
     # ============================================
-    
+
     status = models.CharField(
         max_length=25,
         choices=STATUS_CHOICES,
         default=OPEN
     )
-    
+
     posted_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Completion tracking
     worker_marked_complete = models.BooleanField(default=False)
     worker_marked_complete_at = models.DateTimeField(null=True, blank=True)
     client_confirmed_complete = models.BooleanField(default=False)
     client_confirmed_at = models.DateTimeField(null=True, blank=True)
-    
+
     # ============================================
     # AUTO-CONFIRM (10-minute grace period)
     # ============================================
-    
+
     auto_confirm_at = models.DateTimeField(null=True, blank=True)
     auto_confirm_grace_minutes = models.IntegerField(default=10)
-    
+
     # ============================================
     # DISPUTE TRACKING
     # ============================================
-    
+
     is_disputed = models.BooleanField(default=False)
     dispute_reason = models.TextField(blank=True)
     dispute_raised_by = models.ForeignKey(
@@ -219,11 +219,11 @@ class Job(BaseModel):
     )
     dispute_resolution_notes = models.TextField(blank=True)
     dispute_resolved_at = models.DateTimeField(null=True, blank=True)
-    
+
     # ============================================
     # META
     # ============================================
-    
+
     class Meta:
         db_table = 'jobs'
         ordering = ['-posted_at']
@@ -234,44 +234,44 @@ class Job(BaseModel):
             models.Index(fields=['urgency']),
             models.Index(fields=['job_date']),
         ]
-    
+
     def __str__(self):
         return f"{self.title} - {self.client.full_name}"
-    
+
     # ============================================
     # PROPERTIES
     # ============================================
-    
+
     @property
     def is_open(self):
         return self.status == self.OPEN and not self.is_deleted
-    
+
     @property
     def is_assigned(self):
         return self.status == self.ASSIGNED
-    
+
     @property
     def is_in_progress(self):
         return self.status == self.IN_PROGRESS
-    
+
     @property
     def is_awaiting_confirmation(self):
         return self.status == self.AWAITING_CONFIRMATION
-    
+
     @property
     def is_completed(self):
         return self.status == self.COMPLETED
-    
+
     @property
     def is_urgent(self):
         return self.urgency in ['IMMEDIATE', 'URGENT']
-    
+
     @property
     def job_display_date(self):
         if self.job_date:
             return self.job_date.strftime('%B %d, %Y')
         return 'Flexible'
-    
+
     @property
     def job_display_time(self):
         if self.job_time:
@@ -279,97 +279,104 @@ class Job(BaseModel):
         if self.timeframe != 'ANYTIME':
             return self.get_timeframe_display()
         return 'Flexible'
-    
+
     @property
     def search_radius_km(self) -> float:
         """Fixed search radius of 1km for all jobs."""
         return 1.0
-    
+
     # ============================================
     # STATUS CHECK METHODS
     # ============================================
-    
+
     def can_apply(self):
         return self.status in [self.OPEN]
-    
+
     def can_assign(self):
         return self.status in [self.OPEN, self.ASSIGNED]
-    
+
     def can_start(self):
         return self.status == self.ASSIGNED
-    
+
     def can_mark_complete(self):
         return self.status in [self.ASSIGNED, self.IN_PROGRESS]
-    
+
     def can_client_confirm(self):
         return self.status == self.AWAITING_CONFIRMATION
-    
+
     # ============================================
-    # 🆕 CONDITIONAL DISCLOSURE METHODS
+    # CONDITIONAL DISCLOSURE METHODS
     # ============================================
-    
+
     def is_accepted_by_worker(self, worker_id: int) -> bool:
         """
         Check if a specific worker has been assigned/accepted this job.
-        
-        Returns True if worker has an active assignment.
+
+        Returns True if the worker has (or had) an assignment on this job.
         Used by: can_view_full_details(), serializers, views
-        
+
         Explanation:
-        - Workers can only see full details if they have been assigned
-        - This checks if there's an active JobAssignment for this worker
-        - Active statuses: ACTIVE, IN_PROGRESS
+        - Workers can see full details if they have been assigned
+        - This includes past assignments (COMPLETED, CANCELLED) so the
+          assigned worker can still view client info after the job is done
+          — needed for the review flow.
+        - Only completely unrelated workers are blocked.
         """
         from apps.jobs.models import JobAssignment
         from apps.common.constants import AssignmentStatus
-        
+
         return JobAssignment.objects.filter(
             job=self,
             worker_id=worker_id,
-            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
+            status__in=[
+                AssignmentStatus.ACTIVE,
+                AssignmentStatus.IN_PROGRESS,
+                AssignmentStatus.COMPLETED,
+                AssignmentStatus.CANCELLED,
+            ],
         ).exists()
-    
+
     def get_worker_assignment_status(self, worker_id: int) -> str:
         """
         Get the assignment status for a specific worker.
-        
+
         Returns:
             - Assignment status string (e.g., 'ACTIVE', 'COMPLETED')
             - None if worker is not assigned
-        
+
         Used by: serializers to show assignment status to workers
         """
         from apps.jobs.models import JobAssignment
-        
+
         assignment = JobAssignment.objects.filter(
             job=self,
             worker_id=worker_id
         ).first()
         return assignment.status if assignment else None
-    
+
     def get_worker_application_status(self, worker_id: int) -> str:
         """
         Get the application status for a specific worker.
-        
+
         Returns:
             - Application status string (e.g., 'PENDING', 'ACCEPTED')
             - None if worker has not applied
-        
+
         Used by: serializers to show application status to workers
         """
         from apps.jobs.models import JobApplication
         from apps.common.constants import ApplicationStatus
-        
+
         application = JobApplication.objects.filter(
             job=self,
             worker_id=worker_id
         ).first()
         return application.status if application else None
-    
+
     def can_view_full_details(self, worker_id: int) -> bool:
         """
-        🔑 KEY METHOD: Check if a worker can view full job details.
-        
+        KEY METHOD: Check if a worker can view full job details.
+
         What it controls:
         - exact_location (specific address)
         - map_url (Google Maps link)
@@ -377,41 +384,41 @@ class Job(BaseModel):
         - place_id (Google Maps Place ID)
         - client_name
         - client_phone
-        
+
         The rule:
-        - Only workers with ACTIVE assignments can view full details
-        - This protects client privacy until the job is officially assigned
-        
+        - Workers with any assignment (past or present) can view full details.
+        - This protects client privacy for unrelated workers.
+
         Used by: WorkerJobDetailSerializer to conditionally show/hide fields
         """
         if not worker_id:
             return False
         return self.is_accepted_by_worker(worker_id)
-    
+
     def get_visible_location(self, worker_id: int = None) -> str:
         """
         Returns the appropriate location based on worker's assignment status.
-        
+
         Returns:
             - If assigned: exact_location (or general_location as fallback)
             - If not assigned: general_location only
-        
+
         Used by: serializers to show the correct location to workers
         """
         if worker_id and self.can_view_full_details(worker_id):
             return self.exact_location or self.general_location
         return self.general_location
-    
+
     def get_visible_contact(self, worker_id: int = None) -> dict:
         """
         Returns client contact info only if worker is assigned.
-        
+
         Returns:
             {
                 'client_name': str or None,
                 'client_phone': str or None
             }
-        
+
         Used by: serializers to conditionally show contact details
         """
         if worker_id and self.can_view_full_details(worker_id):
@@ -423,18 +430,18 @@ class Job(BaseModel):
             'client_name': None,
             'client_phone': None,
         }
-    
+
     def get_visible_map_urls(self, worker_id: int = None) -> dict:
         """
-        🆕 Returns map URLs only if worker is assigned.
-        
+        Returns map URLs only if worker is assigned.
+
         Returns:
             {
                 'map_url': str or None,
                 'directions_url': str or None,
                 'place_id': str or None
             }
-        
+
         Used by: serializers to conditionally show map and directions
         """
         if worker_id and self.can_view_full_details(worker_id):
@@ -448,96 +455,89 @@ class Job(BaseModel):
             'directions_url': None,
             'place_id': None,
         }
-    
+
     # ============================================
-    # 🆕 LOCATION & MATCHING METHODS
+    # LOCATION & MATCHING METHODS
     # ============================================
-    
+
     def is_within_radius(self, worker_id: int, radius_km: float = 1.0) -> bool:
         """
         Check if a worker is within the job's search radius.
-        
+
         Args:
             worker_id: The worker's user ID
             radius_km: Search radius in kilometers (default: 1km)
-        
+
         Returns:
             True if worker is within radius, False otherwise
-        
+
         Used by: MatchingService to filter jobs
         """
         from apps.accounts.models import WorkerProfile
         from apps.matching.services.distance_service import DistanceService
-        
+
         try:
-            # Get worker's location
             worker_profile = WorkerProfile.objects.get(user_id=worker_id)
             location = worker_profile.current_location
-            
+
             if not location:
                 return False
-            
+
             lat = location.get('latitude')
             lng = location.get('longitude')
-            
+
             if lat is None or lng is None:
                 return False
-            
-            # Check if job has location
+
             if self.latitude is None or self.longitude is None:
                 return False
-            
-            # Calculate distance
+
             distance = DistanceService.calculate_distance(
                 float(self.latitude),
                 float(self.longitude),
                 float(lat),
                 float(lng)
             )
-            
+
             if distance is None:
                 return False
-            
-            # Must be within the search radius
+
             return distance <= radius_km
-            
+
         except WorkerProfile.DoesNotExist:
             return False
-        except Exception as e:
+        except Exception:
             return False
-    
+
     def get_nearby_workers(self, radius_km: float = 5.0) -> list:
         """
         Get workers within a certain radius of this job.
-        
+
         Args:
             radius_km: Search radius in kilometers (default: 5km)
-        
+
         Returns:
             List of workers with their distance from this job
-        
-        Used by: Client to find nearby workers for this job
         """
         from django.contrib.auth import get_user_model
         from apps.common.constants import UserAccountStatus
-        
+
         User = get_user_model()
-        
+
         if not self.latitude or not self.longitude:
             return []
-        
+
         nearby_workers = []
         lat = float(self.latitude)
         lng = float(self.longitude)
-        
-        # Get all active workers with location data
+
         workers = User.objects.filter(
             account_status=UserAccountStatus.ACTIVE,
             worker_profile__isnull=False,
             profile__latitude__isnull=False,
             profile__longitude__isnull=False,
         ).select_related('profile', 'worker_profile')
-        
+
         for worker in workers:
             if worker.profile.latitude and worker.profile.longitude:
                 distance = self._calculate_distance(
@@ -545,7 +545,7 @@ class Job(BaseModel):
                     float(worker.profile.latitude),
                     float(worker.profile.longitude)
                 )
-                
+
                 if distance <= radius_km:
                     nearby_workers.append({
                         'id': worker.id,
@@ -555,159 +555,118 @@ class Job(BaseModel):
                         'rating': float(worker.worker_profile.rating) if worker.worker_profile else 0,
                         'verified': worker.worker_profile.verified if worker.worker_profile else False,
                     })
-        
-        # Sort by distance (closest first)
+
         nearby_workers.sort(key=lambda x: x['distance_km'])
         return nearby_workers
-    
+
     def is_point_within_radius(self, latitude: float, longitude: float, radius_km: float = 1.0) -> bool:
         """
         Check if a point is within a radius of this job.
-        
-        Args:
-            latitude: Point latitude
-            longitude: Point longitude
-            radius_km: Radius in kilometers
-        
-        Returns:
-            True if point is within radius, False otherwise
         """
         if not self.latitude or not self.longitude:
             return False
-        
+
         distance = self._calculate_distance(
             latitude, longitude,
             float(self.latitude),
             float(self.longitude)
         )
-        
+
         return distance <= radius_km
-    
+
     def get_distance_from_point(self, latitude: float, longitude: float) -> float:
         """
         Get distance in kilometers from a point to this job.
-        
-        Args:
-            latitude: Point latitude
-            longitude: Point longitude
-        
-        Returns:
-            Distance in kilometers
         """
         if not self.latitude or not self.longitude:
             return None
-        
+
         return self._calculate_distance(
             latitude, longitude,
             float(self.latitude),
             float(self.longitude)
         )
-    
+
     def get_distance_from_worker(self, worker_id: int) -> float:
         """
         Get distance in kilometers from a worker to this job.
-        
-        Args:
-            worker_id: Worker user ID
-        
-        Returns:
-            Distance in kilometers, or None if worker has no location
         """
         from apps.accounts.models import WorkerProfile
-        
+
         try:
             worker_profile = WorkerProfile.objects.get(user_id=worker_id)
             location = worker_profile.current_location
-            
+
             if not location:
                 return None
-            
+
             lat = location.get('latitude')
             lng = location.get('longitude')
-            
+
             if lat is None or lng is None:
                 return None
-            
+
             if not self.latitude or not self.longitude:
                 return None
-            
+
             return self._calculate_distance(
                 float(lat), float(lng),
                 float(self.latitude), float(self.longitude)
             )
-            
+
         except WorkerProfile.DoesNotExist:
             return None
-    
+
     # ============================================
-    # 🆕 HELPER METHODS FOR MIGRATION
+    # HELPER METHODS FOR MIGRATION
     # ============================================
-    
+
     def populate_map_urls(self):
         """
         Generate map and directions URLs from latitude/longitude.
         Can be used in a data migration to populate existing jobs.
         """
         if self.latitude and self.longitude:
-            # Google Maps URL
             self.map_url = f"https://www.google.com/maps?q={float(self.latitude)},{float(self.longitude)}"
-            
-            # Directions URL (if client has location)
+
             if self.client and self.client.profile and self.client.profile.latitude:
                 self.directions_url = (
                     f"https://www.google.com/maps/dir/"
                     f"{float(self.client.profile.latitude)},{float(self.client.profile.longitude)}/"
                     f"{float(self.latitude)},{float(self.longitude)}"
                 )
-            
+
             self.save(update_fields=['map_url', 'directions_url'])
             return True
         return False
-    
+
     # ============================================
     # PRIVATE HELPER METHODS
     # ============================================
-    
+
     @staticmethod
     def _calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """
         Calculate distance in kilometers using Haversine formula.
-        
-        Args:
-            lat1, lng1: First point coordinates
-            lat2, lng2: Second point coordinates
-        
-        Returns:
-            Distance in kilometers
         """
         from math import radians, sin, cos, sqrt, atan2
-        
-        # Earth's radius in kilometers
+
         R = 6371
-        
-        # Convert degrees to radians
+
         lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
-        
-        # Differences
+
         dlat = lat2 - lat1
         dlng = lng2 - lng1
-        
-        # Haversine formula
-        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlng/2)**2
-        c = 2 * atan2(sqrt(a), sqrt(1-a))
-        
+
+        a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlng / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
         return R * c
-    
+
     @staticmethod
     def _format_distance(distance_km: float) -> str:
         """
         Format distance in human-readable format.
-        
-        Args:
-            distance_km: Distance in kilometers
-        
-        Returns:
-            Human-readable distance string (e.g., "450m", "3.5km")
         """
         if distance_km < 1:
             meters = int(distance_km * 1000)

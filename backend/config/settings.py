@@ -166,7 +166,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
 
     # Custom CORS middleware
-    'infrastructure.middleware.cors_middleware.CORSMiddleware',
+    #'infrastructure.middleware.cors_middleware.CORSMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

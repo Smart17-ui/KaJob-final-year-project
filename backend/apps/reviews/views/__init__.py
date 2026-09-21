@@ -9,6 +9,7 @@ from .review_views import (
     MyRatingStatsView,
     JobReviewsView,
     UnratedJobsView,
+    WorkerUnratedJobsView,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     'MyRatingStatsView',
     'JobReviewsView',
     'UnratedJobsView',
+    'WorkerUnratedJobsView',
 ]

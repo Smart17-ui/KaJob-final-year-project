@@ -1,4 +1,5 @@
 # infrastructure/middleware/audit_middleware.py
+
 import json
 import logging
 from django.utils import timezone
@@ -12,8 +13,8 @@ class AuditMiddleware:
     """
     Middleware to log all API requests for audit purposes.
 
-    IMPORTANT: reads/caches request.body BEFORE the DRF view runs,
-    so request.data in the view still works.
+    Reads/caches request.body BEFORE the DRF view runs, so
+    request.data in the view still works.
     """
 
     SKIP_PATHS = [
@@ -38,14 +39,14 @@ class AuditMiddleware:
         path = request.path
         method = request.method
 
-        skip = any(path.startswith(skip_path) for skip_path in self.SKIP_PATHS)
+        skip = any(
+            path.startswith(skip_path)
+            for skip_path in self.SKIP_PATHS
+        )
         if method not in self.LOG_METHODS:
             skip = True
 
-        # ── 1. Cache the body BEFORE get_response() runs.
-        #       Once we access request.body, Django stores it in request._body.
-        #       DRF's request.data will re-read from that cache — no more
-        #       "cannot access body after reading" errors.
+        # Cache the body BEFORE get_response() runs
         cached_body = b''
         if not skip:
             try:
@@ -55,11 +56,15 @@ class AuditMiddleware:
             except Exception:
                 cached_body = b''
 
-        # ── 2. Run the actual view
+        # Run the actual view
         response = self.get_response(request)
 
-        # ── 3. Log after the view, using the cached body (not request.body)
-        if not skip and hasattr(request, 'user') and request.user.is_authenticated:
+        # Log after the view
+        if (
+            not skip
+            and hasattr(request, 'user')
+            and request.user.is_authenticated
+        ):
             self.log_request(request, response, cached_body)
 
         return response

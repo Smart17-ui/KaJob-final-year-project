@@ -1,3 +1,5 @@
+# apps/jobs/views/job_application_views.py
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -22,7 +24,7 @@ from apps.common.exceptions import (
     BusinessRuleViolation,
     ResourceNotFound,
 )
-from apps.jobs.models import JobApplication, JobAssignment
+from apps.jobs.models import Job, JobApplication, JobAssignment
 from apps.common.constants import (
     ApplicationStatus,
     AssignmentStatus,
@@ -219,7 +221,9 @@ class UpdateApplicationStatusView(APIView):
     5. Worker becomes BUSY.
     6. Worker is notified via "Worker Assigned" email.
 
-    The operation is atomic.
+    The operation is atomic. The job row is locked with
+    select_for_update() to prevent two concurrent accepts
+    from both passing the OPEN-status check.
     """
 
     permission_classes = [
@@ -282,29 +286,41 @@ class UpdateApplicationStatusView(APIView):
         application_id
     ):
         """
-        Accept an application and assign worker
-        atomically.
+        Accept an application and assign worker atomically.
+
+        Uses select_for_update() on the job row so any concurrent
+        accept on the same job blocks until this transaction commits,
+        then sees the fresh ASSIGNED status and is rejected.
         """
 
+        # 1. Load the application (locked via the PENDING filter)
         try:
             application = (
                 JobApplication.objects
-                .select_related(
-                    "job",
-                    "worker"
-                )
+                .select_related("worker")
                 .get(
                     id=application_id,
                     status=ApplicationStatus.PENDING
                 )
             )
-
         except JobApplication.DoesNotExist:
             raise ResourceNotFound(
                 "Application not found or already processed."
             )
 
-        job = application.job
+        # 2. Lock the JOB row — the critical guard
+        try:
+            job = (
+                Job.objects
+                .select_for_update()
+                .get(
+                    id=application.job_id,
+                    deleted_at__isnull=True
+                )
+            )
+        except Job.DoesNotExist:
+            raise ResourceNotFound("Job not found.")
+
         worker = application.worker
 
         # Validate: Client owns the job
@@ -313,7 +329,7 @@ class UpdateApplicationStatusView(APIView):
                 "You don't have permission to accept this application."
             )
 
-        # Validate: Job is open
+        # Validate: Job is open (against the freshly-locked row)
         if job.status != JobStatus.OPEN:
             raise BusinessRuleViolation(
                 f"Cannot accept application for a '{job.status}' job."
@@ -367,11 +383,10 @@ class UpdateApplicationStatusView(APIView):
             worker_profile = worker.worker_profile
             worker_profile.availability_status = "BUSY"
             worker_profile.save()
-
         except Exception:
             pass
 
-        # 🆕 Notify the worker — single notification when they get the job
+        # Notify the worker — single notification when they get the job
         try:
             from apps.notifications.services import NotificationService
             NotificationService().notify_job_assigned(
@@ -382,7 +397,9 @@ class UpdateApplicationStatusView(APIView):
                 f"[notify] job_assigned sent to worker {worker.id}"
             )
         except Exception as e:
-            logger.error(f"[notify] _accept_application_atomic failed: {e}")
+            logger.error(
+                f"[notify] _accept_application_atomic failed: {e}"
+            )
 
         return {
             "message": (
@@ -439,7 +456,6 @@ class UpdateApplicationStatusView(APIView):
                     status=ApplicationStatus.PENDING
                 )
             )
-
         except JobApplication.DoesNotExist:
             raise ResourceNotFound(
                 "Application not found or already processed."
@@ -454,7 +470,7 @@ class UpdateApplicationStatusView(APIView):
         application.status = ApplicationStatus.REJECTED
         application.save()
 
-        # 🆕 Notify the worker their application was rejected
+        # Notify the worker their application was rejected
         try:
             from apps.notifications.services import NotificationService
             NotificationService().notify_application_rejected(
@@ -466,7 +482,9 @@ class UpdateApplicationStatusView(APIView):
                 f"{application.worker.id}"
             )
         except Exception as e:
-            logger.error(f"[notify] _reject_application failed: {e}")
+            logger.error(
+                f"[notify] _reject_application failed: {e}"
+            )
 
         return {
             "message": (

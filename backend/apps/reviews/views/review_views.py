@@ -33,7 +33,7 @@ class CreateReviewView(APIView):
     The service validates that the reviewer is one of the two parties
     and the reviewee is the other party.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser]   # ← both roles allowed
+    permission_classes = [IsAuthenticated, IsActiveUser]   # both roles allowed
 
     def post(self, request):
         serializer = ReviewCreateSerializer(data=request.data)
@@ -155,6 +155,34 @@ class UnratedJobsView(APIView):
                 'message': 'You have unrated jobs. Please review them before posting new jobs.',
                 'results': unrated_jobs,
             }, status=status.HTTP_200_OK)
+        return Response({
+            'count': 0,
+            'message': 'You have no unrated jobs.',
+            'results': [],
+        }, status=status.HTTP_200_OK)
+
+
+class WorkerUnratedJobsView(APIView):
+    """
+    GET /api/reviews/worker-unrated-jobs/
+
+    Get all completed jobs that the worker was assigned to
+    but hasn't reviewed the client for yet.
+
+    Symmetric to UnratedJobsView but for the worker → client direction.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
+
+    def get(self, request):
+        unrated_jobs = review_service.get_worker_unrated_jobs(request.user.id)
+
+        if unrated_jobs:
+            return Response({
+                'count': len(unrated_jobs),
+                'message': 'You have unrated completed jobs. Please review the client.',
+                'results': unrated_jobs,
+            }, status=status.HTTP_200_OK)
+
         return Response({
             'count': 0,
             'message': 'You have no unrated jobs.',
