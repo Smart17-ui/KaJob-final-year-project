@@ -2,6 +2,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 import {
   CheckCircleIcon,
@@ -58,13 +59,13 @@ const FeedbackModal = ({
       return;
     }
 
-    function handleKeyDown(
+    const handleKeyDown = (
       event: KeyboardEvent
-    ) {
+    ) => {
       if (event.key === "Escape") {
         onClose();
       }
-    }
+    };
 
     document.addEventListener(
       "keydown",
@@ -120,32 +121,40 @@ const FeedbackModal = ({
   const config = {
     success: {
       icon: CheckCircleIcon,
-      iconWrapper: "bg-green-50",
-      iconColor: "text-green-600",
+      iconWrapper:
+        "bg-emerald-50 ring-8 ring-emerald-50/60",
+      iconColor: "text-emerald-600",
+      accent: "bg-emerald-500",
       button:
-        "bg-green-600 hover:bg-green-700 focus:ring-green-500",
+        "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500",
     },
 
     error: {
       icon: ExclamationCircleIcon,
-      iconWrapper: "bg-red-50",
+      iconWrapper:
+        "bg-red-50 ring-8 ring-red-50/60",
       iconColor: "text-red-600",
+      accent: "bg-red-500",
       button:
         "bg-red-600 hover:bg-red-700 focus:ring-red-500",
     },
 
     warning: {
       icon: ExclamationTriangleIcon,
-      iconWrapper: "bg-amber-50",
+      iconWrapper:
+        "bg-amber-50 ring-8 ring-amber-50/60",
       iconColor: "text-amber-600",
+      accent: "bg-amber-500",
       button:
         "bg-amber-600 hover:bg-amber-700 focus:ring-amber-500",
     },
 
     info: {
       icon: InformationCircleIcon,
-      iconWrapper: "bg-blue-50",
+      iconWrapper:
+        "bg-blue-50 ring-8 ring-blue-50/60",
       iconColor: "text-blue-600",
+      accent: "bg-blue-500",
       button:
         "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500",
     },
@@ -159,23 +168,23 @@ const FeedbackModal = ({
 
   /*
    * =========================
-   * RENDER
+   * MODAL CONTENT
    * =========================
    */
 
-  return (
+  const modal = (
     <div
       className="
         fixed
         inset-0
-        z-[10000]
+        z-[99999]
         flex
         items-center
         justify-center
-        bg-slate-900/50
+        bg-slate-950/45
         px-4
         py-6
-        backdrop-blur-sm
+        backdrop-blur-[3px]
       "
       role="dialog"
       aria-modal="true"
@@ -196,13 +205,22 @@ const FeedbackModal = ({
           max-w-md
           overflow-hidden
           rounded-2xl
+          border
+          border-slate-200/80
           bg-white
-          shadow-2xl
+          shadow-[0_24px_70px_rgba(15,23,42,0.22)]
+          animate-[fadeIn_150ms_ease-out]
         "
         onMouseDown={(event) =>
           event.stopPropagation()
         }
       >
+        {/* Top accent */}
+
+        <div
+          className={`h-1 w-full ${currentConfig.accent}`}
+        />
+
         {/* Close button */}
 
         <button
@@ -212,11 +230,12 @@ const FeedbackModal = ({
           className="
             absolute
             right-4
-            top-4
+            top-5
             rounded-lg
             p-2
             text-slate-400
             transition
+            duration-150
             hover:bg-slate-100
             hover:text-slate-600
             focus:outline-none
@@ -229,7 +248,7 @@ const FeedbackModal = ({
 
         {/* Content */}
 
-        <div className="px-6 pb-6 pt-8 text-center sm:px-8 sm:pb-8">
+        <div className="px-6 pb-6 pt-9 sm:px-8 sm:pb-8">
           {/* Icon */}
 
           <div
@@ -257,21 +276,38 @@ const FeedbackModal = ({
 
           <h2
             id="feedback-modal-title"
-            className="mt-5 text-xl font-bold text-slate-900"
+            className="
+              mt-6
+              text-center
+              text-xl
+              font-bold
+              tracking-tight
+              text-slate-900
+            "
           >
             {title}
           </h2>
 
           {/* Message */}
 
-          <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-slate-500">
+          <p
+            className="
+              mx-auto
+              mt-3
+              max-w-sm
+              text-center
+              text-sm
+              leading-6
+              text-slate-500
+            "
+          >
             {message}
           </p>
 
           {/* Extra content */}
 
           {children && (
-            <div className="mt-4">
+            <div className="mt-5">
               {children}
             </div>
           )}
@@ -280,7 +316,16 @@ const FeedbackModal = ({
 
           {(primaryAction ||
             secondaryAction) && (
-            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+            <div
+              className="
+                mt-7
+                flex
+                flex-col-reverse
+                gap-3
+                sm:flex-row
+                sm:justify-center
+              "
+            >
               {secondaryAction && (
                 <button
                   type="button"
@@ -288,20 +333,25 @@ const FeedbackModal = ({
                     secondaryAction.onClick
                   }
                   className="
+                    w-full
                     rounded-xl
                     border
-                    border-slate-300
+                    border-slate-200
                     bg-white
                     px-5
                     py-3
                     text-sm
                     font-semibold
                     text-slate-700
+                    shadow-sm
                     transition
+                    duration-150
+                    hover:border-slate-300
                     hover:bg-slate-50
                     focus:outline-none
                     focus:ring-2
                     focus:ring-slate-300
+                    sm:w-auto
                   "
                 >
                   {
@@ -317,15 +367,20 @@ const FeedbackModal = ({
                     primaryAction.onClick
                   }
                   className={`
+                    w-full
                     rounded-xl
                     px-5
                     py-3
                     text-sm
                     font-semibold
                     text-white
+                    shadow-sm
                     transition
+                    duration-150
                     focus:outline-none
                     focus:ring-2
+                    focus:ring-offset-2
+                    sm:w-auto
                     ${currentConfig.button}
                   `}
                 >
@@ -346,15 +401,19 @@ const FeedbackModal = ({
                   type="button"
                   onClick={onClose}
                   className={`
+                    w-full
                     rounded-xl
                     px-6
                     py-3
                     text-sm
                     font-semibold
                     text-white
+                    shadow-sm
                     transition
+                    duration-150
                     focus:outline-none
                     focus:ring-2
+                    focus:ring-offset-2
                     ${currentConfig.button}
                   `}
                 >
@@ -365,6 +424,21 @@ const FeedbackModal = ({
         </div>
       </div>
     </div>
+  );
+
+  /*
+   * =========================
+   * PORTAL
+   * =========================
+   *
+   * Render directly under <body>
+   * so this modal always appears
+   * above other application modals.
+   */
+
+  return createPortal(
+    modal,
+    document.body
   );
 };
 

@@ -8,22 +8,37 @@ import {
   ArrowsRightLeftIcon,
   CheckIcon,
   ArrowRightOnRectangleIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
+
+type UserRole = "CLIENT" | "WORKER";
 
 type ProfileDropdownProps = {
   userName?: string;
-  userRole?: "CLIENT" | "WORKER";
+  userRole?: UserRole;
+  availableRoles?: UserRole[];
 
   onProfileClick?: () => void;
   onVerifyClick?: () => void;
   onSettingsClick?: () => void;
-  onSwitchRole?: () => void;
+
+  /*
+   * Called when the user selects an existing role
+   * or wants to add a missing role.
+   *
+   * The parent component can decide whether this
+   * should call switch-role or add-role.
+   */
+  onSwitchRole?: (role: UserRole) => void;
+
   onLogout?: () => void;
 };
 
 const ProfileDropdown = ({
   userName = "User",
   userRole = "CLIENT",
+  availableRoles = [userRole],
+
   onProfileClick,
   onVerifyClick,
   onSettingsClick,
@@ -37,18 +52,48 @@ const ProfileDropdown = ({
 
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const initials = userName
-    .split(" ")
-    .map((name) => name.charAt(0))
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  /*
+   * Make sure we only work with valid unique roles.
+   */
+  const roles = Array.from(
+    new Set(
+      availableRoles.filter(
+        (role): role is UserRole =>
+          role === "CLIENT" || role === "WORKER"
+      )
+    )
+  );
+
+  /*
+   * Always make sure the current role is represented.
+   */
+  if (!roles.includes(userRole)) {
+    roles.push(userRole);
+  }
+
+  const hasMultipleRoles = roles.length > 1;
+
+  const otherRole: UserRole =
+    userRole === "CLIENT" ? "WORKER" : "CLIENT";
 
   const currentRole =
     userRole === "CLIENT" ? "Client" : "Worker";
 
-  const otherRole =
-    userRole === "CLIENT" ? "Worker" : "Client";
+  const otherRoleLabel =
+    otherRole === "CLIENT" ? "Client" : "Worker";
+
+  /*
+   * If the user has only one role, the missing role
+   * becomes the role they can add to their account.
+   */
+  const missingRole: UserRole | null = hasMultipleRoles
+    ? null
+    : otherRole;
+
+  const missingRoleLabel =
+    missingRole === "CLIENT"
+      ? "Client"
+      : "Worker";
 
   /*
    * Settings route for the currently active role.
@@ -59,16 +104,22 @@ const ProfileDropdown = ({
       : "/worker/dashboard/settings";
 
   /*
-   * Close profile menu when clicking anywhere outside it.
+   * User initials.
+   */
+  const initials = userName
+    .split(" ")
+    .map((name) => name.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  /*
+   * Close profile menu when clicking outside.
    */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
 
-      /*
-       * Clicking anywhere inside the profile component
-       * should NOT close the dropdown.
-       */
       if (
         profileRef.current &&
         profileRef.current.contains(target)
@@ -76,9 +127,6 @@ const ProfileDropdown = ({
         return;
       }
 
-      /*
-       * Clicking anywhere else on the UI closes it.
-       */
       setShowProfileMenu(false);
       setShowRoleSwitcher(false);
     };
@@ -118,13 +166,36 @@ const ProfileDropdown = ({
 
   /*
    * Go to Settings.
-   * Settings opens on the Profile section by default.
    */
   const handleSettingsClick = () => {
     setShowProfileMenu(false);
     setShowRoleSwitcher(false);
 
     navigate(`${settingsBasePath}/profile`);
+  };
+
+  /*
+   * Select an existing role.
+   */
+  const handleSelectRole = (role: UserRole) => {
+    setShowProfileMenu(false);
+    setShowRoleSwitcher(false);
+
+    onSwitchRole?.(role);
+  };
+
+  /*
+   * Add the missing role.
+   *
+   * We still use onSwitchRole here because the parent
+   * will decide whether this action means "add role"
+   * or "switch role".
+   */
+  const handleAddRole = (role: UserRole) => {
+    setShowProfileMenu(false);
+    setShowRoleSwitcher(false);
+
+    onSwitchRole?.(role);
   };
 
   return (
@@ -176,13 +247,9 @@ const ProfileDropdown = ({
 
           <ChevronDownIcon
             className={`
-              h-4 w-4 transition-transform duration-200
-              ${
-                showProfileMenu
-                  ? "rotate-180"
-                  : ""
-              }
-              text-slate-400
+              h-4 w-4 text-slate-400
+              transition-transform duration-200
+              ${showProfileMenu ? "rotate-180" : ""}
             `}
           />
         </div>
@@ -297,7 +364,9 @@ const ProfileDropdown = ({
 
             <div className="my-1 border-t border-slate-100" />
 
-            {/* Switch Role */}
+            {/* =================================================
+                SWITCH / ADD ROLE
+                ================================================= */}
 
             <button
               type="button"
@@ -321,18 +390,16 @@ const ProfileDropdown = ({
               <ArrowsRightLeftIcon className="h-4 w-4 text-slate-400 transition-colors group-hover:text-emerald-600" />
 
               <span className="flex-1 font-medium">
-                Switch role
+                {hasMultipleRoles
+                  ? "Switch role"
+                  : "Add another role"}
               </span>
 
               <ChevronDownIcon
                 className={`
-                  h-4 w-4 transition-transform duration-200
-                  ${
-                    showRoleSwitcher
-                      ? "rotate-180"
-                      : ""
-                  }
-                  text-slate-400
+                  h-4 w-4 text-slate-400
+                  transition-transform duration-200
+                  ${showRoleSwitcher ? "rotate-180" : ""}
                 `}
               />
             </button>
@@ -343,65 +410,121 @@ const ProfileDropdown = ({
 
             {showRoleSwitcher && (
               <div className="border-t border-slate-100 bg-slate-50 px-2 py-2">
-                {/* Current Role */}
+                {/* =================================================
+                    MULTIPLE ROLES
+                    ================================================= */}
 
-                <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
-                    <span className="text-xs font-bold text-white">
-                      {initials}
-                    </span>
-                  </div>
+                {hasMultipleRoles &&
+                  roles.map((role) => {
+                    const roleLabel =
+                      role === "CLIENT"
+                        ? "Client"
+                        : "Worker";
 
-                  <div className="flex-1">
-                    <p className="font-semibold text-slate-900">
-                      {currentRole}
-                    </p>
+                    const isCurrentRole =
+                      role === userRole;
 
-                    <p className="text-xs text-slate-500">
-                      Active
-                    </p>
-                  </div>
+                    return (
+                      <button
+                        key={role}
+                        type="button"
+                        disabled={isCurrentRole}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
 
-                  <CheckIcon className="h-4 w-4 text-emerald-600" />
-                </div>
+                          if (!isCurrentRole) {
+                            handleSelectRole(role);
+                          }
+                        }}
+                        className={`
+                          flex w-full
+                          items-center gap-3
+                          rounded-lg
+                          px-3 py-2.5
+                          text-left text-sm
+                          transition-all duration-150
+                          ${
+                            isCurrentRole
+                              ? "cursor-default bg-white"
+                              : "hover:bg-white active:scale-[0.99]"
+                          }
+                        `}
+                      >
+                        {/* Role icon */}
 
-                {/* Other Role Option */}
+                        <div
+                          className={`
+                            flex h-8 w-8
+                            items-center justify-center
+                            rounded-full
+                            ${
+                              isCurrentRole
+                                ? "bg-emerald-100"
+                                : "bg-slate-200"
+                            }
+                          `}
+                        >
+                          {isCurrentRole ? (
+                            <CheckIcon className="h-4 w-4 text-emerald-600" />
+                          ) : (
+                            <ArrowsRightLeftIcon className="h-4 w-4 text-slate-600" />
+                          )}
+                        </div>
 
-                {onSwitchRole && (
+                        {/* Role information */}
+
+                        <div className="flex-1">
+                          <p className="font-semibold text-slate-900">
+                            {roleLabel}
+                          </p>
+
+                          <p className="text-xs text-slate-500">
+                            {isCurrentRole
+                              ? "Active"
+                              : `Switch to ${roleLabel.toLowerCase()}`}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                {/* =================================================
+                    SINGLE ROLE
+                    ================================================= */}
+
+                {!hasMultipleRoles && missingRole && (
                   <button
                     type="button"
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
 
-                      setShowProfileMenu(false);
-                      setShowRoleSwitcher(false);
-
-                      onSwitchRole();
+                      handleAddRole(missingRole);
                     }}
                     className="
-                      mt-1 flex w-full
+                      flex w-full
                       items-center gap-3
                       rounded-lg
                       px-3 py-2.5
                       text-left text-sm
                       transition-all duration-150
                       hover:bg-white
-                      active:scale-95
+                      active:scale-[0.99]
                     "
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200">
-                      <ArrowsRightLeftIcon className="h-4 w-4 text-slate-600" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50">
+                      <PlusIcon className="h-4 w-4 text-emerald-600" />
                     </div>
 
                     <div className="flex-1">
                       <p className="font-semibold text-slate-900">
-                        {otherRole}
+                        Add {missingRoleLabel} Account
                       </p>
 
                       <p className="text-xs text-slate-500">
-                        Switch to{" "}
-                        {otherRole.toLowerCase()}
+                        Add the {missingRoleLabel.toLowerCase()} role
+                        to this account
                       </p>
                     </div>
                   </button>
@@ -423,6 +546,7 @@ const ProfileDropdown = ({
                   event.stopPropagation();
 
                   setShowProfileMenu(false);
+                  setShowRoleSwitcher(false);
 
                   onLogout();
                 }}

@@ -2,14 +2,19 @@ import { Outlet } from "react-router-dom";
 
 import SettingsSidebar from "./SettingsSidebar/SettingsSidebar";
 
+import { getCurrentUser } from "@/shared/auth";
+
 /* =========================================================
    SETTINGS LAYOUT
    ========================================================= */
 
 const SettingsLayout = () => {
+  const user = getCurrentUser();
+
+  const isWorker = user?.role === "WORKER";
+
   return (
     <div className="flex h-[calc(100vh-80px)] w-full min-w-0 flex-col overflow-hidden">
-
       {/* =====================================================
           PAGE HEADER
       ===================================================== */}
@@ -53,10 +58,8 @@ const SettingsLayout = () => {
             border
             border-slate-200
             bg-white
-            shadow-sm
           "
         >
-
           {/* =================================================
               SETTINGS SIDEBAR
           ================================================= */}
@@ -75,7 +78,7 @@ const SettingsLayout = () => {
               [&::-webkit-scrollbar]:hidden
             "
           >
-            <SettingsSidebar />
+            <SettingsSidebar isWorker={isWorker} />
           </aside>
 
           {/* =================================================
@@ -84,6 +87,7 @@ const SettingsLayout = () => {
 
           <main
             className="
+              min-h-0
               min-w-0
               flex-1
               overflow-y-auto
@@ -96,7 +100,6 @@ const SettingsLayout = () => {
           >
             <Outlet />
           </main>
-
         </div>
       </div>
     </div>
