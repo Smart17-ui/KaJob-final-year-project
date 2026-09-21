@@ -214,3 +214,28 @@ class ReviewService:
             })
 
         return result
+
+    # ============================================
+    # WORKER-SIDE UNRATED JOBS (worker → client)
+    # ============================================
+
+    def get_worker_unrated_jobs(self, worker_id: int) -> List[Dict]:
+        """
+        Get all completed jobs that a worker hasn't reviewed the client for.
+
+        Mirrors `get_unrated_jobs` (client-side) but inverted. The
+        counterparty on the worker side is the client, so we return
+        `client_name` instead of `worker_name`.
+        """
+        jobs = self.review_repo.get_unrated_completed_jobs_for_worker(worker_id)
+
+        result = []
+        for job in jobs:
+            result.append({
+                'job_id': job.id,
+                'job_title': job.title,
+                'client_name': job.client.full_name if job.client else None,
+                'completed_at': job.completed_at,
+            })
+
+        return result

@@ -10,24 +10,28 @@ from apps.reviews.views import (
     MyRatingStatsView,
     JobReviewsView,
     UnratedJobsView,
+    WorkerUnratedJobsView,
 )
 
 urlpatterns = [
     # Create review
     path('create/', CreateReviewView.as_view(), name='review-create'),
-    
+
     # Worker reviews
     path('worker/<int:worker_id>/', WorkerReviewsView.as_view(), name='worker-reviews'),
     path('my-reviews/', MyReviewsView.as_view(), name='my-reviews'),
     path('my-reviews-given/', MyReviewsGivenView.as_view(), name='my-reviews-given'),
-    
+
     # Rating stats
     path('stats/<int:worker_id>/', WorkerRatingStatsView.as_view(), name='worker-rating-stats'),
     path('my-stats/', MyRatingStatsView.as_view(), name='my-rating-stats'),
-    
+
     # Job reviews
     path('job/<int:job_id>/', JobReviewsView.as_view(), name='job-reviews'),
-    
-    # Unrated jobs
+
+    # Unrated jobs — client side
     path('unrated-jobs/', UnratedJobsView.as_view(), name='unrated-jobs'),
+
+    # Unrated jobs — worker side
+    path('worker-unrated-jobs/', WorkerUnratedJobsView.as_view(), name='worker-unrated-jobs'),
 ]

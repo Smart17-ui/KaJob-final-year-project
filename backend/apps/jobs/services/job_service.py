@@ -190,7 +190,7 @@ class JobService:
 
         logger.info(f"Job created: {job.title} by {client.email} (ID: {job.id})")
 
-        # 🆕 Notify nearby available workers (within 1 km)
+        # Notify nearby available workers (within 1 km)
         try:
             from apps.matching.services.matching_service import MatchingService
             from apps.notifications.services import NotificationService
@@ -680,22 +680,48 @@ class JobService:
     # ============================================
 
     def get_job_for_worker(self, job_id: int, worker_id: int) -> Dict[str, Any]:
-        """Get job details for a worker with conditional disclosure."""
+        """
+        Get job details for a worker with conditional disclosure.
+
+        Rules:
+        - Assigned workers (any past/present assignment) can view
+          COMPLETED and CANCELLED jobs — they still need the details
+          for reviews.
+        - Everyone else is blocked once the job is COMPLETED or CANCELLED.
+        - On currently assigned jobs, only the assigned worker is allowed.
+        """
         job = self.get_job_by_id(job_id)
 
-        if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
-            raise BusinessRuleViolation("This job is no longer available.")
-
+        # Was this worker assigned to this job? Check first so the
+        # completed/cancelled guard can let them through.
         is_assigned = JobAssignment.objects.filter(
             job=job,
             worker_id=worker_id,
-            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
+            status__in=[
+                AssignmentStatus.ACTIVE,
+                AssignmentStatus.IN_PROGRESS,
+                AssignmentStatus.COMPLETED,
+                AssignmentStatus.CANCELLED,
+            ],
         ).exists()
 
+        # Assigned workers can view their completed/cancelled jobs.
+        # Everyone else is blocked once the job is no longer active.
+        if (
+            job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]
+            and not is_assigned
+        ):
+            raise BusinessRuleViolation("This job is no longer available.")
+
+        # If the job is currently assigned to someone, only that
+        # worker can view it. Unrelated workers get blocked.
         if job.status in [JobStatus.ASSIGNED, JobStatus.IN_PROGRESS]:
             has_active_assignment = JobAssignment.objects.filter(
                 job=job,
-                status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
+                status__in=[
+                    AssignmentStatus.ACTIVE,
+                    AssignmentStatus.IN_PROGRESS,
+                ],
             ).exists()
 
             if has_active_assignment and not is_assigned:
@@ -705,7 +731,7 @@ class JobService:
 
         application = JobApplication.objects.filter(
             job=job,
-            worker_id=worker_id
+            worker_id=worker_id,
         ).first()
 
         return {
