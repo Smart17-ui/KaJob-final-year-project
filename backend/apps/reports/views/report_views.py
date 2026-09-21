@@ -4,18 +4,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from django.shortcuts import get_object_or_404
 
 from apps.common.permissions import IsAdmin, IsActiveUser
-from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
 from apps.reports.models import Report, Investigation
 
 
 class AdminReportListView(APIView):
-    """
-    GET /api/admin/reports/
-    Get all reports with optional filters (Admin only).
-    """
+    """GET /api/reports/admin/"""
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
     def get(self, request):
@@ -42,10 +37,7 @@ class AdminReportListView(APIView):
 
 
 class AdminReportDetailView(APIView):
-    """
-    GET /api/admin/reports/{id}/
-    Get report details with investigation (Admin only).
-    """
+    """GET /api/reports/admin/{id}/"""
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
     def get(self, request, report_id):
@@ -61,15 +53,12 @@ class AdminReportDetailView(APIView):
         except Report.DoesNotExist:
             return Response(
                 {'error': 'Report not found.'},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
 
 class AdminReportStartInvestigationView(APIView):
-    """
-    POST /api/admin/reports/{id}/investigate/
-    Start investigation for a report (Admin only).
-    """
+    """POST /api/reports/admin/{id}/investigate/"""
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
     def post(self, request, report_id):
@@ -78,19 +67,21 @@ class AdminReportStartInvestigationView(APIView):
         except Report.DoesNotExist:
             return Response(
                 {'error': 'Report not found.'},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        if report.status in ['UNDER_INVESTIGATION', 'RESOLVED', 'ESCALATED_TO_POLICE']:
+        if report.status in [
+            'UNDER_INVESTIGATION', 'RESOLVED', 'ESCALATED_TO_POLICE'
+        ]:
             return Response(
                 {'error': f'Report is already {report.status}.'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if hasattr(report, 'investigation'):
             return Response(
                 {'error': 'Investigation already started for this report.'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         investigation = Investigation.objects.create(
@@ -117,7 +108,6 @@ class AdminReportStartInvestigationView(APIView):
         )
 
         from apps.reports.serializers import InvestigationSerializer
-
         return Response({
             'message': f'Investigation started for report {report.reference_number}.',
             'investigation': InvestigationSerializer(investigation).data,
@@ -125,10 +115,7 @@ class AdminReportStartInvestigationView(APIView):
 
 
 class AdminReportResolveView(APIView):
-    """
-    POST /api/admin/reports/{id}/resolve/
-    Resolve a report with a decision (Admin only).
-    """
+    """POST /api/reports/admin/{id}/resolve/"""
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
     def post(self, request, report_id):
@@ -138,7 +125,7 @@ class AdminReportResolveView(APIView):
         if not decision:
             return Response(
                 {'error': 'Decision is required.'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
@@ -146,35 +133,33 @@ class AdminReportResolveView(APIView):
         except Report.DoesNotExist:
             return Response(
                 {'error': 'Report not found.'},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         if report.status != 'UNDER_INVESTIGATION':
             return Response(
                 {'error': 'Report must be under investigation to resolve.'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not hasattr(report, 'investigation'):
             return Response(
                 {'error': 'No investigation found for this report.'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Validate decision against policy BEFORE saving
         from apps.common.policies import is_valid_decision, allowed_decisions_for
         if not is_valid_decision(report.category, decision):
             allowed = ", ".join(allowed_decisions_for(report.category))
             return Response(
                 {'error': f'Decision "{decision}" is not allowed for category '
                           f'"{report.category}". Allowed: {allowed}'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         investigation = report.investigation
         investigation.complete(decision, decision_notes)
 
-        # Apply disciplinary action
         from apps.reports.services.disciplinary_service import DisciplinaryService
         try:
             DisciplinaryService.apply_decision(report, investigation, request.user)
@@ -199,7 +184,6 @@ class AdminReportResolveView(APIView):
         )
 
         from apps.reports.serializers import ReportDetailSerializer
-
         return Response({
             'message': f'Report {report.reference_number} has been resolved.',
             'report': ReportDetailSerializer(report).data,
@@ -207,10 +191,7 @@ class AdminReportResolveView(APIView):
 
 
 class AdminReportEvidenceView(APIView):
-    """
-    GET /api/admin/reports/{id}/evidence/
-    Evidence has been removed. Kept as a stub so existing URLs don't break.
-    """
+    """GET /api/reports/admin/{id}/evidence/ — stub."""
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
     def get(self, request, report_id):
@@ -223,10 +204,7 @@ class AdminReportEvidenceView(APIView):
 
 
 class AdminReportStatsView(APIView):
-    """
-    GET /api/admin/reports/stats/
-    Get report statistics (Admin only).
-    """
+    """GET /api/reports/admin/stats/"""
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
     def get(self, request):
