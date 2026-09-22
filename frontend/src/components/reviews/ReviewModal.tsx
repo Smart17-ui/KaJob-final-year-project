@@ -11,8 +11,9 @@ import { createReview } from "../services/reviewService";
 interface ReviewModalProps {
   isOpen: boolean;
   jobId: number;
-  workerId: number;
-  workerName: string;
+  revieweeId: number;
+  revieweeName: string;
+  revieweeRole: "worker" | "client";
   jobTitle?: string;
   onClose: () => void;
   onSuccess?: () => void;
@@ -21,8 +22,9 @@ interface ReviewModalProps {
 const ReviewModal = ({
   isOpen,
   jobId,
-  workerId,
-  workerName,
+  revieweeId,
+  revieweeName,
+  revieweeRole,
   jobTitle,
   onClose,
   onSuccess,
@@ -32,6 +34,8 @@ const ReviewModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  const isClientReview = revieweeRole === "client";
 
   useEffect(() => {
     if (!isOpen) {
@@ -80,7 +84,7 @@ const ReviewModal = ({
 
       await createReview({
         job_id: jobId,
-        reviewee_id: workerId,
+        reviewee_id: revieweeId,
         rating,
         comment: comment.trim(),
       });
@@ -111,6 +115,18 @@ const ReviewModal = ({
 
     onClose();
   };
+
+  const experienceQuestion = isClientReview
+    ? "How was your experience with this client?"
+    : "How was your experience with this worker?";
+
+  const ratingDescription = isClientReview
+    ? `Rate your experience with ${revieweeName}.`
+    : `Rate the work completed by ${revieweeName}.`;
+
+  const completedByLabel = isClientReview
+    ? "Job for"
+    : "Completed by";
 
   return (
     <div
@@ -223,9 +239,9 @@ const ReviewModal = ({
                   </p>
 
                   <p className="mt-0.5 truncate text-xs text-slate-500">
-                    Completed by{" "}
+                    {completedByLabel}{" "}
                     <span className="font-medium text-slate-700">
-                      {workerName}
+                      {revieweeName}
                     </span>
                   </p>
                 </div>
@@ -234,11 +250,11 @@ const ReviewModal = ({
               {/* Rating */}
               <div className="mt-5 text-center">
                 <h3 className="text-sm font-semibold text-slate-900">
-                  How was your experience?
+                  {experienceQuestion}
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Rate the work completed by {workerName}.
+                  {ratingDescription}
                 </p>
 
                 <div className="mt-3 flex justify-center">

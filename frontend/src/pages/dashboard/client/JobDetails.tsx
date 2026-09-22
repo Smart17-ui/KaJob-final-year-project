@@ -4,11 +4,15 @@ import {
   CalendarDaysIcon,
   ClockIcon,
   CurrencyDollarIcon,
+  EnvelopeIcon,
   ExclamationCircleIcon,
   ExclamationTriangleIcon,
   MapPinIcon,
+  PhoneIcon,
+  ShieldCheckIcon,
   StarIcon,
   TrashIcon,
+  UserCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
@@ -79,7 +83,7 @@ const JobDetails = () => {
 
   const getStatusLabel = (
     status: string,
-    statusDisplay?: string
+    statusDisplay?: string | null
   ) => {
     if (statusDisplay) {
       return statusDisplay;
@@ -390,10 +394,45 @@ const JobDetails = () => {
     getStatusClass(job.status);
 
   /*
-   * Completed jobs are intentionally
-   * kept in the client's job history
-   * and cannot be deleted from the UI.
+   * =========================
+   * ASSIGNED WORKER
+   *
+   * The general job endpoint provides
+   * the assigned worker profile inside
+   * job.worker.
+   * =========================
    */
+
+  const worker =
+    job.worker ?? null;
+
+  const workerName =
+    worker?.full_name ||
+    "Worker";
+
+  const workerEmail =
+    worker?.email ||
+    null;
+
+  const workerPhone =
+    worker?.phone_number ||
+    null;
+
+  const workerRating =
+    worker?.rating ?? null;
+
+  const workerReviewsCount =
+    worker?.reviews_count ?? 0;
+
+  const workerIsVerified =
+    worker?.is_verified === true;
+
+  /*
+   * =========================
+   * JOB ACTIONS
+   * =========================
+   */
+
   const canDelete =
     job.status === "OPEN" ||
     job.status === "CANCELLED";
@@ -736,7 +775,8 @@ const JobDetails = () => {
                 </p>
 
                 <p className="mt-1 text-sm font-medium text-gray-800">
-                  {job.job_time ||
+                  {job.job_display_time ||
+                    job.job_time ||
                     "Flexible"}
                 </p>
               </div>
@@ -793,6 +833,220 @@ const JobDetails = () => {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* =====================================
+            WORKER INFORMATION
+        ===================================== */}
+
+        <section
+          className="
+            rounded-2xl
+            border
+            border-gray-200
+            bg-white
+            p-6
+            shadow-sm
+          "
+        >
+          <div
+            className="
+              flex
+              flex-col
+              gap-4
+              sm:flex-row
+              sm:items-start
+              sm:justify-between
+            "
+          >
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Worker information
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Information about the worker assigned to this job.
+              </p>
+            </div>
+
+            {worker &&
+              workerIsVerified && (
+                <span
+                  className="
+                    inline-flex
+                    w-fit
+                    items-center
+                    gap-1.5
+                    rounded-full
+                    bg-green-50
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-semibold
+                    text-green-700
+                    ring-1
+                    ring-inset
+                    ring-green-200
+                  "
+                >
+                  <ShieldCheckIcon className="h-4 w-4" />
+
+                  Verified Worker
+                </span>
+              )}
+          </div>
+
+          {!worker ? (
+            <div
+              className="
+                mt-6
+                rounded-xl
+                border
+                border-dashed
+                border-gray-300
+                bg-gray-50
+                px-6
+                py-10
+                text-center
+              "
+            >
+              <UserCircleIcon className="mx-auto h-10 w-10 text-gray-300" />
+
+              <p className="mt-3 text-sm font-semibold text-gray-700">
+                No worker assigned
+              </p>
+
+              <p className="mt-1 text-sm text-gray-500">
+                A worker's information will appear here once you assign a worker to this job.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-6 sm:grid-cols-2">
+              {/* WORKER NAME */}
+
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                  <UserCircleIcon className="h-5 w-5 text-gray-600" />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Name
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {workerName}
+                  </p>
+                </div>
+              </div>
+
+              {/* RATING */}
+
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-50">
+                  <StarIcon className="h-5 w-5 text-yellow-500" />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Rating
+                  </p>
+
+                  <div className="mt-1 flex items-center gap-2">
+                    {workerRating !== null ? (
+                      <>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {Number(
+                            workerRating
+                          ).toFixed(1)}
+                        </span>
+
+                        <span className="text-sm text-gray-500">
+                          ({workerReviewsCount}{" "}
+                          {workerReviewsCount === 1
+                            ? "review"
+                            : "reviews"})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-gray-500">
+                        No rating yet
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* EMAIL */}
+
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                  <EnvelopeIcon className="h-5 w-5 text-blue-600" />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Email
+                  </p>
+
+                  {workerEmail ? (
+                    <a
+                      href={`mailto:${workerEmail}`}
+                      className="
+                        mt-1
+                        block
+                        truncate
+                        text-sm
+                        font-medium
+                        text-gray-800
+                        hover:text-green-600
+                      "
+                    >
+                      {workerEmail}
+                    </a>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-500">
+                      Not available
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* PHONE */}
+
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50">
+                  <PhoneIcon className="h-5 w-5 text-green-600" />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Phone
+                  </p>
+
+                  {workerPhone ? (
+                    <a
+                      href={`tel:${workerPhone}`}
+                      className="
+                        mt-1
+                        block
+                        text-sm
+                        font-medium
+                        text-gray-800
+                        hover:text-green-600
+                      "
+                    >
+                      {workerPhone}
+                    </a>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-500">
+                      Not available
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* =====================================
@@ -914,7 +1168,8 @@ const JobDetails = () => {
                     >
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {review.reviewer_name}
+                          {review.reviewer_name ||
+                            "User"}
                         </p>
 
                         <div className="mt-1 flex items-center gap-1">
@@ -935,17 +1190,18 @@ const JobDetails = () => {
                           )}
 
                           <span className="ml-1 text-xs text-gray-500">
-                            {
-                              review.rating_display
-                            }
+                            {review.rating_display ||
+                              `${review.rating}/5`}
                           </span>
                         </div>
                       </div>
 
                       <p className="text-xs text-gray-400">
-                        {new Date(
-                          review.created_at
-                        ).toLocaleDateString()}
+                        {review.created_at
+                          ? new Date(
+                              review.created_at
+                            ).toLocaleDateString()
+                          : ""}
                       </p>
                     </div>
 

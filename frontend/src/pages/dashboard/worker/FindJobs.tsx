@@ -1,3 +1,4 @@
+
 import {
   useCallback,
   useEffect,
@@ -1696,11 +1697,10 @@ export default function FindJobs() {
               ? `You already have an active job: "${activeJob.title}". Complete your current job before applying for another job.`
               : "You already have an active job. Complete your current job before applying for another one."
           }
-          onClose={() =>
-            setShowActiveJobPopup(
-              false
-            )
-          }
+          onClose={() => {
+            setShowActiveJobPopup(false);
+            navigate(-1);
+          }}
         />
 
         {/* GENERAL FEEDBACK */}

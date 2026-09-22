@@ -9,6 +9,111 @@ const API_BASE_URL =
 
 /*
  * =========================
+ * WORKER DETAILS TYPE
+ * =========================
+ *
+ * Response from:
+ *
+ * GET /api/workers/{workerId}/
+ *
+ * Used by the client when viewing
+ * an applicant's worker profile.
+ */
+
+export type WorkerDetails = {
+  id: number;
+  full_name: string;
+  email: string | null;
+  phone_number: string | null;
+  bio: string;
+  average_rating: number | string;
+  total_reviews: number;
+  jobs_completed: number;
+  skills: string[];
+  availability_status: string;
+  profile_photo: string | null;
+  location: {
+    latitude: number;
+    longitude: number;
+  } | null;
+  recent_reviews: {
+    rating: number;
+    comment: string;
+    reviewer_name: string;
+    created_at: string;
+  }[];
+  verified: boolean;
+  member_since: string | null;
+};
+
+/*
+ * =========================
+ * GET WORKER DETAILS
+ * =========================
+ *
+ * GET /api/workers/{workerId}/
+ *
+ * Gets the complete worker profile
+ * for a specific worker.
+ *
+ * This is used by the client when
+ * viewing an applicant before deciding
+ * whether to accept or reject them.
+ */
+
+export async function getWorkerDetails(
+  workerId: number
+): Promise<WorkerDetails> {
+  const accessToken =
+    localStorage.getItem("access_token");
+
+  if (!accessToken) {
+    throw new Error(
+      "You are not authenticated. Please log in."
+    );
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/workers/${workerId}/`,
+    {
+      method: "GET",
+
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  let result: any = null;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      "The server returned an invalid response."
+    );
+  }
+
+  if (!response.ok) {
+    if (result?.error) {
+      throw new Error(result.error);
+    }
+
+    if (result?.detail) {
+      throw new Error(result.detail);
+    }
+
+    throw new Error(
+      "Failed to load worker details."
+    );
+  }
+
+  return result as WorkerDetails;
+}
+
+/*
+ * =========================
  * GET JOB APPLICATIONS
  * =========================
  *

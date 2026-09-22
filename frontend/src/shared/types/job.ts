@@ -79,6 +79,30 @@ export interface SkillOption {
 }
 
 /* =========================================================
+   CLIENT PROFILE
+   ========================================================= */
+
+export interface JobClient {
+  id: number;
+
+  full_name: string | null;
+
+  email: string | null;
+
+  phone_number: string | null;
+
+  is_verified: boolean;
+
+  rating: number | string | null;
+
+  reviews_count: number | null;
+
+  jobs_posted: number | null;
+
+  member_since: string | null;
+}
+
+/* =========================================================
    JOB
    ========================================================= */
 
@@ -86,55 +110,130 @@ export interface Job {
   id: number;
 
   title: string;
+
   description: string;
 
   budget: number | string;
 
-  category_id?: number;
-  category_name?: string;
+  category_id?: number | null;
 
-  general_location?: string;
-  exact_location?: string;
+  category_name?: string | null;
 
-  latitude?: number | null;
-  longitude?: number | null;
-  location_accuracy?: number | null;
+  general_location?: string | null;
+
+  exact_location?: string | null;
+
+  location_display?: string | null;
+
+  latitude?: number | string | null;
+
+  longitude?: number | string | null;
+
+  location_accuracy?: number | string | null;
 
   job_date?: string | null;
+
   job_time?: string | null;
 
   duration_hours?: number | string | null;
 
+  timeframe?: string | null;
+
+  timeframe_display?: string | null;
+
   urgency?: Urgency;
-  urgency_display?: string;
+
+  urgency_display?: string | null;
 
   is_flexible?: boolean;
 
   required_skills?: string[];
 
   status: JobStatus;
-  status_display?: string;
 
-  client_id?: number;
-  client_name?: string;
-  client_email?: string;
-  client_phone?: string;
+  status_display?: string | null;
+
+  /*
+   * ---------------------------------------------------------
+   * CLIENT
+   * ---------------------------------------------------------
+   *
+   * The general job-details endpoint now returns both the
+   * simple client fields and the complete nested client
+   * profile.
+   */
+
+  client_id?: number | null;
+
+  client_name?: string | null;
+
+  client_email?: string | null;
+
+  client_phone?: string | null;
+
+  client?: JobClient | null;
+
+  /*
+   * ---------------------------------------------------------
+   * WORKER
+   * ---------------------------------------------------------
+   */
 
   worker_id?: number | null;
+
   worker_name?: string | null;
 
-  posted_at?: string;
-  updated_at?: string;
+  worker?: Worker | null;
+
+  /*
+   * ---------------------------------------------------------
+   * DATES
+   * ---------------------------------------------------------
+   */
+
+  posted_at?: string | null;
+
+  created_at?: string | null;
+
+  updated_at?: string | null;
+
+  assigned_at?: string | null;
+
+  /*
+   * ---------------------------------------------------------
+   * DISPLAY / STATUS HELPERS
+   * ---------------------------------------------------------
+   */
 
   is_urgent?: boolean;
 
-  job_display_date?: string;
+  job_display_date?: string | null;
 
-  search_radius_km?: number;
+  job_display_time?: string | null;
+
+  assignment_status?: string | null;
+
+  application_status?: ApplicationStatus | string | null;
+
+  /*
+   * ---------------------------------------------------------
+   * LOCATION / MAP
+   * ---------------------------------------------------------
+   */
+
+  search_radius_km?: number | null;
 
   map_url?: string | null;
+
   directions_url?: string | null;
+
   place_id?: string | null;
+
+  /*
+   * ---------------------------------------------------------
+   * ACCESS
+   * ---------------------------------------------------------
+   */
 
   can_view_full_details?: boolean;
 }
@@ -151,7 +250,9 @@ export type MyJob = Job;
 
 export interface CreateJobData {
   title: string;
+
   description: string;
+
   budget: number;
 
   category_id: number;
@@ -159,9 +260,11 @@ export interface CreateJobData {
   general_location: string;
 
   latitude?: number | null;
+
   longitude?: number | null;
 
   job_date: string;
+
   job_time?: string;
 
   is_flexible: boolean;
@@ -179,6 +282,7 @@ export interface CreateJobData {
 
 export interface CreateJobResponse {
   message?: string;
+
   job: Job;
 }
 
@@ -188,7 +292,9 @@ export interface CreateJobResponse {
 
 export interface UpdateJobData {
   title?: string;
+
   description?: string;
+
   budget?: number;
 
   category_id?: number;
@@ -196,9 +302,11 @@ export interface UpdateJobData {
   general_location?: string;
 
   latitude?: number | null;
+
   longitude?: number | null;
 
   job_date?: string;
+
   job_time?: string;
 
   is_flexible?: boolean;
@@ -216,6 +324,7 @@ export interface UpdateJobData {
 
 export interface JobResponse {
   message?: string;
+
   job: Job;
 }
 
@@ -264,6 +373,8 @@ export interface JobReview {
 
   rating: number;
 
+  rating_display?: string;
+
   comment?: string;
 
   created_at?: string;
@@ -286,7 +397,7 @@ export interface JobReviewsResponse {
 export interface WorkerJobResponse {
   job: Job;
 
-  can_view_full_details: boolean;
+  can_view_full_details?: boolean;
 
   assignment_status?: string | null;
 

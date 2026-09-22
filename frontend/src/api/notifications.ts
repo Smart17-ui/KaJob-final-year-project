@@ -1,5 +1,3 @@
-// frontend/src/api/notifications.ts
-
 import apiClient from "@/api/client";
 
 /* =========================================================
@@ -36,6 +34,10 @@ export type MarkReadResponse = {
 export type MarkAllReadResponse = {
   message: string;
   count: number;
+};
+
+export type DeleteNotificationResponse = {
+  message: string;
 };
 
 export type DeleteAllNotificationsResponse = {
@@ -93,7 +95,9 @@ export const markNotificationAsRead = async (
 ): Promise<MarkReadResponse> => {
   return (await apiClient(
     `/notifications/${notificationId}/read/`,
-    { method: "POST" }
+    {
+      method: "POST",
+    }
   )) as MarkReadResponse;
 };
 
@@ -106,7 +110,9 @@ export const markAllNotificationsAsRead =
   async (): Promise<MarkAllReadResponse> => {
     return (await apiClient(
       "/notifications/mark-all-read/",
-      { method: "POST" }
+      {
+        method: "POST",
+      }
     )) as MarkAllReadResponse;
   };
 
@@ -123,6 +129,23 @@ export const getUnreadNotificationCount =
   };
 
 /**
+ * Delete one notification.
+ *
+ * Backend:
+ * DELETE /api/notifications/{id}/delete/
+ */
+export const deleteNotification = async (
+  notificationId: number
+): Promise<DeleteNotificationResponse> => {
+  return (await apiClient(
+    `/notifications/${notificationId}/delete/`,
+    {
+      method: "DELETE",
+    }
+  )) as DeleteNotificationResponse;
+};
+
+/**
  * Delete all notifications.
  *
  * Backend: DELETE /api/notifications/delete-all/
@@ -131,7 +154,9 @@ export const deleteAllNotifications =
   async (): Promise<DeleteAllNotificationsResponse> => {
     return (await apiClient(
       "/notifications/delete-all/",
-      { method: "DELETE" }
+      {
+        method: "DELETE",
+      }
     )) as DeleteAllNotificationsResponse;
   };
 

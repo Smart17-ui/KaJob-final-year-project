@@ -370,6 +370,8 @@ class JobDetailSerializer(serializers.ModelSerializer):
     # Nested detail objects
     client = serializers.SerializerMethodField()
     worker = serializers.SerializerMethodField()
+    worker_has_reviewed_client = serializers.SerializerMethodField()
+    client_has_reviewed_worker = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
@@ -384,6 +386,8 @@ class JobDetailSerializer(serializers.ModelSerializer):
             'client_phone',
             'client_email',
             'client',
+            'worker_has_reviewed_client',
+            'client_has_reviewed_worker',
 
             # Worker — flat (backward-compat) + nested
             'assigned_worker_name',
@@ -443,6 +447,42 @@ class JobDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         return build_worker_payload(obj, user)
+
+    def get_worker_has_reviewed_client(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        if not user or not user.is_authenticated or not obj.client_id:
+            return False
+
+        from apps.reviews.models import Review
+
+        return Review.objects.filter(
+            job=obj,
+            reviewer_id=user.id,
+            reviewee_id=obj.client_id,
+        ).exists()
+
+
+    def get_client_has_reviewed_worker(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        if not user or not user.is_authenticated:
+           return False
+
+        assignment = _job_has_assignment(obj)
+
+        if not assignment or not assignment.worker_id:
+           return False
+
+        from apps.reviews.models import Review
+
+        return Review.objects.filter(
+            job=obj,
+            reviewer_id=user.id,
+            reviewee_id=assignment.worker_id,
+        ).exists()
 
     # ---------- Flat legacy fields ----------
 
@@ -716,6 +756,7 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     # Nested detail objects
     client = serializers.SerializerMethodField()
     worker = serializers.SerializerMethodField()
+    worker_has_reviewed_client = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
@@ -730,6 +771,7 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
             'client_name',
             'client_phone',
             'client',
+            'worker_has_reviewed_client',
 
             # Worker — nested
             'worker',
@@ -790,8 +832,10 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     def _request_user(self):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
+
         if user is None and self.worker_id:
             user = User.objects.filter(id=self.worker_id).first()
+
         return user
 
     def get_client(self, obj):
@@ -800,13 +844,29 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     def get_worker(self, obj):
         return build_worker_payload(obj, self._request_user())
 
+    def get_worker_has_reviewed_client(self, obj):
+        if not self.worker_id or not obj.client_id:
+            return False
+
+        from apps.reviews.models import Review
+
+        return Review.objects.filter(
+            job=obj,
+            reviewer_id=self.worker_id,
+            reviewee_id=obj.client_id,
+        ).exists()
+
     # ---------- Conditional disclosure for location / contact ----------
 
     def _can_view_full_details(self, obj) -> bool:
         if not self.worker_id:
             return False
+
         if not hasattr(self, '_cached_can_view'):
-            self._cached_can_view = obj.can_view_full_details(self.worker_id)
+            self._cached_can_view = obj.can_view_full_details(
+                self.worker_id
+            )
+
         return self._cached_can_view
 
     def get_client_name(self, obj):
@@ -820,20 +880,37 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
         return None
 
     def get_exact_location(self, obj):
-        return obj.exact_location if self._can_view_full_details(obj) else None
+        return (
+            obj.exact_location
+            if self._can_view_full_details(obj)
+            else None
+        )
 
     def get_map_url(self, obj):
-        return obj.map_url if self._can_view_full_details(obj) else None
+        return (
+            obj.map_url
+            if self._can_view_full_details(obj)
+            else None
+        )
 
     def get_directions_url(self, obj):
-        return obj.directions_url if self._can_view_full_details(obj) else None
+        return (
+            obj.directions_url
+            if self._can_view_full_details(obj)
+            else None
+        )
 
     def get_place_id(self, obj):
-        return obj.place_id if self._can_view_full_details(obj) else None
+        return (
+            obj.place_id
+            if self._can_view_full_details(obj)
+            else None
+        )
 
     def get_location_display(self, obj):
         if self._can_view_full_details(obj):
             return obj.exact_location or obj.general_location
+
         return obj.general_location
 
     def get_can_view_full_details(self, obj):
@@ -842,20 +919,26 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     def get_assignment_status(self, obj):
         if not self.worker_id:
             return None
+
         return obj.get_worker_assignment_status(self.worker_id)
 
     def get_application_status(self, obj):
         if not self.worker_id:
             return None
+
         return obj.get_worker_application_status(self.worker_id)
 
     def get_assigned_at(self, obj):
         if not self.worker_id:
             return None
+
         from apps.jobs.models import JobAssignment
+
         assignment = JobAssignment.objects.filter(
-            job=obj, worker_id=self.worker_id
+            job=obj,
+            worker_id=self.worker_id
         ).first()
+
         return assignment.assigned_at if assignment else None
 
     # ---------- Regular fields ----------

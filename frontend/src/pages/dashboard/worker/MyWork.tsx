@@ -5,7 +5,6 @@ import {
   ClockIcon,
   MapPinIcon,
   PlayIcon,
-  UserCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 
@@ -20,8 +19,8 @@ import {
 } from "react-router-dom";
 
 import {
+  getJobById,
   getMyJobs,
-  getWorkerJobDetails,
   markJobComplete,
   startJob,
 } from "@/api/jobs";
@@ -32,8 +31,6 @@ import type {
 } from "@/shared/types/job";
 
 import ReviewModal from "@/components/reviews/ReviewModal";
-
-import ClientDetailsModal from "./Directions/components/ClientDetailsModal";
 
 /* =========================================================
    WORK STATUS
@@ -62,6 +59,7 @@ type Work = {
   id: number;
   job: Job;
   status: WorkStatus;
+  workerHasReviewedClient: boolean;
 };
 
 /* =========================================================
@@ -73,6 +71,26 @@ type ReviewJob = {
   clientId: number;
   clientName: string;
   jobTitle: string;
+};
+
+/* =========================================================
+   FULL JOB CLIENT TYPE
+========================================================= */
+
+type JobWithClient = Job & {
+  client?: {
+    id: number;
+    full_name?: string;
+    email?: string;
+    phone_number?: string;
+    is_verified?: boolean;
+    rating?: number;
+    reviews_count?: number;
+    jobs_posted?: number;
+    member_since?: string;
+  };
+
+  worker_has_reviewed_client?: boolean;
 };
 
 /* =========================================================
@@ -242,7 +260,8 @@ const formatDuration = (
 ========================================================= */
 
 const mapJobToWork = (
-  job: Job
+  job: Job,
+  workerHasReviewedClient = false
 ): Work => {
   return {
     id: job.id,
@@ -250,6 +269,7 @@ const mapJobToWork = (
     status: getWorkStatus(
       job.status
     ),
+    workerHasReviewedClient,
   };
 };
 
@@ -281,15 +301,6 @@ const MyWork = () => {
     useState<string | null>(null);
 
   const [actionSuccess, setActionSuccess] =
-    useState<string | null>(null);
-
-  const [selectedClient, setSelectedClient] =
-    useState<Work | null>(null);
-
-  const [clientDetailsLoading, setClientDetailsLoading] =
-    useState(false);
-
-  const [clientDetailsError, setClientDetailsError] =
     useState<string | null>(null);
 
   /* =======================================================
@@ -332,10 +343,70 @@ const MyWork = () => {
           )
         );
 
+      /*
+       * The My Jobs list endpoint does not contain
+       * worker_has_reviewed_client.
+       *
+       * For completed jobs, fetch:
+       *
+       * GET /api/jobs/{job_id}/
+       *
+       * The normal job detail endpoint is now
+       * the source of the worker's persistent
+       * review status.
+       */
+      const mappedWorks =
+        await Promise.all(
+          workerJobs.map(
+            async (job) => {
+              if (
+                job.status !==
+                "COMPLETED"
+              ) {
+                return mapJobToWork(
+                  job,
+                  false
+                );
+              }
+
+              try {
+                const detailResponse =
+                  await getJobById(
+                    job.id
+                  );
+
+                const detailedJob =
+                  detailResponse?.job as
+                    | JobWithClient
+                    | undefined;
+
+                return mapJobToWork(
+                  job,
+                  Boolean(
+                    detailedJob?.worker_has_reviewed_client
+                  )
+                );
+              } catch (detailError) {
+                /*
+                 * Keep the completed job visible
+                 * even if the detail request fails.
+                 */
+                console.error(
+                  `Failed to load review status for job ${job.id}:`,
+                  detailError
+                );
+
+                return mapJobToWork(
+                  job,
+                  false
+                );
+              }
+            }
+          )
+        );
+
       setWorks(
-        workerJobs.map(
-          mapJobToWork
-        )
+        mappedWorks
       );
     } catch (err) {
       console.error(
@@ -369,13 +440,6 @@ const MyWork = () => {
         const jobs =
           response?.results ?? [];
 
-        /*
-         * IMPORTANT:
-         * CANCELLED is deliberately included.
-         *
-         * The worker should keep a cancelled
-         * assignment in their history.
-         */
         const workerJobs =
           jobs.filter((job) =>
             WORK_JOB_STATUSES.includes(
@@ -383,10 +447,64 @@ const MyWork = () => {
             )
           );
 
+        /*
+         * Fetch review status for completed jobs
+         * using the normal job details endpoint:
+         *
+         * GET /api/jobs/{job_id}/
+         */
+        const mappedWorks =
+          await Promise.all(
+            workerJobs.map(
+              async (job) => {
+                if (
+                  job.status !==
+                  "COMPLETED"
+                ) {
+                  return mapJobToWork(
+                    job,
+                    false
+                  );
+                }
+
+                try {
+                  const detailResponse =
+                    await getJobById(
+                      job.id
+                    );
+
+                  const detailedJob =
+                    detailResponse?.job as
+                      | JobWithClient
+                      | undefined;
+
+                  return mapJobToWork(
+                    job,
+                    Boolean(
+                      detailedJob?.worker_has_reviewed_client
+                    )
+                  );
+                } catch (detailError) {
+                  console.error(
+                    `Failed to load review status for job ${job.id}:`,
+                    detailError
+                  );
+
+                  return mapJobToWork(
+                    job,
+                    false
+                  );
+                }
+              }
+            )
+          );
+
+        if (!mounted) {
+          return;
+        }
+
         setWorks(
-          workerJobs.map(
-            mapJobToWork
-          )
+          mappedWorks
         );
       } catch (err) {
         console.error(
@@ -438,73 +556,6 @@ const MyWork = () => {
   };
 
   /* =======================================================
-     VIEW CLIENT DETAILS
-  ======================================================= */
-
-  const handleViewClient = async (
-    work: Work
-  ) => {
-    /*
-     * Cancelled jobs should not open
-     * client details.
-     */
-    if (work.status === "Cancelled") {
-      return;
-    }
-
-    try {
-      setClientDetailsLoading(true);
-      setClientDetailsError(null);
-
-      const response =
-        await getWorkerJobDetails(
-          work.id
-        );
-
-      const detailedJob =
-        response?.job;
-
-      if (!detailedJob) {
-        throw new Error(
-          "The server did not return the job details."
-        );
-      }
-
-      const detailedWork: Work = {
-        id: detailedJob.id,
-        job: detailedJob,
-        status: getWorkStatus(
-          detailedJob.status
-        ),
-      };
-
-      setSelectedClient(
-        detailedWork
-      );
-    } catch (err) {
-      console.error(
-        "Failed to load client details:",
-        err
-      );
-
-      setClientDetailsError(
-        "We couldn't load the client details. Please try again."
-      );
-    } finally {
-      setClientDetailsLoading(false);
-    }
-  };
-
-  const handleCloseClientDetails = () => {
-    if (clientDetailsLoading) {
-      return;
-    }
-
-    setSelectedClient(null);
-    setClientDetailsError(null);
-  };
-
-  /* =======================================================
      RATE CLIENT
   ======================================================= */
 
@@ -513,11 +564,16 @@ const MyWork = () => {
   ) => {
     /*
      * Only completed jobs can be reviewed.
-     *
-     * The backend should only move the job to
-     * COMPLETED after the client confirms completion.
      */
     if (work.status !== "Completed") {
+      return;
+    }
+
+    /*
+     * Do not open the review flow if the worker
+     * has already reviewed this job.
+     */
+    if (work.workerHasReviewedClient) {
       return;
     }
 
@@ -526,19 +582,19 @@ const MyWork = () => {
       setActionSuccess(null);
 
       /*
-       * The normal My Work response may not include
-       * client_id, so retrieve the full worker job details.
+       * Get the latest job information from:
        *
-       * This is the same endpoint already used by
-       * "View Client Details".
+       * GET /api/jobs/{job_id}/
        */
       const response =
-        await getWorkerJobDetails(
+        await getJobById(
           work.id
         );
 
       const detailedJob =
-        response?.job;
+        response?.job as
+          | JobWithClient
+          | undefined;
 
       if (!detailedJob) {
         throw new Error(
@@ -547,11 +603,39 @@ const MyWork = () => {
       }
 
       /*
-       * The detailed job should contain the client
-       * information needed by the review endpoint.
+       * Double-check the server-side review status.
+       *
+       * This prevents a stale My Work page from
+       * allowing a second review.
+       */
+      if (
+        detailedJob.worker_has_reviewed_client
+      ) {
+        setWorks(
+          (currentWorks) =>
+            currentWorks.map(
+              (currentWork) =>
+                currentWork.id ===
+                work.id
+                  ? {
+                      ...currentWork,
+                      workerHasReviewedClient:
+                        true,
+                    }
+                  : currentWork
+            )
+        );
+
+        return;
+      }
+
+      /*
+       * Get the client ID from:
+       *
+       * job.client.id
        */
       const clientId =
-        detailedJob.client_id;
+        detailedJob.client?.id;
 
       if (!clientId) {
         throw new Error(
@@ -559,13 +643,16 @@ const MyWork = () => {
         );
       }
 
+      const clientName =
+        detailedJob.client?.full_name ||
+        detailedJob.client_name ||
+        "Client";
+
       setReviewJob({
         jobId:
           detailedJob.id,
         clientId,
-        clientName:
-          detailedJob.client_name ||
-          "Client",
+        clientName,
         jobTitle:
           detailedJob.title ||
           work.job.title,
@@ -602,7 +689,17 @@ const MyWork = () => {
   ======================================================= */
 
   const handleReviewSuccess = async () => {
+    /*
+     * Reload the work list from the backend.
+     *
+     * The new worker_has_reviewed_client value
+     * will then be picked up and Rate Client
+     * will disappear.
+     */
     await loadMyWork();
+
+    setIsReviewModalOpen(false);
+    setReviewJob(null);
   };
 
   /* =======================================================
@@ -631,7 +728,11 @@ const MyWork = () => {
             currentWorks.map(
               (work) =>
                 work.id === jobId
-                  ? updatedWork
+                  ? {
+                      ...updatedWork,
+                      workerHasReviewedClient:
+                        work.workerHasReviewedClient,
+                    }
                   : work
             )
         );
@@ -685,7 +786,11 @@ const MyWork = () => {
             currentWorks.map(
               (work) =>
                 work.id === jobId
-                  ? updatedWork
+                  ? {
+                      ...updatedWork,
+                      workerHasReviewedClient:
+                        work.workerHasReviewedClient,
+                    }
                   : work
             )
         );
@@ -985,11 +1090,6 @@ const MyWork = () => {
                             work.id
                           )
                         }
-                        onViewClient={() =>
-                          handleViewClient(
-                            work
-                          )
-                        }
                         onStartWork={() =>
                           handleStartWork(
                             work.id
@@ -1019,44 +1119,6 @@ const MyWork = () => {
       </div>
 
       {/* =====================================================
-          CLIENT DETAILS LOADING MODAL
-      ===================================================== */}
-
-      {clientDetailsLoading && (
-        <ClientDetailsLoadingModal />
-      )}
-
-      {/* =====================================================
-          CLIENT DETAILS ERROR MODAL
-      ===================================================== */}
-
-      {clientDetailsError && (
-        <ClientDetailsErrorModal
-          message={
-            clientDetailsError
-          }
-          onClose={() =>
-            setClientDetailsError(
-              null
-            )
-          }
-        />
-      )}
-
-      {/* =====================================================
-          CLIENT DETAILS MODAL
-      ===================================================== */}
-
-      {selectedClient && (
-        <ClientDetailsModal
-          work={selectedClient}
-          onClose={
-            handleCloseClientDetails
-          }
-        />
-      )}
-
-      {/* =====================================================
           CLIENT REVIEW MODAL
       ===================================================== */}
 
@@ -1068,12 +1130,13 @@ const MyWork = () => {
           jobId={
             reviewJob.jobId
           }
-          workerId={
+          revieweeId={
             reviewJob.clientId
           }
-          workerName={
+          revieweeName={
             reviewJob.clientName
           }
+          revieweeRole="client"
           jobTitle={
             reviewJob.jobTitle
           }
@@ -1217,7 +1280,6 @@ type WorkCardProps = {
   work: Work;
   onViewJobDetails: () => void;
   onGetDirections: () => void;
-  onViewClient: () => void;
   onStartWork: () => void;
   onMarkComplete: () => void;
   onReviewClient: () => void;
@@ -1231,7 +1293,6 @@ const WorkCard = ({
   work,
   onViewJobDetails,
   onGetDirections,
-  onViewClient,
   onStartWork,
   onMarkComplete,
   onReviewClient,
@@ -1241,21 +1302,26 @@ const WorkCard = ({
     work.job;
 
   /*
-   * Completed and Cancelled work remain visible
-   * as historical records.
+   * Every assigned job can be opened from My Work,
+   * regardless of its current status.
    *
-   * They cannot be opened through the job-details
-   * workflow.
+   * Status only controls the workflow actions below.
    */
-  const canViewJobDetails =
-    work.status !== "Completed" &&
-    work.status !== "Cancelled";
+  const canViewJobDetails = true;
 
   /*
    * Cancelled work has no active workflow actions.
    */
   const isCancelled =
     work.status === "Cancelled";
+
+  /*
+   * Only completed jobs that have not yet been
+   * reviewed can display Rate Client.
+   */
+  const canRateClient =
+    work.status === "Completed" &&
+    !work.workerHasReviewedClient;
 
   return (
     <article
@@ -1478,12 +1544,12 @@ const WorkCard = ({
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onViewClient();
+                  onViewJobDetails();
                 }}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
               >
-                <UserCircleIcon className="h-4 w-4" />
-                View Client Details
+                <BriefcaseIcon className="h-4 w-4" />
+                View Details
               </button>
 
               <button
@@ -1518,12 +1584,12 @@ const WorkCard = ({
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onViewClient();
+                  onViewJobDetails();
                 }}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
               >
-                <UserCircleIcon className="h-4 w-4" />
-                View Client Details
+                <BriefcaseIcon className="h-4 w-4" />
+                View Details
               </button>
 
               <button
@@ -1557,12 +1623,12 @@ const WorkCard = ({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                onViewClient();
+                onViewJobDetails();
               }}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
             >
-              <UserCircleIcon className="h-4 w-4" />
-              View Client Details
+              <BriefcaseIcon className="h-4 w-4" />
+              View Details
             </button>
           )}
 
@@ -1572,17 +1638,33 @@ const WorkCard = ({
 
           {work.status ===
             "Completed" && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onReviewClient();
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-            >
-              <CheckCircleIcon className="h-4 w-4" />
-              Rate Client
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onViewJobDetails();
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
+              >
+                <BriefcaseIcon className="h-4 w-4" />
+                View Details
+              </button>
+
+              {canRateClient && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onReviewClient();
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  <CheckCircleIcon className="h-4 w-4" />
+                  Rate Client
+                </button>
+              )}
+            </>
           )}
 
           {/* =================================================
@@ -1591,89 +1673,21 @@ const WorkCard = ({
 
           {work.status ===
             "Cancelled" && (
-            <span className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">
-              <XCircleIcon className="h-4 w-4" />
-              Job Cancelled
-            </span>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onViewJobDetails();
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
+            >
+              <BriefcaseIcon className="h-4 w-4" />
+              View Details
+            </button>
           )}
         </div>
       </div>
     </article>
-  );
-};
-
-/* =========================================================
-   CLIENT DETAILS LOADING MODAL
-========================================================= */
-
-const ClientDetailsLoadingModal = () => {
-  return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-gray-950/50 px-4 py-6 backdrop-blur-sm">
-      <div
-        className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Loading client details"
-      >
-        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600" />
-
-        <h2 className="mt-5 text-base font-semibold text-gray-900">
-          Loading client details
-        </h2>
-
-        <p className="mt-1 text-sm text-gray-500">
-          Please wait while we retrieve the client information.
-        </p>
-      </div>
-    </div>
-  );
-};
-
-/* =========================================================
-   CLIENT DETAILS ERROR MODAL
-========================================================= */
-
-type ClientDetailsErrorModalProps = {
-  message: string;
-  onClose: () => void;
-};
-
-const ClientDetailsErrorModal = ({
-  message,
-  onClose,
-}: ClientDetailsErrorModalProps) => {
-  return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-gray-950/50 px-4 py-6 backdrop-blur-sm">
-      <div
-        className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="client-details-error-title"
-      >
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
-          <XCircleIcon className="h-6 w-6 text-red-600" />
-        </div>
-
-        <h2
-          id="client-details-error-title"
-          className="mt-4 text-lg font-bold text-gray-900"
-        >
-          Unable to load client details
-        </h2>
-
-        <p className="mt-2 text-sm leading-6 text-gray-500">
-          {message}
-        </p>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-5 w-full rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
-        >
-          Close
-        </button>
-      </div>
-    </div>
   );
 };
 
