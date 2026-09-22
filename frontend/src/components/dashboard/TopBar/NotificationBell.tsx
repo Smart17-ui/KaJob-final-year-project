@@ -7,15 +7,21 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
-import { BellIcon } from "@heroicons/react/24/outline";
+import {
+  BellIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 
 import {
   getNotifications,
   getUnreadNotificationCount,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  deleteAllNotifications,
   type Notification,
 } from "@/api/notifications";
+
+import ConfirmationModal from "@/components/pop/ConfirmationModal/ConfirmationModal";
 
 type UserRole = "CLIENT" | "WORKER";
 
@@ -42,6 +48,12 @@ const NotificationBell = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const [isMarkingAllRead, setIsMarkingAllRead] =
+    useState(false);
+
+  const [isClearingAll, setIsClearingAll] =
+    useState(false);
+
+  const [isClearModalOpen, setIsClearModalOpen] =
     useState(false);
 
   const notificationRef =
@@ -132,6 +144,7 @@ const NotificationBell = ({
     setNotifications([]);
     setUnreadCount(0);
     setIsOpen(false);
+    setIsClearModalOpen(false);
 
     /*
      * Load notifications using the newly selected role/token.
@@ -310,6 +323,50 @@ const NotificationBell = ({
   };
 
   /*
+   * OPEN CLEAR CONFIRMATION MODAL
+   */
+  const handleClearClick = () => {
+    if (notifications.length === 0) {
+      return;
+    }
+
+    setIsClearModalOpen(true);
+  };
+
+  /*
+   * CLEAR ALL NOTIFICATIONS
+   */
+  const handleConfirmClearAll = async () => {
+    try {
+      setIsClearingAll(true);
+
+      await deleteAllNotifications();
+
+      setNotifications([]);
+      setUnreadCount(0);
+      setIsClearModalOpen(false);
+    } catch (error) {
+      console.error(
+        "Failed to clear notifications:",
+        error
+      );
+    } finally {
+      setIsClearingAll(false);
+    }
+  };
+
+  /*
+   * CANCEL CLEAR
+   */
+  const handleCancelClear = () => {
+    if (isClearingAll) {
+      return;
+    }
+
+    setIsClearModalOpen(false);
+  };
+
+  /*
    * FORMAT TIME
    */
   const formatNotificationTime = (
@@ -358,235 +415,273 @@ const NotificationBell = ({
   };
 
   return (
-    <div
-      ref={notificationRef}
-      className="relative"
-    >
-      <button
-        type="button"
-        onClick={handleNotificationsClick}
-        className="
-          group relative flex h-10 w-10
-          items-center justify-center
-          rounded-lg text-slate-500
-          transition-all duration-200
-          hover:bg-slate-100
-          hover:text-emerald-600
-          active:scale-95
-          focus:outline-none
-          focus:ring-2
-          focus:ring-emerald-500
-          focus:ring-offset-2
-        "
-        aria-label="View notifications"
-        aria-expanded={isOpen}
-        aria-haspopup="true"
+    <>
+      <div
+        ref={notificationRef}
+        className="relative"
       >
-        <BellIcon className="h-5 w-5" />
-
-        {unreadCount > 0 && (
-          <span
-            className="
-              absolute right-1.5 top-1.5
-              flex min-h-[16px] min-w-[16px]
-              items-center justify-center
-              rounded-full bg-emerald-600
-              px-1 text-[9px] font-bold text-white
-            "
-            aria-label={`${unreadCount} unread notifications`}
-          >
-            {unreadCount > 99
-              ? "99+"
-              : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div
+        <button
+          type="button"
+          onClick={handleNotificationsClick}
           className="
-            absolute right-0 z-50 mt-3
-            w-[360px] overflow-hidden
-            rounded-xl border border-slate-200
-            bg-white shadow-xl
+            group relative flex h-10 w-10
+            items-center justify-center
+            rounded-lg text-slate-500
+            transition-all duration-200
+            hover:bg-slate-100
+            hover:text-emerald-600
+            active:scale-95
+            focus:outline-none
+            focus:ring-2
+            focus:ring-emerald-500
+            focus:ring-offset-2
           "
+          aria-label="View notifications"
+          aria-expanded={isOpen}
+          aria-haspopup="true"
         >
-          {/* HEADER */}
+          <BellIcon className="h-5 w-5" />
+
+          {unreadCount > 0 && (
+            <span
+              className="
+                absolute right-1.5 top-1.5
+                flex min-h-[16px] min-w-[16px]
+                items-center justify-center
+                rounded-full bg-emerald-600
+                px-1 text-[9px] font-bold text-white
+              "
+              aria-label={`${unreadCount} unread notifications`}
+            >
+              {unreadCount > 99
+                ? "99+"
+                : unreadCount}
+            </span>
+          )}
+        </button>
+
+        {isOpen && (
           <div
             className="
-              flex items-center justify-between
-              border-b border-slate-200
-              px-4 py-3
+              absolute right-0 z-50 mt-3
+              w-[360px] overflow-hidden
+              rounded-xl border border-slate-200
+              bg-white shadow-xl
             "
           >
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">
-                Notifications
-              </h3>
+            {/* HEADER */}
+            <div
+              className="
+                flex items-center justify-between
+                border-b border-slate-200
+                px-4 py-3
+              "
+            >
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Notifications
+                </h3>
 
-              {unreadCount > 0 && (
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {unreadCount} unread
-                </p>
+                {unreadCount > 0 && (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {unreadCount} unread
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllAsRead}
+                    disabled={isMarkingAllRead}
+                    className="
+                      text-xs font-medium
+                      text-emerald-600
+                      hover:text-emerald-700
+                      disabled:cursor-not-allowed
+                      disabled:opacity-50
+                    "
+                  >
+                    {isMarkingAllRead
+                      ? "Marking..."
+                      : "Mark all as read"}
+                  </button>
+                )}
+
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearClick}
+                    disabled={isClearingAll}
+                    className="
+                      inline-flex items-center gap-1
+                      text-xs font-medium
+                      text-red-500
+                      transition
+                      hover:text-red-600
+                      disabled:cursor-not-allowed
+                      disabled:opacity-50
+                    "
+                    title="Clear all notifications"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* LIST */}
+            <div className="max-h-[420px] overflow-y-auto">
+              {isLoading ? (
+                <div className="flex items-center justify-center px-4 py-10">
+                  <div
+                    className="
+                      h-6 w-6 animate-spin
+                      rounded-full border-2
+                      border-slate-300
+                      border-t-emerald-600
+                    "
+                  />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="px-4 py-10 text-center">
+                  <BellIcon className="mx-auto h-9 w-9 text-slate-300" />
+
+                  <p className="mt-3 text-sm font-medium text-slate-700">
+                    No notifications
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    You're all caught up.
+                  </p>
+                </div>
+              ) : (
+                notifications.map((notification) => (
+                  <button
+                    key={notification.id}
+                    type="button"
+                    onClick={() =>
+                      handleNotificationClick(
+                        notification
+                      )
+                    }
+                    className={`
+                      block w-full
+                      border-b border-slate-100
+                      px-4 py-3
+                      text-left transition
+                      last:border-b-0
+                      ${
+                        notification.is_read
+                          ? "bg-white hover:bg-slate-50"
+                          : "bg-emerald-50 hover:bg-emerald-100"
+                      }
+                    `}
+                  >
+                    <div className="flex gap-3">
+                      <div className="pt-1.5">
+                        <span
+                          className={`
+                            block h-2 w-2 rounded-full
+                            ${
+                              notification.is_read
+                                ? "bg-transparent"
+                                : "bg-emerald-500"
+                            }
+                          `}
+                        />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p
+                            className={`
+                              text-sm
+                              ${
+                                notification.is_read
+                                  ? "font-medium text-slate-700"
+                                  : "font-semibold text-slate-900"
+                              }
+                            `}
+                          >
+                            {notification.title}
+                          </p>
+
+                          <span
+                            className="
+                              shrink-0
+                              text-[10px]
+                              text-slate-400
+                            "
+                          >
+                            {formatNotificationTime(
+                              notification.created_at
+                            )}
+                          </span>
+                        </div>
+
+                        <p
+                          className="
+                            mt-1 line-clamp-2
+                            text-xs leading-5
+                            text-slate-500
+                          "
+                        >
+                          {notification.message}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))
               )}
             </div>
 
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={handleMarkAllAsRead}
-                disabled={isMarkingAllRead}
-                className="
-                  text-xs font-medium
-                  text-emerald-600
-                  hover:text-emerald-700
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
-                "
-              >
-                {isMarkingAllRead
-                  ? "Marking..."
-                  : "Mark all as read"}
-              </button>
-            )}
-          </div>
-
-          {/* LIST */}
-          <div className="max-h-[420px] overflow-y-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center px-4 py-10">
-                <div
-                  className="
-                    h-6 w-6 animate-spin
-                    rounded-full border-2
-                    border-slate-300
-                    border-t-emerald-600
-                  "
-                />
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="px-4 py-10 text-center">
-                <BellIcon className="mx-auto h-9 w-9 text-slate-300" />
-
-                <p className="mt-3 text-sm font-medium text-slate-700">
-                  No notifications
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  You're all caught up.
-                </p>
-              </div>
-            ) : (
-              notifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  type="button"
-                  onClick={() =>
-                    handleNotificationClick(
-                      notification
-                    )
-                  }
-                  className={`
-                    block w-full
-                    border-b border-slate-100
-                    px-4 py-3
-                    text-left transition
-                    last:border-b-0
-                    ${
-                      notification.is_read
-                        ? "bg-white hover:bg-slate-50"
-                        : "bg-emerald-50 hover:bg-emerald-100"
-                    }
-                  `}
-                >
-                  <div className="flex gap-3">
-                    <div className="pt-1.5">
-                      <span
-                        className={`
-                          block h-2 w-2 rounded-full
-                          ${
-                            notification.is_read
-                              ? "bg-transparent"
-                              : "bg-emerald-500"
-                          }
-                        `}
-                      />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <p
-                          className={`
-                            text-sm
-                            ${
-                              notification.is_read
-                                ? "font-medium text-slate-700"
-                                : "font-semibold text-slate-900"
-                            }
-                          `}
-                        >
-                          {notification.title}
-                        </p>
-
-                        <span
-                          className="
-                            shrink-0
-                            text-[10px]
-                            text-slate-400
-                          "
-                        >
-                          {formatNotificationTime(
-                            notification.created_at
-                          )}
-                        </span>
-                      </div>
-
-                      <p
-                        className="
-                          mt-1 line-clamp-2
-                          text-xs leading-5
-                          text-slate-500
-                        "
-                      >
-                        {notification.message}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-
-          {/* FOOTER */}
-          <div
-            className="
-              border-t border-slate-200
-              bg-slate-50
-              px-4 py-2.5 text-center
-            "
-          >
-            <button
-              type="button"
-              onClick={handleViewAll}
+            {/* FOOTER */}
+            <div
               className="
-                rounded-lg px-3 py-1.5
-                text-xs font-medium
-                text-emerald-600
-                transition
-                hover:bg-emerald-50
-                hover:text-emerald-700
-                focus:outline-none
-                focus:ring-2
-                focus:ring-emerald-500
-                focus:ring-offset-1
+                border-t border-slate-200
+                bg-slate-50
+                px-4 py-2.5 text-center
               "
             >
-              View all notifications
-            </button>
+              <button
+                type="button"
+                onClick={handleViewAll}
+                className="
+                  rounded-lg px-3 py-1.5
+                  text-xs font-medium
+                  text-emerald-600
+                  transition
+                  hover:bg-emerald-50
+                  hover:text-emerald-700
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-emerald-500
+                  focus:ring-offset-1
+                "
+              >
+                View all notifications
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+
+      {/* CLEAR CONFIRMATION */}
+      <ConfirmationModal
+        isOpen={isClearModalOpen}
+        title="Clear all notifications?"
+        message="This will permanently remove all your notifications. This action cannot be undone."
+        confirmLabel="Clear notifications"
+        cancelLabel="Cancel"
+        variant="danger"
+        isLoading={isClearingAll}
+        onConfirm={handleConfirmClearAll}
+        onCancel={handleCancelClear}
+      />
+    </>
   );
 };
 

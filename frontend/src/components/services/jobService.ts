@@ -133,6 +133,50 @@ export const getJobDetails = async (
 };
 
 /* =========================================================
+   GET JOB BY ID
+   Returns the complete API response.
+   Used when we need additional job detail information,
+   such as review status.
+   ========================================================= */
+
+export const getJobById = async (
+  jobId: number
+) => {
+  const token =
+    localStorage.getItem("access_token");
+
+  const response = await fetch(
+    `${API_BASE_URL}/jobs/${jobId}/`,
+    {
+      method: "GET",
+
+      headers: {
+        "Content-Type": "application/json",
+
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+      },
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    const errorMessage =
+      result?.detail ||
+      result?.error ||
+      "Failed to load job details.";
+
+    throw new Error(String(errorMessage));
+  }
+
+  return result;
+};
+
+/* =========================================================
    GET JOB REVIEWS
    ========================================================= */
 

@@ -65,8 +65,8 @@ import ClientJobDetails from "@/pages/dashboard/client/JobDetails";
 import PostJob from "@/pages/dashboard/client/PostJob/PostJob";
 import Applications from "@/pages/dashboard/client/Applications";
 import JobApplications from "@/pages/dashboard/client/JobApplications";
-import Messages from "@/pages/dashboard/client/Messages";
 import Analytics from "@/pages/dashboard/client/Analytics";
+import ClientComplaints from "@/pages/dashboard/client/Complaints";
 
 /* =========================
    WORKER DASHBOARD PAGES
@@ -79,8 +79,8 @@ import MyApplications from "@/pages/dashboard/worker/MyApplications";
 import ApplicationDetails from "@/pages/dashboard/worker/ApplicationDetails";
 import MyWork from "@/pages/dashboard/worker/MyWork";
 import WorkerDirections from "@/pages/dashboard/worker/Directions/Directions";
-import WorkerMessages from "@/pages/dashboard/worker/Messages";
 import Performance from "@/pages/dashboard/worker/Performance";
+import WorkerComplaints from "@/pages/dashboard/worker/Complaints";
 
 /* =========================
    SETTINGS
@@ -95,6 +95,7 @@ import LocationSection from "@/pages/settings/Sections/LocationSection";
 import NotificationsSection from "@/pages/settings/Sections/NotificationsSection";
 import VerificationSection from "@/pages/settings/Sections/VerificationSection";
 import AvailabilitySection from "@/pages/settings/Sections/AvailabilitySection";
+import MyReports from "@/pages/settings/Sections/MyReports";
 
 /* =========================
    NOTIFICATIONS PAGE (full page)
@@ -571,21 +572,21 @@ function App() {
           }
         />
 
-        {/* Messages */}
-
-        <Route
-          path="messages"
-          element={
-            <Messages />
-          }
-        />
-
         {/* Analytics */}
 
         <Route
           path="analytics"
           element={
             <Analytics />
+          }
+        />
+
+        {/* Complaints */}
+
+        <Route
+          path="complaints"
+          element={
+            <ClientComplaints />
           }
         />
 
@@ -661,6 +662,15 @@ function App() {
             path="verification"
             element={
               <VerificationSection />
+            }
+          />
+
+          {/* My Reports */}
+
+          <Route
+            path="my-reports"
+            element={
+              <MyReports />
             }
           />
         </Route>
@@ -753,21 +763,21 @@ function App() {
           }
         />
 
-        {/* Messages */}
-
-        <Route
-          path="messages"
-          element={
-            <WorkerMessages />
-          }
-        />
-
         {/* Performance */}
 
         <Route
           path="performance"
           element={
             <Performance />
+          }
+        />
+
+        {/* Complaints */}
+
+        <Route
+          path="complaints"
+          element={
+            <WorkerComplaints />
           }
         />
 
@@ -850,6 +860,15 @@ function App() {
             path="availability"
             element={
               <AvailabilitySection />
+            }
+          />
+
+          {/* My Reports */}
+
+          <Route
+            path="my-reports"
+            element={
+              <MyReports />
             }
           />
         </Route>

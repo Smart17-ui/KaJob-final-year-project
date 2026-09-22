@@ -8,6 +8,7 @@ import {
   TrashIcon,
   CheckCircleIcon,
   ArrowRightIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
 
 import type { MyJob } from "../../shared/types/job";
@@ -18,6 +19,7 @@ type ClientJobCardProps = {
   onCancel?: (jobId: number) => void;
   onDelete: (jobId: number) => void;
   onConfirmCompletion: (jobId: number) => void;
+  onRate?: (jobId: number) => void;
 };
 
 const ClientJobCard = ({
@@ -26,6 +28,7 @@ const ClientJobCard = ({
   onCancel,
   onDelete,
   onConfirmCompletion,
+  onRate,
 }: ClientJobCardProps) => {
   /*
    * A client can cancel a job only after
@@ -46,6 +49,10 @@ const ClientJobCard = ({
 
   const canConfirmCompletion =
     job.status === "AWAITING_CONFIRMATION";
+
+  const canRate =
+    job.status === "COMPLETED" &&
+    onRate !== undefined;
 
   const statusStyles = {
     OPEN: "bg-green-50 text-green-700 ring-green-100",
@@ -280,6 +287,34 @@ const ClientJobCard = ({
             >
               <CheckCircleIcon className="h-3.5 w-3.5" />
               Confirm completion
+            </button>
+          )}
+
+          {canRate && (
+            <button
+              type="button"
+              onClick={() =>
+                onRate(job.id)
+              }
+              className="
+                inline-flex
+                items-center
+                gap-1.5
+                rounded-lg
+                border
+                border-amber-200
+                bg-amber-50
+                px-3
+                py-1.5
+                text-xs
+                font-semibold
+                text-amber-700
+                transition
+                hover:bg-amber-100
+              "
+            >
+              <StarIcon className="h-3.5 w-3.5" />
+              Rate Worker
             </button>
           )}
         </div>

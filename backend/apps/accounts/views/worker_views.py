@@ -58,7 +58,6 @@ class WorkerDetailView(APIView):
             'email': user.email,
             'phone_number': user.phone_number,
             'bio': worker_profile.bio or '',
-            'hourly_rate': str(worker_profile.hourly_rate) if worker_profile.hourly_rate else None,
             'average_rating': reviews_data['average_rating'],
             'total_reviews': reviews_data['total_reviews'],
             'jobs_completed': worker_profile.jobs_completed or 0,

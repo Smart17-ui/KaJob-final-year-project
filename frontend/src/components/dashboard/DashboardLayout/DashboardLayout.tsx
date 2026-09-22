@@ -40,21 +40,11 @@ const DashboardLayout = () => {
    * =========================================================
    * AUTH STATE
    * =========================================================
-   *
-   * Do not read the user directly from localStorage on every
-   * render.
-   *
-   * localStorage changes do not automatically trigger a React
-   * re-render, so the authenticated user must live in state.
    */
   const [user, setUser] = useState<User | null>(
     () => getCurrentUser()
   );
 
-  /*
-   * The currently active dashboard role also needs to be
-   * React state.
-   */
   const [selectedRole, setSelectedRoleState] = useState<
     string | null
   >(() => getSelectedRole());
@@ -63,10 +53,6 @@ const DashboardLayout = () => {
    * =========================================================
    * ROLE SUCCESS FEEDBACK
    * =========================================================
-   *
-   * After successfully adding a new role, the user should
-   * receive clear confirmation before being taken to the
-   * newly activated dashboard.
    */
   const [roleSuccess, setRoleSuccess] = useState<{
     isOpen: boolean;
@@ -80,11 +66,6 @@ const DashboardLayout = () => {
    * =========================================================
    * CURRENT ROLE
    * =========================================================
-   *
-   * Prefer the explicitly selected role.
-   *
-   * If no selected role exists, fall back to the user's
-   * available roles.
    */
   const role: UserRole | null =
     selectedRole === "CLIENT" ||
@@ -100,11 +81,6 @@ const DashboardLayout = () => {
    * =========================================================
    * AVAILABLE ROLES
    * =========================================================
-   *
-   * Build this from the current React user state.
-   *
-   * This means the dropdown immediately updates after
-   * addRole() returns the updated user.
    */
   const availableRoles: UserRole[] = [];
 
@@ -117,7 +93,9 @@ const DashboardLayout = () => {
   }
 
   /*
-   * Settings has its own internal navigation.
+   * =========================================================
+   * SETTINGS PAGE
+   * =========================================================
    */
   const isSettingsPage =
     location.pathname.includes("/settings");
@@ -163,9 +141,6 @@ const DashboardLayout = () => {
     } finally {
       clearAuth();
 
-      /*
-       * Clear React state as well as localStorage.
-       */
       setUser(null);
       setSelectedRoleState(null);
 
@@ -179,12 +154,6 @@ const DashboardLayout = () => {
    * =========================================================
    * SAVE ROLE AUTHENTICATION
    * =========================================================
-   *
-   * saveAuth() updates localStorage.
-   *
-   * setUser() and setSelectedRoleState() update React state.
-   *
-   * We need BOTH.
    */
   function saveRoleAuthentication(
     access: string,
@@ -192,9 +161,6 @@ const DashboardLayout = () => {
     updatedUser: User,
     newRole: UserRole
   ) {
-    /*
-     * Persist authentication data.
-     */
     saveAuth(
       access,
       refresh,
@@ -202,13 +168,6 @@ const DashboardLayout = () => {
       newRole
     );
 
-    /*
-     * Immediately update React state.
-     *
-     * This causes DashboardLayout, TopBar, Sidebar,
-     * and DashboardTabs to re-render with the new role
-     * information.
-     */
     setUser(updatedUser);
     setSelectedRoleState(newRole);
   }
@@ -228,12 +187,6 @@ const DashboardLayout = () => {
    * =========================================================
    * CLOSE ROLE SUCCESS FEEDBACK
    * =========================================================
-   *
-   * Closing the success message has the same effect as
-   * pressing Continue.
-   *
-   * This prevents the user from remaining on the old
-   * dashboard URL after their active role has changed.
    */
   function handleCloseRoleSuccess() {
     const newRole = roleSuccess.role;
@@ -259,8 +212,6 @@ const DashboardLayout = () => {
    * =========================================================
    * ADD ROLE
    * =========================================================
-   *
-   * Used when the account currently has only one role.
    */
   async function handleAddRole(
     newRole: UserRole
@@ -270,8 +221,7 @@ const DashboardLayout = () => {
     }
 
     /*
-     * Prevent accidentally trying to add a role the user
-     * already has.
+     * Prevent trying to add a role the user already has.
      */
     if (
       (newRole === "CLIENT" && user.is_client) ||
@@ -286,13 +236,6 @@ const DashboardLayout = () => {
       const updatedUser =
         response.user as User;
 
-      /*
-       * The backend automatically activates the newly
-       * added role.
-       *
-       * Save tokens + user + selected role and update
-       * React state at the same time.
-       */
       saveRoleAuthentication(
         response.tokens.access,
         response.tokens.refresh,
@@ -300,10 +243,6 @@ const DashboardLayout = () => {
         newRole
       );
 
-      /*
-       * Show a success message before navigating to the
-       * newly activated dashboard.
-       */
       setRoleSuccess({
         isOpen: true,
         role: newRole,
@@ -317,8 +256,6 @@ const DashboardLayout = () => {
    * =========================================================
    * SWITCH ROLE
    * =========================================================
-   *
-   * Used when the account already contains both roles.
    */
   async function handleSwitchRole(
     newRole: UserRole
@@ -328,7 +265,7 @@ const DashboardLayout = () => {
     }
 
     /*
-     * Do nothing if the requested role is already active.
+     * Already on this role.
      */
     if (newRole === role) {
       return;
@@ -352,9 +289,6 @@ const DashboardLayout = () => {
       const updatedUser =
         response.user as User;
 
-      /*
-       * Persist the new tokens and update React state.
-       */
       saveRoleAuthentication(
         response.tokens.access,
         response.tokens.refresh,
@@ -362,9 +296,6 @@ const DashboardLayout = () => {
         newRole
       );
 
-      /*
-       * Navigate to the selected dashboard.
-       */
       navigate(
         getRoleDashboard(newRole),
         {
@@ -381,26 +312,28 @@ const DashboardLayout = () => {
    * SIDEBAR ROLE ACTION
    * =========================================================
    *
-   * The existing Sidebar only provides a no-argument
-   * switch callback.
+   * The Sidebar passes the selected role.
    *
-   * When both roles exist, switch to the other one.
+   * If the user already has that role, switch to it.
    *
-   * Adding a new role remains available through the
-   * ProfileDropdown.
+   * If the user does not have that role yet, add it.
    */
-  function handleSidebarSwitchRole() {
+  function handleSidebarSwitchRole(
+    selectedRoleToUse: UserRole
+  ) {
     if (!user || !role) {
       return;
     }
 
-    if (user.is_client && user.is_worker) {
-      const nextRole: UserRole =
-        role === "CLIENT"
-          ? "WORKER"
-          : "CLIENT";
+    const alreadyHasRole =
+      selectedRoleToUse === "CLIENT"
+        ? user.is_client
+        : user.is_worker;
 
-      void handleSwitchRole(nextRole);
+    if (alreadyHasRole) {
+      void handleSwitchRole(selectedRoleToUse);
+    } else {
+      void handleAddRole(selectedRoleToUse);
     }
   }
 
@@ -475,30 +408,6 @@ const DashboardLayout = () => {
 
   /*
    * =========================================================
-   * SIDEBAR ROLE ACTION TEXT
-   * =========================================================
-   */
-  let roleActionText = "";
-
-  if (user.is_client && user.is_worker) {
-    roleActionText =
-      role === "CLIENT"
-        ? "Switch to Worker"
-        : "Switch to Client";
-  } else if (
-    user.is_client &&
-    !user.is_worker
-  ) {
-    roleActionText = "Add Worker Role";
-  } else if (
-    user.is_worker &&
-    !user.is_client
-  ) {
-    roleActionText = "Add Client Role";
-  }
-
-  /*
-   * =========================================================
    * ROLE SUCCESS MESSAGE
    * =========================================================
    */
@@ -516,11 +425,11 @@ const DashboardLayout = () => {
       {!isSettingsPage && (
         <Sidebar
           role={role}
+          availableRoles={availableRoles}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onLogout={handleLogout}
           onSwitchRole={handleSidebarSwitchRole}
-          roleActionText={roleActionText}
         />
       )}
 
@@ -528,11 +437,11 @@ const DashboardLayout = () => {
         <div className="lg:hidden">
           <Sidebar
             role={role}
+            availableRoles={availableRoles}
             isOpen={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
             onLogout={handleLogout}
             onSwitchRole={handleSidebarSwitchRole}
-            roleActionText={roleActionText}
           />
         </div>
       )}
@@ -580,27 +489,18 @@ const DashboardLayout = () => {
             onSettingsClick={
               handleSettings
             }
-
-            /*
-             * Existing roles use switch-role.
-             */
             onSwitchRole={
               user.is_client &&
               user.is_worker
                 ? handleSwitchRole
                 : undefined
             }
-
-            /*
-             * Missing roles use add-role.
-             */
             onAddRole={
               !user.is_client ||
               !user.is_worker
                 ? handleAddRole
                 : undefined
             }
-
             onLogout={handleLogout}
           />
 
@@ -654,7 +554,11 @@ const DashboardLayout = () => {
         isOpen={roleSuccess.isOpen}
         type="success"
         title={`${addedRoleLabel} account added`}
-        message={`Your ${addedRoleLabel} account has been successfully added to your KaJob account. You can now use both your ${role === "CLIENT" ? "Client and Worker" : "Worker and Client"} roles.`}
+        message={`Your ${addedRoleLabel} account has been successfully added to your KaJob account. You can now use both your ${
+          role === "CLIENT"
+            ? "Client and Worker"
+            : "Worker and Client"
+        } roles.`}
         onClose={handleCloseRoleSuccess}
         primaryAction={{
           label: "Continue",

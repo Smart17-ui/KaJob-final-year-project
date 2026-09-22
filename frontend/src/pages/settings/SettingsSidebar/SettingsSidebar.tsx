@@ -8,11 +8,12 @@ import {
   BellIcon,
   ShieldCheckIcon,
   ClockIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 
 /* =========================================================
    SETTINGS SIDEBAR PROPS
-   ========================================================= */
+========================================================= */
 
 type SettingsSidebarProps = {
   isWorker?: boolean;
@@ -20,7 +21,7 @@ type SettingsSidebarProps = {
 
 /* =========================================================
    NAV ITEM CLASS
-   ========================================================= */
+========================================================= */
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   `
@@ -37,7 +38,7 @@ const navItemClass = ({ isActive }: { isActive: boolean }) =>
 
 /* =========================================================
    SETTINGS SIDEBAR
-   ========================================================= */
+========================================================= */
 
 const SettingsSidebar = ({
   isWorker = false,
@@ -137,6 +138,26 @@ const SettingsSidebar = ({
           </div>
         </div>
       )}
+
+      {/* =====================================================
+          SUPPORT
+      ===================================================== */}
+
+      <div className="py-3">
+        <p className="px-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Support
+        </p>
+
+        <div className="mt-2">
+          <NavLink
+            to="my-reports"
+            className={navItemClass}
+          >
+            <DocumentTextIcon className="h-5 w-5 shrink-0" />
+            <span>My Reports</span>
+          </NavLink>
+        </div>
+      </div>
     </nav>
   );
 };

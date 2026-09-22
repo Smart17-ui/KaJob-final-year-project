@@ -22,6 +22,7 @@ import {
 
 import {
   getJobApplications,
+  getWorkerDetails,
   updateApplicationStatus,
 } from "../../../components/services/applicationService";
 
@@ -38,6 +39,10 @@ import type {
 import type {
   MyJob,
 } from "../../../shared/types/job";
+
+import type {
+  WorkerDetails,
+} from "../../../components/services/applicationService";
 
 type ApplicationFilter =
   | "ALL"
@@ -80,6 +85,23 @@ const JobApplications = () => {
   ] = useState<JobApplication | null>(
     null
   );
+
+  const [
+    workerDetails,
+    setWorkerDetails,
+  ] = useState<WorkerDetails | null>(
+    null
+  );
+
+  const [
+    isWorkerLoading,
+    setIsWorkerLoading,
+  ] = useState(false);
+
+  const [
+    workerError,
+    setWorkerError,
+  ] = useState("");
 
   const [
     isLoading,
@@ -209,6 +231,88 @@ const JobApplications = () => {
   useEffect(() => {
     loadApplications();
   }, [jobId]);
+
+  /*
+   * =========================
+   * VIEW WORKER
+   * =========================
+   *
+   * The application response contains
+   * the worker ID.
+   *
+   * Example:
+   *
+   * worker: 12
+   *
+   * We use that ID to request:
+   *
+   * GET /api/workers/12/
+   */
+
+  const handleViewWorker = async (
+    application: JobApplication
+  ) => {
+    setSelectedWorker(
+      application
+    );
+
+    setWorkerDetails(null);
+    setWorkerError("");
+    setIsWorkerLoading(true);
+
+    try {
+      if (!application.worker) {
+        throw new Error(
+          "Worker information is not available for this application."
+        );
+      }
+
+      const details =
+        await getWorkerDetails(
+          Number(application.worker)
+        );
+
+      setWorkerDetails(
+        details
+      );
+    } catch (error) {
+      if (
+        error instanceof Error
+      ) {
+        setWorkerError(
+          error.message
+        );
+      } else {
+        setWorkerError(
+          "Failed to load worker details."
+        );
+      }
+    } finally {
+      setIsWorkerLoading(false);
+    }
+  };
+
+  /*
+   * =========================
+   * CLOSE WORKER MODAL
+   * =========================
+   */
+
+  const closeWorkerModal = () => {
+    setSelectedWorker(
+      null
+    );
+
+    setWorkerDetails(
+      null
+    );
+
+    setWorkerError("");
+
+    setIsWorkerLoading(
+      false
+    );
+  };
 
   /*
    * =========================
@@ -806,7 +910,7 @@ const JobApplications = () => {
                   onViewWorker={(
                     application
                   ) => {
-                    setSelectedWorker(
+                    handleViewWorker(
                       application
                     );
                   }}
@@ -826,8 +930,8 @@ const JobApplications = () => {
       {selectedWorker && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-6"
-          onClick={() =>
-            setSelectedWorker(null)
+          onClick={
+            closeWorkerModal
           }
         >
 
@@ -849,15 +953,16 @@ const JobApplications = () => {
                 </p>
 
                 <h2 className="mt-1 text-xl font-bold text-slate-900">
-                  {selectedWorker.worker_name}
+                  {workerDetails?.full_name ||
+                    selectedWorker.worker_name}
                 </h2>
 
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedWorker(null)
+                onClick={
+                  closeWorkerModal
                 }
                 className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                 aria-label="Close worker details"
@@ -867,302 +972,566 @@ const JobApplications = () => {
 
             </div>
 
-            {/* PROFILE */}
+            {/* WORKER LOADING */}
 
-            <div className="space-y-6 px-6 py-6">
+            {isWorkerLoading && (
+              <div className="px-6 py-16 text-center">
 
-              {/* PROFILE SUMMARY */}
+                <ArrowPathIcon className="mx-auto h-8 w-8 animate-spin text-emerald-600" />
 
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <p className="mt-4 text-sm font-semibold text-slate-700">
+                  Loading worker profile...
+                </p>
 
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-emerald-50">
-
-                  <UserCircleIcon className="h-12 w-12 text-emerald-600" />
-
-                </div>
-
-                <div className="min-w-0">
-
-                  <h3 className="text-lg font-bold text-slate-900">
-                    {selectedWorker.worker_name}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Applicant for{" "}
-                    {selectedWorker.job_title}
-                  </p>
-
-                  <div className="mt-2">
-
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        selectedWorker.status ===
-                        "ACCEPTED"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : selectedWorker.status ===
-                              "REJECTED"
-                            ? "bg-red-50 text-red-700"
-                            : "bg-amber-50 text-amber-700"
-                      }`}
-                    >
-                      {
-                        selectedWorker.status_display
-                      }
-                    </span>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-              {/* STATS */}
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-
-                <div className="rounded-xl bg-slate-50 p-4">
-
-                  <div className="flex items-center gap-2">
-
-                    <StarIcon className="h-5 w-5 text-amber-500" />
-
-                    <p className="text-xs font-medium text-slate-500">
-                      Rating
-                    </p>
-
-                  </div>
-
-                  <p className="mt-2 text-lg font-bold text-slate-900">
-
-                    {selectedWorker
-                      .worker_profile
-                      ?.average_rating ??
-                      "No rating"}
-
-                    {selectedWorker
-                      .worker_profile
-                      ?.average_rating !=
-                      null && (
-                      <span className="ml-1 text-sm font-medium text-slate-500">
-                        / 5
-                      </span>
-                    )}
-
-                  </p>
-
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-4">
-
-                  <p className="text-xs font-medium text-slate-500">
-                    Jobs completed
-                  </p>
-
-                  <p className="mt-2 text-lg font-bold text-slate-900">
-                    {
-                      selectedWorker
-                        .worker_profile
-                        ?.jobs_completed ??
-                      0
-                    }
-                  </p>
-
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-4">
-
-                  <p className="text-xs font-medium text-slate-500">
-                    Hourly rate
-                  </p>
-
-                  <p className="mt-2 text-lg font-bold text-slate-900">
-
-                    {selectedWorker
-                      .worker_profile
-                      ?.hourly_rate
-                      ? `K${selectedWorker.worker_profile.hourly_rate}`
-                      : "Not specified"}
-
-                  </p>
-
-                </div>
-
-              </div>
-
-              {/* BIO */}
-
-              <div>
-
-                <h3 className="text-sm font-semibold text-slate-900">
-                  About the worker
-                </h3>
-
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-
-                  {selectedWorker
-                    .worker_profile
-                    ?.bio ||
-                    "This worker has not added a bio yet."}
-
+                <p className="mt-1 text-sm text-slate-500">
+                  Please wait while we fetch
+                  the worker's details.
                 </p>
 
               </div>
+            )}
 
-              {/* SKILLS */}
+            {/* WORKER ERROR */}
 
-              <div>
+            {!isWorkerLoading &&
+              workerError && (
+                <div className="px-6 py-8">
 
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Skills
-                </h3>
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-5">
 
-                {selectedWorker
-                  .worker_profile
-                  ?.skills?.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="flex items-start gap-3">
 
-                    {selectedWorker.worker_profile.skills.map(
-                      (skill) => (
-                        <span
-                          key={skill}
-                          className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700"
+                      <ExclamationCircleIcon className="h-6 w-6 shrink-0 text-red-600" />
+
+                      <div>
+
+                        <h3 className="font-semibold text-red-800">
+                          Unable to load worker profile
+                        </h3>
+
+                        <p className="mt-1 text-sm leading-6 text-red-700">
+                          {workerError}
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleViewWorker(
+                              selectedWorker
+                            )
+                          }
+                          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50"
                         >
-                          {skill}
+                          <ArrowPathIcon className="h-4 w-4" />
+
+                          Try again
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
+            {/* PROFILE */}
+
+            {!isWorkerLoading &&
+              !workerError &&
+              workerDetails && (
+                <>
+                  <div className="space-y-6 px-6 py-6">
+
+                    {/* PROFILE SUMMARY */}
+
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+
+                      <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-50">
+
+                        {workerDetails.profile_photo ? (
+                          <img
+                            src={
+                              workerDetails.profile_photo
+                            }
+                            alt={
+                              workerDetails.full_name
+                            }
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <UserCircleIcon className="h-12 w-12 text-emerald-600" />
+                        )}
+
+                      </div>
+
+                      <div className="min-w-0">
+
+                        <div className="flex flex-wrap items-center gap-2">
+
+                          <h3 className="text-lg font-bold text-slate-900">
+                            {
+                              workerDetails.full_name
+                            }
+                          </h3>
+
+                          {workerDetails.verified && (
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              Verified
+                            </span>
+                          )}
+
+                        </div>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                          Applicant for{" "}
+                          {
+                            selectedWorker.job_title
+                          }
+                        </p>
+
+                        <div className="mt-2">
+
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              selectedWorker.status ===
+                              "ACCEPTED"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : selectedWorker.status ===
+                                    "REJECTED"
+                                  ? "bg-red-50 text-red-700"
+                                  : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {
+                              selectedWorker.status_display
+                            }
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                    {/* CONTACT DETAILS */}
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+
+                        <p className="text-xs font-medium text-slate-500">
+                          Email
+                        </p>
+
+                        <p className="mt-1 break-all text-sm font-semibold text-slate-800">
+                          {workerDetails.email ||
+                            "Not provided"}
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+
+                        <p className="text-xs font-medium text-slate-500">
+                          Phone
+                        </p>
+
+                        <p className="mt-1 text-sm font-semibold text-slate-800">
+                          {workerDetails.phone_number ||
+                            "Not provided"}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {/* STATS */}
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+                      <div className="rounded-xl bg-slate-50 p-4">
+
+                        <div className="flex items-center gap-2">
+
+                          <StarIcon className="h-5 w-5 text-amber-500" />
+
+                          <p className="text-xs font-medium text-slate-500">
+                            Rating
+                          </p>
+
+                        </div>
+
+                        <p className="mt-2 text-lg font-bold text-slate-900">
+
+                          {workerDetails.average_rating ??
+                            "No rating"}
+
+                          <span className="ml-1 text-sm font-medium text-slate-500">
+                            / 5
+                          </span>
+
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {workerDetails.total_reviews}{" "}
+                          {workerDetails.total_reviews ===
+                          1
+                            ? "review"
+                            : "reviews"}
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-4">
+
+                        <p className="text-xs font-medium text-slate-500">
+                          Jobs completed
+                        </p>
+
+                        <p className="mt-2 text-lg font-bold text-slate-900">
+                          {
+                            workerDetails.jobs_completed
+                          }
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-4">
+
+                        <p className="text-xs font-medium text-slate-500">
+                          Availability
+                        </p>
+
+                        <p className="mt-2 text-sm font-bold uppercase text-slate-900">
+                          {
+                            workerDetails.availability_status
+                          }
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {/* BIO */}
+
+                    <div>
+
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        About the worker
+                      </h3>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+
+                        {workerDetails.bio ||
+                          "This worker has not added a bio yet."}
+
+                      </p>
+
+                    </div>
+
+                    {/* SKILLS */}
+
+                    <div>
+
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Skills
+                      </h3>
+
+                      {workerDetails.skills?.length ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+
+                          {workerDetails.skills.map(
+                            (skill) => (
+                              <span
+                                key={
+                                  skill
+                                }
+                                className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700"
+                              >
+                                {skill}
+                              </span>
+                            )
+                          )}
+
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-slate-500">
+                          No skills have been added yet.
+                        </p>
+                      )}
+
+                    </div>
+
+                    {/* RECENT REVIEWS */}
+
+                    <div>
+
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Recent reviews
+                      </h3>
+
+                      {workerDetails.recent_reviews?.length ? (
+                        <div className="mt-3 space-y-3">
+
+                          {workerDetails.recent_reviews.map(
+                            (
+                              review,
+                              index
+                            ) => (
+                              <div
+                                key={`${review.created_at}-${index}`}
+                                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                              >
+
+                                <div className="flex items-start justify-between gap-4">
+
+                                  <div>
+
+                                    <p className="text-sm font-semibold text-slate-800">
+                                      {
+                                        review.reviewer_name
+                                      }
+                                    </p>
+
+                                    <p className="mt-1 text-xs text-slate-500">
+                                      {new Date(
+                                        review.created_at
+                                      ).toLocaleDateString()}
+                                    </p>
+
+                                  </div>
+
+                                  <div className="flex items-center gap-1">
+
+                                    <StarIcon className="h-4 w-4 fill-amber-400 text-amber-400" />
+
+                                    <span className="text-sm font-semibold text-slate-700">
+                                      {
+                                        review.rating
+                                      }
+                                    </span>
+
+                                  </div>
+
+                                </div>
+
+                                {review.comment && (
+                                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                                    {
+                                      review.comment
+                                    }
+                                  </p>
+                                )}
+
+                              </div>
+                            )
+                          )}
+
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-slate-500">
+                          This worker has no reviews yet.
+                        </p>
+                      )}
+
+                    </div>
+
+                    {/* AVAILABILITY */}
+
+                    <div>
+
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Availability
+                      </h3>
+
+                      <div className="mt-2">
+
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1.5 text-xs font-medium ${
+                            workerDetails.availability_status ===
+                            "AVAILABLE"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {
+                            workerDetails.availability_status
+                          }
                         </span>
-                      )
+
+                      </div>
+
+                    </div>
+
+                    {/* MEMBER INFORMATION */}
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Worker information
+                      </h3>
+
+                      <div className="mt-3 space-y-2 text-sm">
+
+                        <div className="flex justify-between gap-4">
+
+                          <span className="text-slate-500">
+                            Member since
+                          </span>
+
+                          <span className="font-medium text-slate-700">
+                            {workerDetails.member_since
+                              ? new Date(
+                                  workerDetails.member_since
+                                ).toLocaleDateString()
+                              : "Not available"}
+                          </span>
+
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+
+                          <span className="text-slate-500">
+                            Reviews
+                          </span>
+
+                          <span className="font-medium text-slate-700">
+                            {
+                              workerDetails.total_reviews
+                            }
+                          </span>
+
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+
+                          <span className="text-slate-500">
+                            Verification
+                          </span>
+
+                          <span
+                            className={`font-medium ${
+                              workerDetails.verified
+                                ? "text-emerald-700"
+                                : "text-slate-700"
+                            }`}
+                          >
+                            {workerDetails.verified
+                              ? "Verified"
+                              : "Not verified"}
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                    {/* APPLICATION INFO */}
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Application information
+                      </h3>
+
+                      <div className="mt-3 space-y-2 text-sm">
+
+                        <div className="flex justify-between gap-4">
+
+                          <span className="text-slate-500">
+                            Applied
+                          </span>
+
+                          <span className="font-medium text-slate-700">
+                            {new Date(
+                              selectedWorker.applied_at
+                            ).toLocaleDateString()}
+                          </span>
+
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+
+                          <span className="text-slate-500">
+                            Status
+                          </span>
+
+                          <span className="font-medium text-slate-700">
+                            {
+                              selectedWorker.status_display
+                            }
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  {/* MODAL FOOTER */}
+
+                  <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:justify-end">
+
+                    <button
+                      type="button"
+                      onClick={
+                        closeWorkerModal
+                      }
+                      className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Close
+                    </button>
+
+                    {selectedWorker.status ===
+                      "PENDING" && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={
+                            actionApplicationId ===
+                            selectedWorker.id
+                          }
+                          onClick={() =>
+                            handleApplicationStatus(
+                              selectedWorker.id,
+                              "reject"
+                            )
+                          }
+                          className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={
+                            actionApplicationId ===
+                            selectedWorker.id
+                          }
+                          onClick={() =>
+                            handleApplicationStatus(
+                              selectedWorker.id,
+                              "accept"
+                            )
+                          }
+                          className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {actionApplicationId ===
+                          selectedWorker.id
+                            ? "Updating..."
+                            : "Accept Worker"}
+                        </button>
+                      </>
                     )}
 
                   </div>
-                ) : (
-                  <p className="mt-2 text-sm text-slate-500">
-                    No skills have been added yet.
-                  </p>
-                )}
-
-              </div>
-
-              {/* AVAILABILITY */}
-
-              <div>
-
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Availability
-                </h3>
-
-                <div className="mt-2">
-
-                  <span className="inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                    {selectedWorker
-                      .worker_profile
-                      ?.availability_status ||
-                      "Not specified"}
-                  </span>
-
-                </div>
-
-              </div>
-
-              {/* APPLICATION INFO */}
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Application information
-                </h3>
-
-                <div className="mt-3 space-y-2 text-sm">
-
-                  <div className="flex justify-between gap-4">
-
-                    <span className="text-slate-500">
-                      Applied
-                    </span>
-
-                    <span className="font-medium text-slate-700">
-                      {new Date(
-                        selectedWorker.applied_at
-                      ).toLocaleDateString()}
-                    </span>
-
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-
-                    <span className="text-slate-500">
-                      Status
-                    </span>
-
-                    <span className="font-medium text-slate-700">
-                      {
-                        selectedWorker.status_display
-                      }
-                    </span>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* MODAL FOOTER */}
-
-            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:justify-end">
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedWorker(null)
-                }
-                className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                Close
-              </button>
-
-              {selectedWorker.status ===
-                "PENDING" && (
-                <>
-                  <button
-                    type="button"
-                    disabled={
-                      actionApplicationId ===
-                      selectedWorker.id
-                    }
-                    onClick={() =>
-                      handleApplicationStatus(
-                        selectedWorker.id,
-                        "reject"
-                      )
-                    }
-                    className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={
-                      actionApplicationId ===
-                      selectedWorker.id
-                    }
-                    onClick={() =>
-                      handleApplicationStatus(
-                        selectedWorker.id,
-                        "accept"
-                      )
-                    }
-                    className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {actionApplicationId ===
-                    selectedWorker.id
-                      ? "Updating..."
-                      : "Accept Worker"}
-                  </button>
                 </>
               )}
-
-            </div>
 
           </div>
 
