@@ -120,8 +120,6 @@ function getUserDashboard(): string | null {
     return null;
   }
 
-  const selectedRole = getSelectedRole();
-
   /*
    * If the user has selected a valid CLIENT role,
    * respect that selection.
@@ -323,12 +321,15 @@ function ProtectedDashboard({
 
   /*
    * No authenticated user.
+   *
+   * Send the user to the public home page
+   * instead of the login page.
    */
 
   if (!user) {
     return (
       <Navigate
-        to="/login"
+        to="/"
         replace
       />
     );
@@ -348,7 +349,7 @@ function ProtectedDashboard({
 
     return (
       <Navigate
-        to={dashboard || "/login"}
+        to={dashboard || "/"}
         replace
       />
     );
@@ -368,7 +369,7 @@ function ProtectedDashboard({
 
     return (
       <Navigate
-        to={dashboard || "/login"}
+        to={dashboard || "/"}
         replace
       />
     );
@@ -893,7 +894,7 @@ function App() {
         path="*"
         element={
           <Navigate
-            to="/login"
+            to="/"
             replace
           />
         }
