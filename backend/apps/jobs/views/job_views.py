@@ -9,7 +9,7 @@ import logging
 from apps.jobs.services import JobService
 from apps.jobs.serializers import (
     JobSerializer,
-    JobDetailSerializer,           # ← new import
+    JobDetailSerializer,
     JobCreateSerializer,
     JobUpdateSerializer,
     JobListSerializer,
@@ -23,6 +23,28 @@ from apps.common.constants import JobStatus, AssignmentStatus
 # Service instance
 job_service = JobService()
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# HELPER — read the user's currently-selected role from the JWT
+# ============================================================
+
+def _current_role(request):
+    """
+    Extract the user's currently-selected role from the JWT.
+
+    Returns 'CLIENT', 'WORKER', 'ADMIN', or None.
+    """
+    try:
+        token = request.auth
+        if token is None:
+            return None
+        role = token.get('current_role')
+        if role in ('CLIENT', 'WORKER', 'ADMIN'):
+            return role
+    except Exception:
+        pass
+    return None
 
 
 class CreateJobView(APIView):
@@ -113,48 +135,54 @@ class OpenJobsView(APIView):
 class MyJobsView(APIView):
     """
     GET /api/jobs/my-jobs/
-    Get jobs posted by or assigned to the authenticated user.
+
+    Role-aware. Returns jobs based on the user's CURRENT role (from JWT):
+
+      CLIENT -> only jobs the user posted (Job.client == request.user)
+      WORKER -> only jobs the user is/was assigned to
+                (JobAssignment.worker == request.user)
+                Does NOT include applications — those live in
+                /api/jobs/my-applications/.
+
+    A dual-role user switching roles gets a different list per role —
+    never the union.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
 
     def get(self, request):
-        from apps.jobs.models import Job, JobAssignment, JobApplication
+        from apps.jobs.models import Job, JobAssignment
 
         user = request.user
-        jobs = Job.objects.none()
+        role = _current_role(request)
 
-        if user.is_client:
-            client_jobs = Job.objects.filter(
+        # ── CLIENT: only jobs I posted ─────────────────────
+        if role == 'CLIENT':
+            jobs = Job.objects.filter(
                 client=user,
-                deleted_at__isnull=True
-            )
-            jobs = jobs | client_jobs
+                deleted_at__isnull=True,
+            ).order_by('-posted_at')
 
-        if user.is_worker:
+        # ── WORKER: only jobs I was actually assigned to ───
+        elif role == 'WORKER':
             assigned_job_ids = JobAssignment.objects.filter(
-                worker=user
+                worker=user,
             ).values_list('job_id', flat=True)
 
-            applied_job_ids = JobApplication.objects.filter(
-                worker=user
-            ).values_list('job_id', flat=True)
+            jobs = Job.objects.filter(
+                id__in=assigned_job_ids,
+                deleted_at__isnull=True,
+            ).order_by('-posted_at')
 
-            worker_job_ids = set(assigned_job_ids) | set(applied_job_ids)
-
-            if worker_job_ids:
-                worker_jobs = Job.objects.filter(
-                    id__in=worker_job_ids,
-                    deleted_at__isnull=True
-                )
-                jobs = jobs | worker_jobs
-
-        jobs = jobs.distinct().order_by('-posted_at')
+        # ── No role selected (or ADMIN) → empty ────────────
+        else:
+            jobs = Job.objects.none()
 
         serializer = JobListSerializer(jobs, many=True)
 
         return Response({
             'count': len(serializer.data),
-            'results': serializer.data
+            'role': role,
+            'results': serializer.data,
         }, status=status.HTTP_200_OK)
 
 
