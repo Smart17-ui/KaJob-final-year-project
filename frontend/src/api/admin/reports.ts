@@ -26,13 +26,13 @@ export interface ResolveReportPayload {
 // ============================================
 // API FUNCTIONS
 //
-// Note: admin_panel/urls.py mounts these routes at `/api/reports/`
-// (no /admin/ prefix). Verified against the live URL resolver.
+// Admin endpoints live under /api/reports/admin/.
+// (Mounted via apps.reports.urls in config/urls.py)
 // ============================================
 
 export const adminReportsApi = {
     /**
-     * GET /api/reports/
+     * GET /api/reports/admin/
      */
     getReports: async (
         filters?: ReportFilters
@@ -40,46 +40,49 @@ export const adminReportsApi = {
         const params: Record<string, any> = {};
         if (filters?.status) params.status = filters.status;
         if (filters?.category) params.category = filters.category;
-        return await http.get('/reports/', params);
+        return await http.get('/reports/admin/', params);
     },
 
     /**
-     * GET /api/reports/{id}/
+     * GET /api/reports/admin/{id}/
      */
     getReport: async (
         reportId: number
     ): Promise<{ report: AdminReportDetail }> => {
-        return await http.get(`/reports/${reportId}/`);
+        return await http.get(`/reports/admin/${reportId}/`);
     },
 
     /**
-     * POST /api/reports/{id}/investigate/
+     * POST /api/reports/admin/{id}/investigate/
      */
     investigateReport: async (
         reportId: number,
         payload: InvestigateReportPayload
     ): Promise<{ message: string; investigation: ReportInvestigation }> => {
         return await http.post(
-            `/reports/${reportId}/investigate/`,
+            `/reports/admin/${reportId}/investigate/`,
             payload
         );
     },
 
     /**
-     * POST /api/reports/{id}/resolve/
+     * POST /api/reports/admin/{id}/resolve/
      */
     resolveReport: async (
         reportId: number,
         payload: ResolveReportPayload
     ): Promise<{ message: string; report: AdminReportDetail }> => {
         return await http.post(
-            `/reports/${reportId}/resolve/`,
+            `/reports/admin/${reportId}/resolve/`,
             payload
         );
     },
 
     /**
      * GET /api/reports/stats/
+     *
+     * Note: stats is also available at /api/reports/admin/stats/.
+     * Either works — keeping this URL since it already returns 200.
      */
     getStats: async (): Promise<ReportStats> => {
         return await http.get('/reports/stats/');
