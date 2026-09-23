@@ -190,14 +190,12 @@ class JobService:
 
         logger.info(f"Job created: {job.title} by {client.email} (ID: {job.id})")
 
-        # Notify nearby available workers (within 1 km)
+        # Notify nearby available workers (within 5 km)
         try:
             from apps.matching.services.matching_service import MatchingService
             from apps.notifications.services import NotificationService
 
-            nearby = MatchingService().find_workers_near_job(
-                job_id=job.id, radius_km=1.0
-            )
+            nearby = MatchingService().find_workers_near_job(job_id=job.id, radius_km=5.0)
 
             if nearby:
                 notif = NotificationService()
@@ -219,7 +217,7 @@ class JobService:
                 )
             else:
                 logger.info(
-                    f"[notify] job_posted: no nearby workers within 1km of job {job.id}"
+                    f"[notify] job_posted: no nearby workers within 5km of job {job.id}"
                 )
         except Exception as e:
             logger.error(f"[notify] job_posted broadcast failed: {e}")
