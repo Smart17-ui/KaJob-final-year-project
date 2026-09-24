@@ -82,27 +82,33 @@ Built as a final-year Software Engineering project at the University of Zambia.
 - Atomic state transitions on accept, withdraw, start, complete, cancel, and
   dispute
 - CORS handled at the middleware layer with preflight-safe responses
+## Project Structure
 
-    backend/
-    ├── apps/
-    │   ├── accounts/          # user, worker profile, client profile, roles
-    │   ├── jobs/              # job, application, assignment, lifecycle
-    │   ├── matching/          # distance, geocoding, radius filtering
-    │   ├── notifications/     # in-app, email, WebSocket, preferences
-    │   ├── reports/           # user reports, admin investigation, moderation
-    │   ├── reviews/           # mutual reviews after job completion
-    │   └── admin_panel/       # admin URLs, dashboards, moderation
-    ├── config/                # Django settings, URLs, ASGI
-    └── infrastructure/        # middleware (auth, audit, CORS, security)
+```text
+backend/
+├── apps/
+│   ├── accounts/          # user, worker profile, client profile, roles
+│   ├── jobs/              # job, application, assignment, lifecycle
+│   ├── matching/          # distance, geocoding, radius filtering
+│   ├── notifications/     # in-app, email, WebSocket, preferences
+│   ├── reports/           # user reports, admin investigation, moderation
+│   ├── reviews/           # mutual reviews after job completion
+│   └── admin_panel/       # admin URLs, dashboards, moderation
+├── config/                # Django settings, URLs, ASGI
+└── infrastructure/        # middleware (auth, audit, CORS, security)
 
-    frontend/
-    └── src/
-        ├── api/               # API clients (user + admin)
-        ├── components/        # shared UI
-        ├── features/          # admin, jobs, reports, reviews
-        ├── pages/             # dashboard pages by role
-        ├── context/           # auth context
-        └── types/             # shared TypeScript types
+frontend/
+└── src/
+    ├── api/               # API clients (user + admin)
+    ├── components/        # shared UI
+    ├── features/          # admin, jobs, reports, reviews
+    ├── pages/             # dashboard pages by role
+    ├── context/           # auth context
+    └── types/             # shared TypeScript types
+```
+
+
+
 
 ## Authors
 
