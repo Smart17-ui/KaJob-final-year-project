@@ -77,14 +77,16 @@ export const ReportsPage = () => {
     }, [debouncedSearch, status, setSearchParams]);
 
     // Client-side search filter
+    // NOTE: use optional chaining — general complaints have
+    // reported_user: null and job_title: null.
     const filteredReports = debouncedSearch
         ? reports.filter((r) => {
               const q = debouncedSearch.toLowerCase();
               return (
-                  r.reference_number.toLowerCase().includes(q) ||
-                  r.reporter.full_name.toLowerCase().includes(q) ||
-                  r.reported_user.full_name.toLowerCase().includes(q) ||
-                  r.category_display.toLowerCase().includes(q)
+                  r.reference_number?.toLowerCase().includes(q) ||
+                  r.reporter?.full_name?.toLowerCase().includes(q) ||
+                  r.reported_user?.full_name?.toLowerCase().includes(q) ||
+                  r.category_display?.toLowerCase().includes(q)
               );
           })
         : reports;

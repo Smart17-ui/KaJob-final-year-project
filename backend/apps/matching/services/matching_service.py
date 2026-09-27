@@ -44,13 +44,13 @@ class MatchingService:
             logger.warning(f"Worker profile not found for user {worker_id}")
             return []
 
-        # ✅ Check if worker has an ACTIVE assignment
+        #Check if worker has an ACTIVE assignment
         has_active_assignment = JobAssignment.objects.filter(
             worker_id=worker_id,
             status=AssignmentStatus.ACTIVE
         ).exists()
 
-        # ✅ If worker is busy, return empty list (no job updates)
+        # If worker is busy, return empty list (no job updates)
         if has_active_assignment:
             logger.info(f"Worker {worker_id} has active assignment. Skipping job updates.")
             return []
@@ -95,7 +95,7 @@ class MatchingService:
 
         nearby_jobs.sort(key=lambda x: x['distance_km'])
 
-        # ✅ Send email notification if jobs found AND worker is NOT busy
+        # Send email notification if jobs found AND worker is NOT busy
         if nearby_jobs and len(nearby_jobs) > 0:
             try:
                 worker_user = User.objects.get(id=worker_id)
@@ -118,7 +118,7 @@ class MatchingService:
         return len(nearby_jobs)
 
     # ============================================
-    # 🆕 FIND WORKERS NEAR A JOB (for job-post broadcast)
+    # FIND WORKERS NEAR A JOB (for job-post broadcast)
     # ============================================
 
     def find_workers_near_job(
@@ -202,8 +202,8 @@ class MatchingService:
         """
         Find applicants within radius of job location.
 
-        ✅ ONLY shows workers who have APPLIED to this job
-        ✅ Shows distance from job to applicant
+        ONLY shows workers who have APPLIED to this job
+        Shows distance from job to applicant
         """
         try:
             job = Job.objects.get(id=job_id, deleted_at__isnull=True)
@@ -276,8 +276,8 @@ class MatchingService:
         """
         Get ALL applicants for a job (without distance filtering).
 
-        ✅ Shows ALL workers who have applied (regardless of distance)
-        ✅ Can filter by application status
+        ONLY shows workers who have applied (regardless of distance)
+        Can filter by application status
         """
         try:
             job = Job.objects.get(id=job_id, deleted_at__isnull=True)
@@ -357,63 +357,4 @@ class MatchingService:
 
         return result
 
-    # ============================================
-    # 🆕 PRIVATE METHODS
-    # ============================================
 
-    def _send_nearby_jobs_email(self, worker: User, nearby_jobs: List[Dict], radius_km: float):
-        """
-        Send email notification to worker about nearby jobs.
-        """
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-
-        # Format jobs for email
-        job_list = ""
-        for item in nearby_jobs[:5]:  # Show top 5 jobs
-            job = item['job']
-            job_list += f"""
-            • <strong>{job.title}</strong><br>
-              💰 K{job.budget} | 📍 {item['distance_display']} away<br>
-              <a href="{frontend_url}/jobs/{job.id}">View Job</a><br><br>
-            """
-
-        if len(nearby_jobs) > 5:
-            job_list += f"\n... and {len(nearby_jobs) - 5} more jobs"
-
-        context = {
-            'worker': worker,
-            'full_name': worker.full_name,
-            'job_count': len(nearby_jobs),
-            'job_list': job_list,
-            'radius_km': radius_km,
-            'frontend_url': frontend_url,
-            'jobs_url': f"{frontend_url}/nearby-jobs",
-        }
-
-        subject = f"🔔 {len(nearby_jobs)} job{'s' if len(nearby_jobs) > 1 else ''} found near you!"
-
-        try:
-            self.email_service.send_email(
-                to_email=worker.email,
-                subject=subject,
-                template_name='nearby_jobs',
-                context=context,
-            )
-        except Exception as e:
-            # Fallback to plain text
-            message = f"""
-Hello {worker.full_name},
-
-We found {len(nearby_jobs)} job{'s' if len(nearby_jobs) > 1 else ''} within {radius_km}km of your location!
-
-{job_list}
-
-View all nearby jobs: {frontend_url}/nearby-jobs
-
-KaJob Team
-"""
-            self.email_service.send_plain_email(
-                to_email=worker.email,
-                subject=subject,
-                message=message.strip()
-            )

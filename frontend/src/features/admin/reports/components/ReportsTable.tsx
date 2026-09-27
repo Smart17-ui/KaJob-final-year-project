@@ -19,6 +19,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export const ReportsTable = ({ reports, loading, onView }: Props) => {
+    // Guard against undefined (in case the parent passes undefined data)
+    const safeReports = Array.isArray(reports) ? reports : [];
+
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
@@ -33,7 +36,7 @@ export const ReportsTable = ({ reports, loading, onView }: Props) => {
         );
     }
 
-    if (reports.length === 0) {
+    if (safeReports.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-center">
                 <AlertCircle
@@ -60,50 +63,73 @@ export const ReportsTable = ({ reports, loading, onView }: Props) => {
                 </tr>
             </thead>
             <tbody className="divide-y divide-admin-border-light">
-                {reports.map((r) => (
-                    <tr
-                        key={r.id}
-                        onClick={() => onView(r)}
-                        className="cursor-pointer hover:bg-admin-bg-secondary"
-                    >
-                        <td className="px-4 py-3 font-mono text-xs text-admin-text-primary">
-                            {r.reference_number}
-                        </td>
-                        <td className="px-4 py-3">
-                            <div className="font-medium text-admin-text-primary">
-                                {r.reporter.full_name}
-                            </div>
-                            <div className="text-xs text-admin-text-tertiary">
-                                {r.reporter.email}
-                            </div>
-                        </td>
-                        <td className="px-4 py-3">
-                            <div className="font-medium text-admin-text-primary">
-                                {r.reported_user.full_name}
-                            </div>
-                            <div className="text-xs text-admin-text-tertiary">
-                                {r.reported_user.email}
-                            </div>
-                        </td>
-                        <td className="px-4 py-3 text-admin-text-primary">
-                            {r.category_display}
-                        </td>
-                        <td className="px-4 py-3">
-                            <span
-                                className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${
-                                    STATUS_COLORS[r.status] ||
-                                    'bg-gray-100 text-gray-700'
-                                }`}
-                            >
-                                {r.status_display}
-                            </span>
-                        </td>
-                        <td className="px-4 py-3 text-admin-text-tertiary text-xs">
-                            {new Date(r.submitted_at).toLocaleDateString()}
-                        </td>
-                    </tr>
-                ))}
+                {safeReports.map((r) => {
+                    const isGeneralComplaint = !r.reported_user;
+
+                    return (
+                        <tr
+                            key={r.id}
+                            onClick={() => onView(r)}
+                            className="cursor-pointer hover:bg-admin-bg-secondary"
+                        >
+                            <td className="px-4 py-3 font-mono text-xs text-admin-text-primary">
+                                {r.reference_number ?? '—'}
+                            </td>
+
+                            {/* Reporter — always present, but defensive */}
+                            <td className="px-4 py-3">
+                                <div className="font-medium text-admin-text-primary">
+                                    {r.reporter?.full_name ?? '—'}
+                                </div>
+                                <div className="text-xs text-admin-text-tertiary">
+                                    {r.reporter?.email ?? ''}
+                                </div>
+                            </td>
+
+                            {/* Reported — NULL for general complaints */}
+                            <td className="px-4 py-3">
+                                {isGeneralComplaint ? (
+                                    <span className="inline-block px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600">
+                                        General complaint
+                                    </span>
+                                ) : (
+                                    <>
+                                        <div className="font-medium text-admin-text-primary">
+                                            {r.reported_user?.full_name ?? '—'}
+                                        </div>
+                                        <div className="text-xs text-admin-text-tertiary">
+                                            {r.reported_user?.email ?? ''}
+                                        </div>
+                                    </>
+                                )}
+                            </td>
+
+                            <td className="px-4 py-3 text-admin-text-primary">
+                                {r.category_display ?? '—'}
+                            </td>
+
+                            <td className="px-4 py-3">
+                                <span
+                                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${
+                                        STATUS_COLORS[r.status] ||
+                                        'bg-gray-100 text-gray-700'
+                                    }`}
+                                >
+                                    {r.status_display ?? r.status ?? '—'}
+                                </span>
+                            </td>
+
+                            <td className="px-4 py-3 text-admin-text-tertiary text-xs">
+                                {r.submitted_at
+                                    ? new Date(r.submitted_at).toLocaleDateString()
+                                    : '—'}
+                            </td>
+                        </tr>
+                    );
+                })}
             </tbody>
         </table>
     );
 };
+
+export default ReportsTable;
