@@ -120,6 +120,8 @@ function getUserDashboard(): string | null {
     return null;
   }
 
+  const selectedRole = getSelectedRole();
+
   /*
    * If the user has selected a valid CLIENT role,
    * respect that selection.
