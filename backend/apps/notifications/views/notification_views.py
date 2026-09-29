@@ -73,7 +73,8 @@ class NotificationListView(APIView):
 
 class NotificationDetailView(APIView):
     """
-    GET /api/notifications/{id}/
+    GET    /api/notifications/{id}/   — view one notification
+    DELETE /api/notifications/{id}/   — delete one notification
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
 
@@ -84,6 +85,24 @@ class NotificationDetailView(APIView):
         return Response({
             'notification': NotificationSerializer(notification).data,
         }, status=status.HTTP_200_OK)
+
+    def delete(self, request, notification_id):
+        """
+        Delete a single notification owned by the current user.
+        Returns 204 on success, 404 if not found or not owned.
+        """
+        deleted = notification_service.delete_one(
+            notification_id=notification_id,
+            user_id=request.user.id,
+        )
+
+        if not deleted:
+            return Response(
+                {'error': 'Notification not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class NotificationMarkReadView(APIView):

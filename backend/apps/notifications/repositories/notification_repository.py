@@ -107,6 +107,30 @@ class NotificationRepository(BaseRepository[Notification]):
         count, _ = qs.delete()
         return count
 
+    # ─────────────────────────────────────────
+    # NEW: delete a single notification
+    # ─────────────────────────────────────────
+
+    def delete_one(
+        self,
+        notification_id: int,
+        user_id: int,
+    ) -> bool:
+        """
+        Delete a single notification owned by user_id.
+
+        Returns True if a row was deleted, False if not found
+        or not owned by the user.
+
+        Does NOT apply role filtering — ownership is the only rule.
+        Users can delete their own notifications from any dashboard.
+        """
+        deleted_count, _ = self.filter(
+            id=notification_id,
+            recipient_id=user_id,
+        ).delete()
+        return deleted_count > 0
+
     # ============================================
     # PREFERENCES
     # ============================================
