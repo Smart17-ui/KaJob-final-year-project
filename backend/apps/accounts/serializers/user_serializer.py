@@ -1,5 +1,3 @@
-# apps/accounts/serializers/user_serializer.py
-
 from rest_framework import serializers
 from apps.accounts.models import User, Profile, Role
 
@@ -82,7 +80,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             'district',
             'latitude',
             'longitude',
-            'location_updated_at',   # 🆕
+            'location_updated_at',
             'created_at',
             'updated_at',
         ]

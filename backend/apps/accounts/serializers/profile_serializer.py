@@ -1,5 +1,3 @@
-# apps/accounts/serializers/profile_serializer.py
-
 from rest_framework import serializers
 from apps.accounts.models import Profile, WorkerProfile, ClientProfile
 

@@ -1,5 +1,3 @@
-# apps/accounts/serializers/auth_serializer.py
-
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from apps.common.constants import RoleType
@@ -8,9 +6,9 @@ from apps.common.constants import RoleType
 class RegisterSerializer(serializers.Serializer):
     """
     Serializer for user registration.
-    
+
     Role is REQUIRED at registration (user must choose Worker or Client).
-    
+
     Used by: RegisterView (POST /api/auth/register/)
     """
     first_name = serializers.CharField(max_length=100, required=True)
@@ -27,27 +25,42 @@ class RegisterSerializer(serializers.Serializer):
         choices=[RoleType.WORKER, RoleType.CLIENT],
         required=True
     )
-    
+
     def validate_email(self, value):
-        """Normalize email to lowercase."""
-        return value.lower().strip()
-    
+        """
+        Normalize email to lowercase and reject duplicates.
+
+        Uses iexact so 'Smart@x.com' collides with 'smart@x.com'.
+        Without this, the DB's unique constraint triggers a 500
+        instead of a clean 400.
+        """
+        from apps.accounts.models import User
+
+        normalized = value.strip().lower()
+
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError(
+                "An account with this email already exists."
+            )
+
+        return normalized
+
     def validate_phone_number(self, value):
         """
         Validate and normalize phone number.
-        
+
         Supports:
         - Zambia: 0971234567, +260971234567
         - International: +[country_code][number]
         """
         from apps.identity_verification.services import VerificationService
-        
+
         verification_service = VerificationService()
         result = verification_service.validate_phone_number(value)
-        
+
         if not result['is_valid']:
             raise serializers.ValidationError(result['error'])
-        
+
         # Return normalized phone number
         return result['normalized']
 
@@ -55,14 +68,14 @@ class RegisterSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     """
     Serializer for user login.
-    
-    ✅ NO ROLE FIELD — Role is auto-detected after authentication.
-    
+
+    NO ROLE FIELD — Role is auto-detected after authentication.
+
     Used by: LoginView (POST /api/auth/login/)
     """
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True)
-    
+
     def validate_email(self, value):
         """Normalize email to lowercase for case-insensitive login."""
         return value.lower().strip()
@@ -71,7 +84,7 @@ class LoginSerializer(serializers.Serializer):
 class RefreshTokenSerializer(serializers.Serializer):
     """
     Serializer for refreshing JWT token.
-    
+
     Used by: RefreshTokenView (POST /api/auth/refresh/)
     """
     refresh = serializers.CharField(required=True)
@@ -80,7 +93,7 @@ class RefreshTokenSerializer(serializers.Serializer):
 class ChangePasswordSerializer(serializers.Serializer):
     """
     Serializer for changing password.
-    
+
     Used by: ChangePasswordView (POST /api/auth/change-password/)
     """
     old_password = serializers.CharField(write_only=True, required=True)
@@ -95,11 +108,11 @@ class ChangePasswordSerializer(serializers.Serializer):
 class ForgotPasswordSerializer(serializers.Serializer):
     """
     Serializer for forgot password.
-    
+
     Used by: ForgotPasswordView (POST /api/auth/forgot-password/)
     """
     email = serializers.EmailField(required=True)
-    
+
     def validate_email(self, value):
         """Normalize email to lowercase."""
         return value.lower().strip()
@@ -108,7 +121,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
 class ResetPasswordSerializer(serializers.Serializer):
     """
     Serializer for resetting password.
-    
+
     Used by: ResetPasswordView (POST /api/auth/reset-password/)
     """
     token = serializers.CharField(required=True)
@@ -123,7 +136,7 @@ class ResetPasswordSerializer(serializers.Serializer):
 class VerifyEmailSerializer(serializers.Serializer):
     """
     Serializer for email verification.
-    
+
     Used by: VerifyEmailView (POST /api/auth/verify-email/)
     """
     token = serializers.CharField(required=True)
@@ -132,11 +145,11 @@ class VerifyEmailSerializer(serializers.Serializer):
 class ResendVerificationSerializer(serializers.Serializer):
     """
     Serializer for resending verification email.
-    
+
     Used by: ResendVerificationView (POST /api/auth/resend-verification/)
     """
     email = serializers.EmailField(required=False)
-    
+
     def validate_email(self, value):
         """Normalize email to lowercase if provided."""
         if value:
@@ -147,23 +160,23 @@ class ResendVerificationSerializer(serializers.Serializer):
 class UpdatePhoneSerializer(serializers.Serializer):
     """
     Serializer for updating phone number.
-    
+
     Used by: UpdatePhoneNumberView (PUT /api/auth/profile/phone/)
     """
     phone_number = serializers.CharField(max_length=20, required=True)
-    
+
     def validate_phone_number(self, value):
         """
         Validate and normalize phone number.
         """
         from apps.identity_verification.services import VerificationService
-        
+
         verification_service = VerificationService()
         result = verification_service.validate_phone_number(value)
-        
+
         if not result['is_valid']:
             raise serializers.ValidationError(result['error'])
-        
+
         return result['normalized']
 
 
@@ -200,6 +213,7 @@ class TokenResponseSerializer(serializers.Serializer):
     """
     access = serializers.CharField()
 
+
 class UpdateEmailSerializer(serializers.Serializer):
     """
     Serializer for updating email address.
@@ -209,5 +223,28 @@ class UpdateEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
 
     def validate_email(self, value):
-        """Normalize email to lowercase."""
-        return value.lower().strip()
+        """
+        Normalize email to lowercase and reject duplicates.
+
+        Prevents users from changing their email to one that is
+        already registered by someone else.
+        """
+        from apps.accounts.models import User
+
+        normalized = value.strip().lower()
+
+        # For update, exclude the current user — they can keep their
+        # own email if they're updating other fields (though this
+        # endpoint only updates email, so it's a no-op case)
+        current_user = self.context.get('request').user if self.context.get('request') else None
+
+        qs = User.objects.filter(email__iexact=normalized)
+        if current_user:
+            qs = qs.exclude(id=current_user.id)
+
+        if qs.exists():
+            raise serializers.ValidationError(
+                "An account with this email already exists."
+            )
+
+        return normalized

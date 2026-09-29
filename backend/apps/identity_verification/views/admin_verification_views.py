@@ -105,8 +105,8 @@ class AdminReviewVerificationView(APIView):
 
             return Response({
                 'message': result['message'],
-                'verification_id': result['verification'].id,
-                'status': result['verification'].verification_status,
+                'verification_id': result['verification']['id'],
+                'status': result['verification']['status'],
             }, status=status.HTTP_200_OK)
 
         except (BusinessRuleViolation, ResourceNotFound) as e:

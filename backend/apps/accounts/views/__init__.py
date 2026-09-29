@@ -1,5 +1,3 @@
-# apps/accounts/views/__init__.py
-
 from .auth_views import (
     RegisterView,
     LoginView,

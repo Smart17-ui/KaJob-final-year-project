@@ -115,13 +115,11 @@ import { AdminRoutes } from "@/features/admin/routes";
 
 function getUserDashboard(): string | null {
   const user = getCurrentUser();
-  const selectedRole = getSelectedRole();   // ✅ FIX — declare selectedRole
+  const selectedRole = getSelectedRole();
 
   if (!user) {
     return null;
   }
-
-  const selectedRole = getSelectedRole();
 
   /*
    * If the user has selected a valid CLIENT role,

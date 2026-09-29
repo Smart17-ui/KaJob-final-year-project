@@ -143,6 +143,10 @@ class AdminVerificationService:
     def approve_verification(self, admin, verification_id: int, notes: str = None) -> Dict[str, Any]:
         """
         Approve a verification request.
+
+        Sends BOTH an in-app notification (bell) and an email via the
+        notification service, so the user sees the update on both
+        channels and user preferences are respected.
         """
         verification = self.verification_repo.get_by_id(verification_id)
         if not verification:
@@ -169,10 +173,12 @@ class AdminVerificationService:
 
         logger.info(f"Verification approved for user {verification.user.email} (ID: {verification.id})")
 
+        # Notify the user — in-app + email via the notification service.
         try:
-            self.email_service.send_verification_approved_email(verification.user)
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_verification_approved(verification.user)
         except Exception as e:
-            logger.error(f"Failed to send approval email: {str(e)}")
+            logger.error(f"Failed to send approval notification: {str(e)}")
 
         return {
             'verification': {
@@ -193,6 +199,9 @@ class AdminVerificationService:
     ) -> Dict[str, Any]:
         """
         Reject a verification request.
+
+        Sends BOTH an in-app notification (bell) and an email via the
+        notification service.
         """
         if not reason:
             raise BusinessRuleViolation("Rejection reason is required.")
@@ -223,10 +232,12 @@ class AdminVerificationService:
 
         logger.info(f"Verification rejected for user {verification.user.email} (ID: {verification.id})")
 
+        # Notify the user — in-app + email via the notification service.
         try:
-            self.email_service.send_verification_rejected_email(verification.user, reason)
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_verification_rejected(verification.user, reason)
         except Exception as e:
-            logger.error(f"Failed to send rejection email: {str(e)}")
+            logger.error(f"Failed to send rejection notification: {str(e)}")
 
         return {
             'verification': {

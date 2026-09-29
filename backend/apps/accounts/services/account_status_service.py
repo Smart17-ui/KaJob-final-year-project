@@ -1,5 +1,3 @@
-# apps/accounts/services/account_status_service.py
-
 """
 Apply disciplinary actions to user accounts.
 """

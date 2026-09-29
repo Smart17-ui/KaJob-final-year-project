@@ -1,4 +1,3 @@
-# apps/accounts/models/user_role.py
 from django.db import models
 from apps.common.models.mixins import TimestampMixin
 

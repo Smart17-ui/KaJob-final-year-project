@@ -1,5 +1,3 @@
-# apps/accounts/services/auth_service.py
-
 from django.db import transaction
 from django.utils import timezone
 from typing import Dict, Any, Optional, List
@@ -137,8 +135,8 @@ class AuthService:
     def _add_role_to_existing_user(self, user: User, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Add a new role to an existing user (Role Player Pattern).
-        ✅ NO RE-REGISTRATION NEEDED!
-        ✅ Verification status carries over!
+        NO RE-REGISTRATION NEEDED!
+        Verification status carries over!
         """
         # Get the role
         role = self.role_repo.get_by_name(data['role'])
@@ -149,12 +147,12 @@ class AuthService:
         if user.has_role(data['role']):
             raise BusinessRuleViolation(f"User already has the '{data['role']}' role.")
         
-        # ✅ Check if phone needs updating
+        #Check if phone needs updating
         if user.phone_number != data['phone_number']:
             user.phone_number = data['phone_number']
             user.save(update_fields=['phone_number'])
         
-        # ✅ Check if email needs updating
+        #Check if email needs updating
         if user.email != data['email']:
             user.email = data['email']
             user.save(update_fields=['email'])
@@ -168,7 +166,7 @@ class AuthService:
         elif role.name == RoleType.CLIENT and not hasattr(user, 'client_profile'):
             self.client_repo.create(user=user)
         
-        # ✅ Verification status carries over!
+        #Verification status carries over!
         # User is already verified, no need to re-verify
         
         # Audit log
@@ -210,8 +208,8 @@ class AuthService:
     def add_role_to_user(self, user: User, role_name: str) -> Dict[str, Any]:
         """
         Add a new role to an existing user.
-        ✅ NO RE-REGISTRATION NEEDED!
-        ✅ Verification status carries over!
+        NO RE-REGISTRATION NEEDED!
+        Verification status carries over!
         
         This is the public method that views will call.
         """
@@ -234,7 +232,7 @@ class AuthService:
         elif role_name == RoleType.CLIENT and not hasattr(user, 'client_profile'):
             self.client_repo.create(user=user)
         
-        # ✅ Verification status carries over!
+        # Verification status carries over!
         # User is already verified, no need to re-verify
         
         # Audit log
@@ -345,7 +343,7 @@ class AuthService:
             raise BusinessRuleViolation("Invalid email or password.")
 
         # ============================================
-        # 🆕 DISCIPLINARY CHECK
+        # DISCIPLINARY CHECK
         # Runs BEFORE the legacy repo check so banned/suspended users
         # get a clear, specific message about why they can't log in.
         # ============================================
@@ -506,7 +504,7 @@ class AuthService:
     def verify_email(self, token: str) -> bool:
         """
         Verify user's email address.
-        ✅ DEPRECATED: Use identity_verification module instead.
+        DEPRECATED: Use identity_verification module instead.
         """
         result = self.verification_service.verify_email_token(token)
         
@@ -518,7 +516,7 @@ class AuthService:
     def resend_verification_email(self, user) -> bool:
         """
         Resend verification email.
-        ✅ DEPRECATED: Use identity_verification module instead.
+        DEPRECATED: Use identity_verification module instead.
         """
         result = self.verification_service.send_email_verification(user)
         

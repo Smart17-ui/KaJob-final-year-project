@@ -1,5 +1,3 @@
-# apps/accounts/models/user.py
-
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.hashers import make_password, check_password
@@ -12,7 +10,7 @@ class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError('The Email field must be set')
-        email = self.normalize_email(email)
+        email = self.normalize_email(email).strip().lower()
         extra_fields.setdefault('is_staff', False)
         extra_fields.setdefault('is_superuser', False)
         user = self.model(email=email, **extra_fields)
@@ -58,7 +56,7 @@ class User(BaseModel):
     is_verified = models.BooleanField(default=False)
 
     # ============================================
-    # 🆕 DISCIPLINARY / SUSPENSION TRACKING
+    # DISCIPLINARY / SUSPENSION TRACKING
     # ============================================
     suspended_at = models.DateTimeField(null=True, blank=True)
     suspended_until = models.DateTimeField(null=True, blank=True)
@@ -116,6 +114,20 @@ class User(BaseModel):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    # ============================================
+    # EMAIL NORMALIZATION
+    # ============================================
+
+    def save(self, *args, **kwargs):
+        """
+        Normalize the email before every save so it's always stored
+        lowercase. Two-layer defence with UserManager.create_user().
+        Prevents duplicate accounts like Smart@x.com vs smart@x.com.
+        """
+        if self.email:
+            self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
 
     # ============================================
     # DJANGO AUTH REQUIRED PROPERTIES
@@ -242,7 +254,7 @@ class User(BaseModel):
         self.save()
 
     # ============================================
-    # 🆕 DISCIPLINARY HELPERS
+    # DISCIPLINARY HELPERS
     # ============================================
 
     @property

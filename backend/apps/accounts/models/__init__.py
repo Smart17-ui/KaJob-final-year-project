@@ -1,4 +1,3 @@
-# apps/accounts/models/__init__.py
 from .role import Role
 from .permissions import Permission
 from .role_permissions import RolePermission

@@ -1,5 +1,3 @@
-# apps/accounts/services/token_service.py
-
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from typing import Optional, Dict, Any, List
@@ -43,13 +41,13 @@ class TokenService:
         refresh['email'] = user.email
         refresh['roles'] = user_roles
         
-        # ✅ Add selected role (for role switching)
+        # Add selected role (for role switching)
         if selected_role:
             refresh['current_role'] = selected_role
         else:
             refresh['current_role'] = user_roles[0] if user_roles else None
         
-        # ✅ Add is_verified flag for quick access
+        # Add is_verified flag for quick access
         refresh['is_verified'] = user.is_verified
         
         return {

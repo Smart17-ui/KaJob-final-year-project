@@ -1,6 +1,4 @@
-# apps/accounts/serializers/__init__.py
-
-# User Serializers
+#User Serializers
 from .user_serializer import (
     UserSerializer,
     ProfileSerializer,
@@ -26,7 +24,7 @@ from .auth_serializer import (
     LogoutResponseSerializer,
     TokenResponseSerializer,
     UpdatePhoneSerializer,
-    UpdateEmailSerializer,   # 🆕
+    UpdateEmailSerializer, 
 )
 
 # Profile Serializers
@@ -64,7 +62,7 @@ __all__ = [
     'LogoutResponseSerializer',
     'TokenResponseSerializer',
     'UpdatePhoneSerializer',
-    'UpdateEmailSerializer',   # 🆕
+    'UpdateEmailSerializer', 
 
     # Profile Serializers
     'ProfileUpdateSerializer',
