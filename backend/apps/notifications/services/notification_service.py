@@ -279,6 +279,18 @@ class NotificationService:
     def delete_all(self, user_id: int, role: Optional[str] = None) -> int:
         return self.repository.delete_all(user_id, role)
 
+    # ─────────────────────────────────────────
+    # NEW: delete a single notification
+    # ─────────────────────────────────────────
+
+    def delete_one(self, notification_id: int, user_id: int) -> bool:
+        """
+        Delete a single notification for the given user.
+
+        Returns True if deleted, False if not found or not owned.
+        """
+        return self.repository.delete_one(notification_id, user_id)
+
     # ============================================
     # PREFERENCES
     # ============================================
