@@ -1,5 +1,3 @@
-# apps/accounts/views/auth_views.py
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -294,8 +292,8 @@ class AddRoleView(APIView):
     POST /api/auth/add-role/
     Add a new role to an existing user.
     
-    ✅ NO RE-REGISTRATION NEEDED!
-    ✅ Verification status carries over!
+    NO RE-REGISTRATION NEEDED!
+    Verification status carries over!
     
     Request Body:
         { "role": "WORKER" }

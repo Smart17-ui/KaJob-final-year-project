@@ -1,5 +1,3 @@
-# apps/accounts/views/profile_views.py
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -206,7 +204,7 @@ class UpdateLocationView(APIView):
                     )
                     nearby_count = (
                         MatchingService().count_nearby_jobs_for_worker(
-                            request.user.id, radius_km=1.0
+                            request.user.id, radius_km=10.0
                         )
                     )
                 except Exception:
@@ -274,6 +272,8 @@ class UpdatePhoneNumberView(APIView):
                 {'error': f'Failed to update phone number: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
 class UpdateEmailView(APIView):
     """
     PUT /api/auth/profile/email/

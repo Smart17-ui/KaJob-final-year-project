@@ -1,5 +1,3 @@
-# apps/accounts/models/client_profile.py
-
 from django.db import models
 from apps.common.models.mixins import BaseModel
 

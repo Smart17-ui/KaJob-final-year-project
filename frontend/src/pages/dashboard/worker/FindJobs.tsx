@@ -1,4 +1,3 @@
-
 import {
   useCallback,
   useEffect,
@@ -100,7 +99,7 @@ const parseJsonResponse = async (
 const updateWorkerLocation = async (
   latitude: number,
   longitude: number
-): Promise<void> => {
+): Promise<{ nearby_jobs_count: number }> => {
   const token = getToken();
 
   if (!token) {
@@ -139,6 +138,10 @@ const updateWorkerLocation = async (
       `Failed to update location (${response.status}).`
     );
   }
+
+  return {
+    nearby_jobs_count: data?.nearby_jobs_count ?? 0,
+  };
 };
 
 const getCurrentLocation =
@@ -165,6 +168,36 @@ const getCurrentLocation =
       );
     });
   };
+
+const getLocationErrorMessage = (
+  err: unknown
+): string => {
+  if (
+    err &&
+    typeof err === "object" &&
+    "code" in err &&
+    "message" in err
+  ) {
+    const geoError = err as GeolocationPositionError;
+
+    switch (geoError.code) {
+      case geoError.PERMISSION_DENIED:
+        return "Location access denied. Enable it in your browser settings.";
+      case geoError.POSITION_UNAVAILABLE:
+        return "Location information is unavailable.";
+      case geoError.TIMEOUT:
+        return "Location request timed out. Try again.";
+      default:
+        return geoError.message || "Unable to get your location.";
+    }
+  }
+
+  if (err instanceof Error) {
+    return err.message;
+  }
+
+  return "Unable to get your location.";
+};
 
 const formatBudget = (
   budget: string
@@ -356,6 +389,11 @@ export default function FindJobs() {
   ] = useState<ApplicationInfo | null>(
     null
   );
+
+  const [
+    updatingLocation,
+    setUpdatingLocation,
+  ] = useState(false);
 
   const [feedback, setFeedback] =
     useState<{
@@ -600,7 +638,7 @@ export default function FindJobs() {
       [checkActiveJob]
     );
 
-  /* REQUEST LOCATION */
+  /* REQUEST LOCATION (AUTOMATIC ON MOUNT — silent) */
 
   const requestLocation =
     useCallback(async () => {
@@ -635,6 +673,54 @@ export default function FindJobs() {
       fetchNearbyJobs,
       radius,
     ]);
+
+  /* MANUAL LOCATION UPDATE (BUTTON CLICK) */
+
+  const handleUseMyLocation =
+    async () => {
+      setUpdatingLocation(true);
+
+      try {
+        const position =
+          await getCurrentLocation();
+
+        const result =
+          await updateWorkerLocation(
+            position.coords.latitude,
+            position.coords.longitude
+          );
+
+        setFeedback({
+          isOpen: true,
+          type: "success",
+          title: "Location updated",
+          message:
+            result.nearby_jobs_count > 0
+              ? `You now have ${result.nearby_jobs_count} job${
+                  result.nearby_jobs_count === 1
+                    ? ""
+                    : "s"
+                } near you.`
+              : "Location saved. No jobs within range yet.",
+        });
+
+        await fetchNearbyJobs(radius);
+      } catch (err) {
+        console.error(
+          "Manual location update failed:",
+          err
+        );
+
+        setFeedback({
+          isOpen: true,
+          type: "error",
+          title: "Unable to update location",
+          message: getLocationErrorMessage(err),
+        });
+      } finally {
+        setUpdatingLocation(false);
+      }
+    };
 
   /* INITIALIZE FIND JOBS */
 
@@ -1144,6 +1230,59 @@ export default function FindJobs() {
               fetchNearbyJobs(radius)
             }
           />
+        )}
+
+        {!activeJob && (
+          <div className="mt-3 flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <MapPinIcon className="h-5 w-5 shrink-0 text-blue-600" />
+
+              <div>
+                <p className="text-sm font-medium text-blue-900">
+                  Your location
+                </p>
+
+                <p className="text-xs text-blue-700">
+                  Used to show jobs near you. Update it if you have moved.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={updatingLocation}
+              className="
+                inline-flex
+                items-center
+                justify-center
+                gap-2
+                rounded-lg
+                bg-blue-600
+                px-4
+                py-2
+                text-sm
+                font-semibold
+                text-white
+                transition
+                hover:bg-blue-700
+                disabled:cursor-not-allowed
+                disabled:opacity-60
+              "
+            >
+              {updatingLocation ? (
+                <>
+                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <MapPinIcon className="h-4 w-4" />
+                  Use my current location
+                </>
+              )}
+            </button>
+          </div>
         )}
 
         {!checkingActiveJob &&

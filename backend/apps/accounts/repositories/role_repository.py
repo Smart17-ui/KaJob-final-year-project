@@ -1,5 +1,3 @@
-# apps/accounts/repositories/role_repository.py
-
 from typing import Optional, List
 from apps.accounts.models import Role
 from apps.common.repositories import BaseRepository
@@ -83,7 +81,7 @@ class RoleRepository(BaseRepository[Role]):
         return role_name in [RoleType.ADMIN, RoleType.WORKER, RoleType.CLIENT]
     
     # ============================================
-    # 🆕 ROLE STATISTICS
+    # ROLE STATISTICS
     # ============================================
     
     def get_role_user_count(self, role_name: str) -> int:

@@ -1,5 +1,3 @@
-# apps/accounts/services/profile_service.py
-
 import logging
 from typing import Dict, Any, Optional
 from django.db import transaction

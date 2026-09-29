@@ -1,5 +1,3 @@
-# apps/accounts/repositories/user_repository.py
-
 from typing import Optional, List, Tuple
 from django.db.models import Q, Count
 from apps.accounts.models import User
@@ -89,7 +87,7 @@ class UserRepository(BaseRepository[User]):
         )
     
     # ============================================
-    # 🆕 FILTER BY ROLE (Role Player Pattern)
+    # FILTER BY ROLE (Role Player Pattern)
     # ============================================
     
     def get_users_by_role(self, role_name: str) -> List[User]:
@@ -233,7 +231,7 @@ class UserRepository(BaseRepository[User]):
             return None
     
     # ============================================
-    # 🆕 ROLE SPECIFIC QUERIES
+    # ROLE SPECIFIC QUERIES
     # ============================================
     
     def get_workers(self) -> List[User]:
