@@ -276,33 +276,37 @@ class JobService:
         return qs.order_by('job_date', '-posted_at')
 
     def get_jobs_by_client(self, client_id: int) -> List[Job]:
-        """Get jobs posted by a client (including expired ones)."""
+        """Get jobs posted by a client (excluding hidden ones)."""
         return Job.objects.filter(
             client_id=client_id,
-            deleted_at__isnull=True
+            deleted_at__isnull=True,
+            client_hidden_at__isnull=True,
         ).order_by('-posted_at')
 
     def get_jobs_by_worker(self, worker_id: int) -> List[Job]:
-        """Get jobs assigned to a worker."""
+        """Get jobs assigned to a worker (excluding worker-hidden ones)."""
         return Job.objects.filter(
             assignments__worker_id=worker_id,
+            assignments__worker_hidden_at__isnull=True,
             deleted_at__isnull=True
         ).distinct().order_by('-posted_at')
 
     def get_active_jobs_by_worker(self, worker_id: int) -> List[Job]:
-        """Get active jobs assigned to a worker."""
+        """Get active jobs assigned to a worker (excluding worker-hidden ones)."""
         return Job.objects.filter(
             assignments__worker_id=worker_id,
             assignments__status=AssignmentStatus.ACTIVE,
+            assignments__worker_hidden_at__isnull=True,
             deleted_at__isnull=True
         ).distinct().order_by('-posted_at')
 
     def get_open_jobs_by_client(self, client_id: int) -> List[Job]:
-        """Get open jobs posted by a client (including expired ones)."""
+        """Get open jobs posted by a client (excluding hidden ones)."""
         return Job.objects.filter(
             client_id=client_id,
             status=JobStatus.OPEN,
-            deleted_at__isnull=True
+            deleted_at__isnull=True,
+            client_hidden_at__isnull=True,
         ).order_by('-posted_at')
 
     def get_jobs_by_skills(self, skill_ids: List[int]) -> List[Job]:
@@ -379,8 +383,6 @@ class JobService:
             raise BusinessRuleViolation(f"Cannot update a {job.status} job.")
 
         # ── Validate new date if present ─────────────────────────
-        # Prevents a client from moving the date backwards (which
-        # would silently re-expire the job for workers).
         new_job_date = data.get('job_date')
         if new_job_date:
             if new_job_date < timezone.now().date():
@@ -435,20 +437,22 @@ class JobService:
     @transaction.atomic
     def delete_job(self, client, job_id: int) -> Dict[str, Any]:
         """
-        Delete (soft delete) a job.
+        Soft delete a job.
 
-        Completed jobs cannot be deleted — they are part of the
-        platform's historical record (reviews, disputes, audits).
+        Only OPEN and CANCELLED jobs can be deleted.
+        Once assigned, the job cannot be deleted or cancelled.
         """
         job = self.get_job_by_id(job_id)
 
         if job.client_id != client.id:
-            raise BusinessRuleViolation("You don't have permission to delete this job.")
-
-        if job.status == JobStatus.COMPLETED:
             raise BusinessRuleViolation(
-                "Cannot delete a completed job. "
-                "Completed jobs are part of your history."
+                "You don't have permission to delete this job."
+            )
+
+        if job.status not in [JobStatus.OPEN, JobStatus.CANCELLED]:
+            raise BusinessRuleViolation(
+                f"Cannot delete a job with status '{job.status}'. "
+                f"Only Open and Cancelled jobs can be deleted."
             )
 
         job.deleted_at = timezone.now()
@@ -470,20 +474,14 @@ class JobService:
         }
 
     # ============================================
-    # CANCEL JOB (Option B: guarded by status)
+    # CANCEL JOB (kept for backward compat)
     # ============================================
 
     @transaction.atomic
     def cancel_job(self, client, job_id: int) -> Dict[str, Any]:
         """
-        Cancel a job.
-
-        Option B policy:
-        - OPEN               -> can cancel
-        - ASSIGNED           -> can cancel (worker goes back to AVAILABLE)
-        - IN_PROGRESS        -> cannot cancel (must raise dispute)
-        - AWAITING_CONFIRMATION -> cannot cancel (must confirm or dispute)
-        - COMPLETED/CANCELLED   -> already terminal
+        Cancel a job. Kept for backward compatibility.
+        Under the current policy, ASSIGNED jobs cannot be cancelled.
         """
         job = self.get_job_by_id(job_id)
 
@@ -538,9 +536,7 @@ class JobService:
 
     @transaction.atomic
     def worker_withdraw(self, worker, job_id: int) -> Dict[str, Any]:
-        """
-        Worker withdraws from a job.
-        """
+        """Worker withdraws from a job."""
         job = self.get_job_by_id(job_id)
 
         assignment = job.assignments.filter(
@@ -752,6 +748,172 @@ class JobService:
             'can_view_full_details': is_assigned,
             'assignment_status': job.get_worker_assignment_status(worker_id),
             'application_status': application.status if application else None,
+        }
+
+    # ============================================
+    # HIDE / UNHIDE — CLIENT SIDE
+    # ============================================
+
+    @transaction.atomic
+    def hide_job(self, client, job_id: int) -> Dict[str, Any]:
+        """
+        Hide a completed job from the client's dashboard.
+
+        Only COMPLETED jobs can be hidden. The job stays visible to
+        workers and admins — the client just stops seeing it in My Jobs.
+        """
+        job = self.get_job_by_id(job_id)
+
+        if job.client_id != client.id:
+            raise BusinessRuleViolation(
+                "You don't have permission to hide this job."
+            )
+
+        if job.status != JobStatus.COMPLETED:
+            raise BusinessRuleViolation(
+                "Only completed jobs can be hidden. "
+                "Cancelled jobs can be deleted instead."
+            )
+
+        if job.client_hidden_at is not None:
+            raise BusinessRuleViolation("This job is already hidden.")
+
+        job.client_hidden_at = timezone.now()
+        job.save(update_fields=['client_hidden_at', 'updated_at'])
+
+        AuditLog.objects.create(
+            user=client,
+            action='JOB_HIDDEN',
+            entity_type='JOB',
+            entity_id=job.id,
+            details={'title': job.title, 'status': job.status},
+        )
+
+        logger.info(f"Job {job_id} hidden by client {client.id}")
+
+        return {
+            'job': job,
+            'message': 'Job hidden from your dashboard.',
+        }
+
+    @transaction.atomic
+    def unhide_job(self, client, job_id: int) -> Dict[str, Any]:
+        """Unhide a job so it appears on the client's dashboard again."""
+        job = self.get_job_by_id(job_id)
+
+        if job.client_id != client.id:
+            raise BusinessRuleViolation(
+                "You don't have permission to unhide this job."
+            )
+
+        if job.client_hidden_at is None:
+            raise BusinessRuleViolation("This job is not hidden.")
+
+        job.client_hidden_at = None
+        job.save(update_fields=['client_hidden_at', 'updated_at'])
+
+        AuditLog.objects.create(
+            user=client,
+            action='JOB_UNHIDDEN',
+            entity_type='JOB',
+            entity_id=job.id,
+            details={'title': job.title},
+        )
+
+        logger.info(f"Job {job_id} unhidden by client {client.id}")
+
+        return {
+            'job': job,
+            'message': 'Job is visible again on your dashboard.',
+        }
+
+    # ============================================
+    # HIDE / UNHIDE — WORKER SIDE
+    # ============================================
+
+    @transaction.atomic
+    def hide_assignment(self, worker, assignment_id: int) -> Dict[str, Any]:
+        """
+        Hide a completed or cancelled assignment from the worker's
+        My Work page.
+
+        The job stays visible to the client and admin.
+        """
+        assignment = JobAssignment.objects.filter(
+            id=assignment_id, deleted_at__isnull=True
+        ).first()
+
+        if not assignment:
+            raise ResourceNotFound("Assignment not found.")
+
+        if assignment.worker_id != worker.id:
+            raise BusinessRuleViolation(
+                "This assignment does not belong to you."
+            )
+
+        if assignment.status not in [
+            AssignmentStatus.COMPLETED,
+            AssignmentStatus.CANCELLED,
+        ]:
+            raise BusinessRuleViolation(
+                "You can only hide completed or cancelled assignments."
+            )
+
+        if assignment.worker_hidden_at is not None:
+            raise BusinessRuleViolation("This assignment is already hidden.")
+
+        assignment.worker_hidden_at = timezone.now()
+        assignment.save(update_fields=['worker_hidden_at', 'updated_at'])
+
+        AuditLog.objects.create(
+            user=worker,
+            action='ASSIGNMENT_HIDDEN',
+            entity_type='JOB_ASSIGNMENT',
+            entity_id=assignment.id,
+            details={'job_id': assignment.job_id},
+        )
+
+        logger.info(f"Assignment {assignment_id} hidden by worker {worker.id}")
+
+        return {
+            'assignment_id': assignment.id,
+            'message': 'Assignment hidden from your work history.',
+        }
+
+    @transaction.atomic
+    def unhide_assignment(self, worker, assignment_id: int) -> Dict[str, Any]:
+        """Unhide an assignment so it appears on the worker's My Work page."""
+        assignment = JobAssignment.objects.filter(
+            id=assignment_id, deleted_at__isnull=True
+        ).first()
+
+        if not assignment:
+            raise ResourceNotFound("Assignment not found.")
+
+        if assignment.worker_id != worker.id:
+            raise BusinessRuleViolation(
+                "This assignment does not belong to you."
+            )
+
+        if assignment.worker_hidden_at is None:
+            raise BusinessRuleViolation("This assignment is not hidden.")
+
+        assignment.worker_hidden_at = None
+        assignment.save(update_fields=['worker_hidden_at', 'updated_at'])
+
+        AuditLog.objects.create(
+            user=worker,
+            action='ASSIGNMENT_UNHIDDEN',
+            entity_type='JOB_ASSIGNMENT',
+            entity_id=assignment.id,
+            details={'job_id': assignment.job_id},
+        )
+
+        logger.info(f"Assignment {assignment_id} unhidden by worker {worker.id}")
+
+        return {
+            'assignment_id': assignment.id,
+            'message': 'Assignment is visible again in your work history.',
         }
 
     # ============================================

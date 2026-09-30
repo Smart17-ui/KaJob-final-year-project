@@ -136,16 +136,7 @@ class MyJobsView(APIView):
     """
     GET /api/jobs/my-jobs/
 
-    Role-aware. Returns jobs based on the user's CURRENT role (from JWT):
-
-      CLIENT -> only jobs the user posted (Job.client == request.user)
-      WORKER -> only jobs the user is/was assigned to
-                (JobAssignment.worker == request.user)
-                Does NOT include applications — those live in
-                /api/jobs/my-applications/.
-
-    A dual-role user switching roles gets a different list per role —
-    never the union.
+    Role-aware. Returns jobs based on the user's CURRENT role (from JWT).
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
 
@@ -155,17 +146,19 @@ class MyJobsView(APIView):
         user = request.user
         role = _current_role(request)
 
-        # ── CLIENT: only jobs I posted ─────────────────────
+        # ── CLIENT: only jobs I posted (excludes hidden ones) ─────
         if role == 'CLIENT':
             jobs = Job.objects.filter(
                 client=user,
                 deleted_at__isnull=True,
+                client_hidden_at__isnull=True,
             ).order_by('-posted_at')
 
         # ── WORKER: only jobs I was actually assigned to ───
         elif role == 'WORKER':
             assigned_job_ids = JobAssignment.objects.filter(
                 worker=user,
+                worker_hidden_at__isnull=True,
             ).values_list('job_id', flat=True)
 
             jobs = Job.objects.filter(
@@ -188,7 +181,7 @@ class MyJobsView(APIView):
 
 class MyOpenJobsView(APIView):
     """
-    Get open jobs posted by the authenticated client.
+    Get open jobs posted by the authenticated client (excluding hidden).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
 
@@ -202,7 +195,7 @@ class MyOpenJobsView(APIView):
 
 class MyActiveJobsView(APIView):
     """
-    Get active jobs assigned to the authenticated worker.
+    Get active jobs assigned to the authenticated worker (excluding hidden).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 
@@ -211,7 +204,8 @@ class MyActiveJobsView(APIView):
 
         assigned_job_ids = JobAssignment.objects.filter(
             worker=request.user,
-            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
+            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS],
+            worker_hidden_at__isnull=True,
         ).values_list('job_id', flat=True)
 
         jobs = Job.objects.filter(
@@ -297,7 +291,7 @@ class UpdateJobView(APIView):
 class DeleteJobView(APIView):
     """
     Delete (soft delete) a job.
-    Only the client who posted the job can delete it.
+    Only OPEN and CANCELLED jobs can be deleted.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
 
@@ -313,9 +307,7 @@ class DeleteJobView(APIView):
 
 class CancelJobView(APIView):
     """
-    Cancel a job.
-    Only the client who posted the job can cancel it.
-    Blocked when job is IN_PROGRESS or AWAITING_CONFIRMATION.
+    Cancel a job. Kept for backward compatibility.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
 
@@ -411,7 +403,6 @@ class WorkerStartJobView(APIView):
     """
     POST /api/jobs/{job_id}/start/
     Worker starts the job -> Job.status becomes IN_PROGRESS.
-    After this, the worker can no longer withdraw.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
 
@@ -429,7 +420,6 @@ class WorkerStartJobView(APIView):
 class RaiseDisputeView(APIView):
     """
     POST /api/jobs/{job_id}/dispute/
-    Body: { "reason": "...", "notes": "..." }  (notes optional)
     Either party can raise a dispute on an active job.
     """
     permission_classes = [IsAuthenticated, IsActiveUser]
@@ -446,5 +436,79 @@ class RaiseDisputeView(APIView):
                 'message': result['message'],
                 'job': JobSerializer(result['job']).data,
             }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ============================================================
+# HIDE / UNHIDE — CLIENT SIDE
+# ============================================================
+
+class HideJobView(APIView):
+    """
+    POST /api/jobs/{job_id}/hide/
+    Hide a completed job from the client's dashboard.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
+
+    def post(self, request, job_id):
+        try:
+            result = job_service.hide_job(request.user, job_id)
+            return Response({
+                'message': result['message'],
+                'job': JobSerializer(result['job']).data,
+            }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UnhideJobView(APIView):
+    """
+    POST /api/jobs/{job_id}/unhide/
+    Unhide a job so it appears on the client's dashboard again.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
+
+    def post(self, request, job_id):
+        try:
+            result = job_service.unhide_job(request.user, job_id)
+            return Response({
+                'message': result['message'],
+                'job': JobSerializer(result['job']).data,
+            }, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ============================================================
+# HIDE / UNHIDE — WORKER SIDE
+# ============================================================
+
+class HideAssignmentView(APIView):
+    """
+    POST /api/jobs/assignments/{assignment_id}/hide/
+    Hide a completed or cancelled assignment from the worker's view.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
+
+    def post(self, request, assignment_id):
+        try:
+            result = job_service.hide_assignment(request.user, assignment_id)
+            return Response(result, status=status.HTTP_200_OK)
+        except (BusinessRuleViolation, ResourceNotFound) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UnhideAssignmentView(APIView):
+    """
+    POST /api/jobs/assignments/{assignment_id}/unhide/
+    Unhide an assignment so it appears on the worker's My Work page.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
+
+    def post(self, request, assignment_id):
+        try:
+            result = job_service.unhide_assignment(request.user, assignment_id)
+            return Response(result, status=status.HTTP_200_OK)
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
