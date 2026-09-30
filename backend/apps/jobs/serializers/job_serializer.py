@@ -265,6 +265,12 @@ class JobSerializer(serializers.ModelSerializer):
     is_urgent = serializers.BooleanField(read_only=True)
     search_radius_km = serializers.FloatField(read_only=True)
 
+    # ── Hide / Unhide (NEW) ──
+    is_hidden_by_client = serializers.SerializerMethodField()
+    can_hide = serializers.SerializerMethodField()
+    can_unhide = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
     class Meta:
         model = Job
         fields = [
@@ -302,6 +308,12 @@ class JobSerializer(serializers.ModelSerializer):
             'completed_at',
             'created_at',
             'updated_at',
+
+            # Hide / Unhide (NEW)
+            'is_hidden_by_client',
+            'can_hide',
+            'can_unhide',
+            'can_delete',
         ]
         read_only_fields = [
             'id',
@@ -343,6 +355,26 @@ class JobSerializer(serializers.ModelSerializer):
     def get_job_display_time(self, obj):
         return obj.job_display_time
 
+    # ── Hide / Unhide (NEW) ──
+
+    def get_is_hidden_by_client(self, obj):
+        return obj.client_hidden_at is not None
+
+    def get_can_hide(self, obj):
+        """Client can hide only COMPLETED jobs that aren't already hidden."""
+        return (
+            obj.status == JobStatus.COMPLETED
+            and obj.client_hidden_at is None
+        )
+
+    def get_can_unhide(self, obj):
+        """Client can unhide only jobs that are currently hidden."""
+        return obj.client_hidden_at is not None
+
+    def get_can_delete(self, obj):
+        """Client can delete only OPEN or CANCELLED jobs."""
+        return obj.status in [JobStatus.OPEN, JobStatus.CANCELLED]
+
 
 # ============================================================
 # JOB DETAIL SERIALIZER — client/admin full-access view
@@ -366,6 +398,12 @@ class JobDetailSerializer(serializers.ModelSerializer):
     job_display_date = serializers.SerializerMethodField()
     job_display_time = serializers.SerializerMethodField()
     search_radius_km = serializers.FloatField(read_only=True)
+
+    # ── Hide / Unhide (NEW) ──
+    is_hidden_by_client = serializers.SerializerMethodField()
+    can_hide = serializers.SerializerMethodField()
+    can_unhide = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
 
     # Nested detail objects
     client = serializers.SerializerMethodField()
@@ -427,6 +465,12 @@ class JobDetailSerializer(serializers.ModelSerializer):
             'completed_at',
             'created_at',
             'updated_at',
+
+            # Hide / Unhide (NEW)
+            'is_hidden_by_client',
+            'can_hide',
+            'can_unhide',
+            'can_delete',
         ]
         read_only_fields = [
             'id',
@@ -529,6 +573,23 @@ class JobDetailSerializer(serializers.ModelSerializer):
 
     def get_job_display_time(self, obj):
         return obj.job_display_time
+
+    # ── Hide / Unhide (NEW) ──
+
+    def get_is_hidden_by_client(self, obj):
+        return obj.client_hidden_at is not None
+
+    def get_can_hide(self, obj):
+        return (
+            obj.status == JobStatus.COMPLETED
+            and obj.client_hidden_at is None
+        )
+
+    def get_can_unhide(self, obj):
+        return obj.client_hidden_at is not None
+
+    def get_can_delete(self, obj):
+        return obj.status in [JobStatus.OPEN, JobStatus.CANCELLED]
 
 
 # ============================================================
@@ -670,6 +731,12 @@ class JobListSerializer(serializers.ModelSerializer):
     urgency_display = serializers.SerializerMethodField()
     search_radius_km = serializers.FloatField(read_only=True)
 
+    # ── Hide / Unhide (NEW) ──
+    is_hidden_by_client = serializers.SerializerMethodField()
+    can_hide = serializers.SerializerMethodField()
+    can_unhide = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
     class Meta:
         model = Job
         fields = [
@@ -689,6 +756,12 @@ class JobListSerializer(serializers.ModelSerializer):
             'search_radius_km',
             'worker_id',
             'worker_name',
+
+            # Hide / Unhide (NEW)
+            'is_hidden_by_client',
+            'can_hide',
+            'can_unhide',
+            'can_delete',
         ]
 
     def get_client_name(self, obj):
@@ -718,6 +791,23 @@ class JobListSerializer(serializers.ModelSerializer):
     def get_worker_name(self, obj):
         assignment = self._get_assigned_worker(obj)
         return assignment.worker.full_name if assignment and assignment.worker else None
+
+    # ── Hide / Unhide (NEW) ──
+
+    def get_is_hidden_by_client(self, obj):
+        return obj.client_hidden_at is not None
+
+    def get_can_hide(self, obj):
+        return (
+            obj.status == JobStatus.COMPLETED
+            and obj.client_hidden_at is None
+        )
+
+    def get_can_unhide(self, obj):
+        return obj.client_hidden_at is not None
+
+    def get_can_delete(self, obj):
+        return obj.status in [JobStatus.OPEN, JobStatus.CANCELLED]
 
 
 # ============================================================
@@ -752,6 +842,12 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     assignment_status = serializers.SerializerMethodField()
     application_status = serializers.SerializerMethodField()
     assigned_at = serializers.SerializerMethodField()
+
+    # ── Hide / Unhide (NEW, worker side) ──
+    assignment_id = serializers.SerializerMethodField()
+    is_hidden_by_worker = serializers.SerializerMethodField()
+    can_hide_assignment = serializers.SerializerMethodField()
+    can_unhide_assignment = serializers.SerializerMethodField()
 
     # Nested detail objects
     client = serializers.SerializerMethodField()
@@ -815,6 +911,12 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
             'assignment_status',
             'assigned_at',
             'can_view_full_details',
+
+            # Hide / Unhide (worker side) (NEW)
+            'assignment_id',
+            'is_hidden_by_worker',
+            'can_hide_assignment',
+            'can_unhide_assignment',
         ]
         read_only_fields = [
             'id',
@@ -960,3 +1062,42 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
 
     def get_job_display_time(self, obj):
         return obj.job_display_time
+
+    # ---------- Hide / Unhide (worker side) (NEW) ----------
+
+    def _worker_assignment(self, obj):
+        if not self.worker_id:
+            return None
+
+        if not hasattr(self, '_cached_assignment'):
+            from apps.jobs.models import JobAssignment
+            self._cached_assignment = JobAssignment.objects.filter(
+                job=obj,
+                worker_id=self.worker_id,
+            ).order_by('-assigned_at').first()
+
+        return self._cached_assignment
+
+    def get_assignment_id(self, obj):
+        a = self._worker_assignment(obj)
+        return a.id if a else None
+
+    def get_is_hidden_by_worker(self, obj):
+        a = self._worker_assignment(obj)
+        return bool(a and a.worker_hidden_at is not None)
+
+    def get_can_hide_assignment(self, obj):
+        a = self._worker_assignment(obj)
+        if not a:
+            return False
+        return (
+            a.status in [
+                AssignmentStatus.COMPLETED,
+                AssignmentStatus.CANCELLED,
+            ]
+            and a.worker_hidden_at is None
+        )
+
+    def get_can_unhide_assignment(self, obj):
+        a = self._worker_assignment(obj)
+        return bool(a and a.worker_hidden_at is not None)

@@ -18,13 +18,18 @@ from .job_views import (
     WorkerWithdrawView,
     WorkerStartJobView,
     RaiseDisputeView,
+    # Hide / Unhide (NEW)
+    HideJobView,
+    UnhideJobView,
+    HideAssignmentView,
+    UnhideAssignmentView,
 )
 from .job_application_views import (
     ApplyForJobView,
     JobApplicationsView,
     PendingApplicationsView,
     UpdateApplicationStatusView,
-    WithdrawApplicationView,          # ← NEW
+    WithdrawApplicationView,
     MyApplicationsView,
     MyJobApplicationsView,
     ClientApplicationsView,
@@ -60,13 +65,18 @@ __all__ = [
     'WorkerWithdrawView',
     'WorkerStartJobView',
     'RaiseDisputeView',
+    # Hide / Unhide (NEW)
+    'HideJobView',
+    'UnhideJobView',
+    'HideAssignmentView',
+    'UnhideAssignmentView',
 
     # Job Application Views
     'ApplyForJobView',
     'JobApplicationsView',
     'PendingApplicationsView',
     'UpdateApplicationStatusView',
-    'WithdrawApplicationView',        # ← NEW
+    'WithdrawApplicationView',
     'MyApplicationsView',
     'MyJobApplicationsView',
     'ClientApplicationsView',

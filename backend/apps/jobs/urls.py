@@ -16,16 +16,20 @@ from apps.jobs.views import (
     CancelJobView,
     CompleteJobView,
     JobDetailForWorkerView,
+    HideJobView,
+    UnhideJobView,
     # Job lifecycle
     WorkerWithdrawView,
     WorkerStartJobView,
     RaiseDisputeView,
+    HideAssignmentView,
+    UnhideAssignmentView,
     # Job Application Views
     ApplyForJobView,
     JobApplicationsView,
     PendingApplicationsView,
     UpdateApplicationStatusView,
-    WithdrawApplicationView,          # ← NEW
+    WithdrawApplicationView,
     MyApplicationsView,
     MyJobApplicationsView,
     ClientApplicationsView,
@@ -54,6 +58,22 @@ urlpatterns = [
     path('<int:job_id>/cancel/', CancelJobView.as_view(), name='cancel-job'),
 
     # ============================================
+    # HIDE / UNHIDE
+    # ============================================
+    path('<int:job_id>/hide/', HideJobView.as_view(), name='hide-job'),
+    path('<int:job_id>/unhide/', UnhideJobView.as_view(), name='unhide-job'),
+    path(
+        'assignments/<int:assignment_id>/hide/',
+        HideAssignmentView.as_view(),
+        name='hide-assignment',
+    ),
+    path(
+        'assignments/<int:assignment_id>/unhide/',
+        UnhideAssignmentView.as_view(),
+        name='unhide-assignment',
+    ),
+
+    # ============================================
     # APPLY FOR JOB
     # ============================================
     path('<int:job_id>/apply/', ApplyForJobView.as_view(), name='apply-for-job'),
@@ -66,7 +86,7 @@ urlpatterns = [
     path('<int:job_id>/applications/summary/', ApplicationStatusSummaryView.as_view(), name='application-status-summary'),
     path('applications/client/', ClientApplicationsView.as_view(), name='client-applications'),
     path('applications/<int:application_id>/status/', UpdateApplicationStatusView.as_view(), name='update-application-status'),
-    path('applications/<int:application_id>/withdraw/', WithdrawApplicationView.as_view(), name='withdraw-application'),   # ← NEW
+    path('applications/<int:application_id>/withdraw/', WithdrawApplicationView.as_view(), name='withdraw-application'),
 
     # ============================================
     # APPLICATION STATUS MANAGEMENT

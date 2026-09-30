@@ -180,6 +180,17 @@ class Job(BaseModel):
     posted_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
+    # Client-side visibility toggle (hide from My Jobs)
+    client_hidden_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "When the client hid this completed job from their dashboard. "
+            "Used to declutter My Jobs without removing history."
+        ),
+    )
+
     # Completion tracking
     worker_marked_complete = models.BooleanField(default=False)
     worker_marked_complete_at = models.DateTimeField(null=True, blank=True)
@@ -263,6 +274,10 @@ class Job(BaseModel):
         return self.status == self.COMPLETED
 
     @property
+    def is_hidden_by_client(self):
+        return self.client_hidden_at is not None
+
+    @property
     def is_urgent(self):
         return self.urgency in ['IMMEDIATE', 'URGENT']
 
@@ -304,6 +319,14 @@ class Job(BaseModel):
     def can_client_confirm(self):
         return self.status == self.AWAITING_CONFIRMATION
 
+    def can_delete(self):
+        """Only OPEN and CANCELLED jobs can be soft-deleted."""
+        return self.status in [self.OPEN, self.CANCELLED]
+
+    def can_hide(self):
+        """Only COMPLETED jobs can be hidden by the client."""
+        return self.status == self.COMPLETED
+
     # ============================================
     # CONDITIONAL DISCLOSURE METHODS
     # ============================================
@@ -314,13 +337,6 @@ class Job(BaseModel):
 
         Returns True if the worker has (or had) an assignment on this job.
         Used by: can_view_full_details(), serializers, views
-
-        Explanation:
-        - Workers can see full details if they have been assigned
-        - This includes past assignments (COMPLETED, CANCELLED) so the
-          assigned worker can still view client info after the job is done
-          — needed for the review flow.
-        - Only completely unrelated workers are blocked.
         """
         from apps.jobs.models import JobAssignment
         from apps.common.constants import AssignmentStatus
@@ -339,12 +355,6 @@ class Job(BaseModel):
     def get_worker_assignment_status(self, worker_id: int) -> str:
         """
         Get the assignment status for a specific worker.
-
-        Returns:
-            - Assignment status string (e.g., 'ACTIVE', 'COMPLETED')
-            - None if worker is not assigned
-
-        Used by: serializers to show assignment status to workers
         """
         from apps.jobs.models import JobAssignment
 
@@ -357,12 +367,6 @@ class Job(BaseModel):
     def get_worker_application_status(self, worker_id: int) -> str:
         """
         Get the application status for a specific worker.
-
-        Returns:
-            - Application status string (e.g., 'PENDING', 'ACCEPTED')
-            - None if worker has not applied
-
-        Used by: serializers to show application status to workers
         """
         from apps.jobs.models import JobApplication
         from apps.common.constants import ApplicationStatus
@@ -375,21 +379,7 @@ class Job(BaseModel):
 
     def can_view_full_details(self, worker_id: int) -> bool:
         """
-        KEY METHOD: Check if a worker can view full job details.
-
-        What it controls:
-        - exact_location (specific address)
-        - map_url (Google Maps link)
-        - directions_url (Directions link)
-        - place_id (Google Maps Place ID)
-        - client_name
-        - client_phone
-
-        The rule:
-        - Workers with any assignment (past or present) can view full details.
-        - This protects client privacy for unrelated workers.
-
-        Used by: WorkerJobDetailSerializer to conditionally show/hide fields
+        Check if a worker can view full job details.
         """
         if not worker_id:
             return False
@@ -398,12 +388,6 @@ class Job(BaseModel):
     def get_visible_location(self, worker_id: int = None) -> str:
         """
         Returns the appropriate location based on worker's assignment status.
-
-        Returns:
-            - If assigned: exact_location (or general_location as fallback)
-            - If not assigned: general_location only
-
-        Used by: serializers to show the correct location to workers
         """
         if worker_id and self.can_view_full_details(worker_id):
             return self.exact_location or self.general_location
@@ -412,14 +396,6 @@ class Job(BaseModel):
     def get_visible_contact(self, worker_id: int = None) -> dict:
         """
         Returns client contact info only if worker is assigned.
-
-        Returns:
-            {
-                'client_name': str or None,
-                'client_phone': str or None
-            }
-
-        Used by: serializers to conditionally show contact details
         """
         if worker_id and self.can_view_full_details(worker_id):
             return {
@@ -434,15 +410,6 @@ class Job(BaseModel):
     def get_visible_map_urls(self, worker_id: int = None) -> dict:
         """
         Returns map URLs only if worker is assigned.
-
-        Returns:
-            {
-                'map_url': str or None,
-                'directions_url': str or None,
-                'place_id': str or None
-            }
-
-        Used by: serializers to conditionally show map and directions
         """
         if worker_id and self.can_view_full_details(worker_id):
             return {
@@ -463,15 +430,6 @@ class Job(BaseModel):
     def is_within_radius(self, worker_id: int, radius_km: float = 1.0) -> bool:
         """
         Check if a worker is within the job's search radius.
-
-        Args:
-            worker_id: The worker's user ID
-            radius_km: Search radius in kilometers (default: 1km)
-
-        Returns:
-            True if worker is within radius, False otherwise
-
-        Used by: MatchingService to filter jobs
         """
         from apps.accounts.models import WorkerProfile
         from apps.matching.services.distance_service import DistanceService
@@ -512,12 +470,6 @@ class Job(BaseModel):
     def get_nearby_workers(self, radius_km: float = 5.0) -> list:
         """
         Get workers within a certain radius of this job.
-
-        Args:
-            radius_km: Search radius in kilometers (default: 5km)
-
-        Returns:
-            List of workers with their distance from this job
         """
         from django.contrib.auth import get_user_model
         from apps.common.constants import UserAccountStatus
@@ -624,7 +576,6 @@ class Job(BaseModel):
     def populate_map_urls(self):
         """
         Generate map and directions URLs from latitude/longitude.
-        Can be used in a data migration to populate existing jobs.
         """
         if self.latitude and self.longitude:
             self.map_url = f"https://www.google.com/maps?q={float(self.latitude)},{float(self.longitude)}"
