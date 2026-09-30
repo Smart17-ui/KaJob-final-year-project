@@ -4,6 +4,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from django.db.models import Q, Prefetch
 from django.conf import settings
+from django.utils import timezone
 from apps.jobs.repositories import JobRepository
 from apps.accounts.repositories import WorkerProfileRepository
 from apps.jobs.models import Job, JobAssignment, JobApplication
@@ -34,28 +35,31 @@ class MatchingService:
     def find_nearby_jobs_for_worker(
         self,
         worker_id: int,
-        radius_km: float = 1.0
+        radius_km: float = 10.0
     ) -> List[Dict[str, Any]]:
-        """Find jobs within radius of worker location."""
+        """
+        Find jobs within radius of worker location.
+
+        Excludes expired jobs (job_date in the past). Jobs with no
+        job_date are kept.
+        """
         try:
-            # Get worker profile with user and profile
-            worker_profile = WorkerProfile.objects.select_related('user', 'user__profile').get(user_id=worker_id)
+            worker_profile = WorkerProfile.objects.select_related(
+                'user', 'user__profile'
+            ).get(user_id=worker_id)
         except WorkerProfile.DoesNotExist:
             logger.warning(f"Worker profile not found for user {worker_id}")
             return []
 
-        #Check if worker has an ACTIVE assignment
         has_active_assignment = JobAssignment.objects.filter(
             worker_id=worker_id,
             status=AssignmentStatus.ACTIVE
         ).exists()
 
-        # If worker is busy, return empty list (no job updates)
         if has_active_assignment:
             logger.info(f"Worker {worker_id} has active assignment. Skipping job updates.")
             return []
 
-        # Get location from the User's Profile
         user = worker_profile.user
         if not hasattr(user, 'profile') or not user.profile:
             logger.warning(f"User {worker_id} has no profile")
@@ -68,12 +72,14 @@ class MatchingService:
             logger.warning(f"Worker {worker_id} has no location set in profile")
             return []
 
-        # Get jobs with location data
+        # Get jobs with location data — excluding expired ones
         jobs = Job.objects.filter(
             status=JobStatus.OPEN,
             latitude__isnull=False,
             longitude__isnull=False,
             deleted_at__isnull=True
+        ).filter(
+            Q(job_date__isnull=True) | Q(job_date__gte=timezone.now().date())
         ).select_related('category', 'client')
 
         nearby_jobs = []
@@ -95,15 +101,6 @@ class MatchingService:
 
         nearby_jobs.sort(key=lambda x: x['distance_km'])
 
-        # Send email notification if jobs found AND worker is NOT busy
-        if nearby_jobs and len(nearby_jobs) > 0:
-            try:
-                worker_user = User.objects.get(id=worker_id)
-                self._send_nearby_jobs_email(worker_user, nearby_jobs, radius_km)
-                logger.info(f"📧 Nearby jobs email sent to worker {worker_id} ({len(nearby_jobs)} jobs found)")
-            except Exception as e:
-                logger.error(f"Failed to send nearby jobs email: {str(e)}")
-
         logger.info(f"Found {len(nearby_jobs)} nearby jobs for worker {worker_id}")
 
         return nearby_jobs
@@ -111,7 +108,7 @@ class MatchingService:
     def count_nearby_jobs_for_worker(
         self,
         worker_id: int,
-        radius_km: float = 1.0
+        radius_km: float = 10.0
     ) -> int:
         """Count jobs within radius of worker location."""
         nearby_jobs = self.find_nearby_jobs_for_worker(worker_id, radius_km)
@@ -124,14 +121,10 @@ class MatchingService:
     def find_workers_near_job(
         self,
         job_id: int,
-        radius_km: float = 1.0
+        radius_km: float = 10.0
     ) -> List[Dict[str, Any]]:
         """
         Return AVAILABLE workers within radius_km of a job's location.
-
-        Used when a job is created — notify every nearby worker.
-        Skips: the client themselves, BUSY workers, workers without a
-        profile location, and unverified/inactive accounts.
         """
         try:
             job = Job.objects.get(id=job_id, deleted_at__isnull=True)
@@ -143,7 +136,6 @@ class MatchingService:
             logger.warning(f"Job {job_id} has no location — cannot broadcast")
             return []
 
-        # Candidate workers: active, verified, with a location
         candidates = User.objects.filter(
             account_status='ACTIVE',
             is_verified=True,
@@ -154,7 +146,6 @@ class MatchingService:
 
         nearby = []
         for worker in candidates:
-            # Skip workers who are not AVAILABLE
             try:
                 wp = worker.worker_profile
                 if wp and wp.availability_status != AvailabilityStatus.AVAILABLE:
@@ -197,14 +188,9 @@ class MatchingService:
         self,
         job_id: int,
         client_id: int,
-        radius_km: float = 1.0
+        radius_km: float = 10.0
     ) -> List[Dict[str, Any]]:
-        """
-        Find applicants within radius of job location.
-
-        ONLY shows workers who have APPLIED to this job
-        Shows distance from job to applicant
-        """
+        """Find applicants within radius of job location."""
         try:
             job = Job.objects.get(id=job_id, deleted_at__isnull=True)
         except Job.DoesNotExist:
@@ -230,9 +216,10 @@ class MatchingService:
         for application in applications:
             worker = application.worker
             try:
-                worker_profile = WorkerProfile.objects.select_related('user', 'user__profile').get(user=worker)
+                worker_profile = WorkerProfile.objects.select_related(
+                    'user', 'user__profile'
+                ).get(user=worker)
 
-                # Get location from the User's Profile
                 user = worker_profile.user
                 if hasattr(user, 'profile') and user.profile:
                     lat = user.profile.latitude
@@ -273,12 +260,7 @@ class MatchingService:
         client_id: int,
         status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Get ALL applicants for a job (without distance filtering).
-
-        ONLY shows workers who have applied (regardless of distance)
-        Can filter by application status
-        """
+        """Get ALL applicants for a job (without distance filtering)."""
         try:
             job = Job.objects.get(id=job_id, deleted_at__isnull=True)
         except Job.DoesNotExist:
@@ -299,12 +281,13 @@ class MatchingService:
         for application in applications:
             worker = application.worker
             try:
-                worker_profile = WorkerProfile.objects.select_related('user', 'user__profile').get(user=worker)
+                worker_profile = WorkerProfile.objects.select_related(
+                    'user', 'user__profile'
+                ).get(user=worker)
 
                 distance_km = None
                 distance_display = None
 
-                # Get location from the User's Profile
                 if job.latitude and job.longitude:
                     user = worker_profile.user
                     if hasattr(user, 'profile') and user.profile:
@@ -356,5 +339,3 @@ class MatchingService:
         logger.info(f"Found {len(result)} applicants for job {job_id}")
 
         return result
-
-
