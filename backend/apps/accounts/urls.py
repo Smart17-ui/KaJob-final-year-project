@@ -26,6 +26,14 @@ from apps.accounts.views import (
     WorkerApplicationsView,
     WorkerAvailabilityView,
     UpdateEmailView,
+    # Worker Skills
+    SkillListView,
+    MySkillsView,
+    MySkillDetailView,
+    # Account Management (NEW)
+    UpdateNameView,
+    DeactivateAccountView,
+    DeleteAccountView,
 )
 
 app_name = 'accounts'
@@ -52,7 +60,7 @@ urlpatterns = [
     path('auth/switch-role/', SwitchRoleView.as_view(), name='switch-role'),
     path('auth/roles/', GetUserRolesView.as_view(), name='user-roles'),
 
-    # PROFILES  (now under auth/profile/…)
+    # PROFILES
     path('auth/profile/', UserProfileView.as_view(), name='user-profile'),
     path('auth/profile/update/', UserProfileUpdateView.as_view(), name='user-profile-update'),
     path('auth/profile/location/', UpdateLocationView.as_view(), name='update-location'),
@@ -63,9 +71,35 @@ urlpatterns = [
     path('auth/profile/client/update/', ClientProfileUpdateView.as_view(), name='client-profile-update'),
     path('auth/profile/email/', UpdateEmailView.as_view(), name='update-email'),
 
+    # ============================================
+    # ACCOUNT MANAGEMENT (NEW)
+    # ============================================
+    path('auth/profile/name/', UpdateNameView.as_view(), name='update-name'),
+    path('auth/deactivate/', DeactivateAccountView.as_view(), name='deactivate-account'),
+    path('auth/account/', DeleteAccountView.as_view(), name='delete-account'),
+
     # WORKER MANAGEMENT
     path('workers/<int:worker_id>/', WorkerDetailView.as_view(), name='worker-detail'),
     path('workers/<int:worker_id>/summary/', WorkerSummaryView.as_view(), name='worker-summary'),
     path('workers/<int:worker_id>/applications/', WorkerApplicationsView.as_view(), name='worker-applications'),
     path('workers/<int:worker_id>/availability/', WorkerAvailabilityView.as_view(), name='worker-availability'),
+
+    # ============================================
+    # WORKER SKILLS
+    # ============================================
+    path(
+        'skills/',
+        SkillListView.as_view(),
+        name='skill-list',
+    ),
+    path(
+        'workers/me/skills/',
+        MySkillsView.as_view(),
+        name='my-skills',
+    ),
+    path(
+        'workers/me/skills/<int:worker_skill_id>/',
+        MySkillDetailView.as_view(),
+        name='my-skill-detail',
+    ),
 ]

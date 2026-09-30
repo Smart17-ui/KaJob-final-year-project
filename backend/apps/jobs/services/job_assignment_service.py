@@ -9,6 +9,7 @@ from apps.jobs.models import Job, JobAssignment, JobApplication
 from apps.common.constants import JobStatus, AssignmentStatus, ApplicationStatus
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
 from apps.accounts.models import WorkerProfile
+from apps.audit.models import AuditLog
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +88,6 @@ class JobAssignmentService:
         )
 
         # Update worker availability
-        # (the post_save signal will also handle this, but we do it explicitly
-        # so the response is immediate)
         try:
             worker_profile = WorkerProfile.objects.get(user_id=worker_id)
             worker_profile.availability_status = 'BUSY'
@@ -100,7 +99,7 @@ class JobAssignmentService:
             f"Worker {worker_id} assigned to job {job_id} by client {client.id}"
         )
 
-        # 🆕 Notify the worker
+        # Notify the worker
         try:
             from apps.notifications.services import NotificationService
             NotificationService().notify_job_assigned(
@@ -179,7 +178,7 @@ class JobAssignmentService:
             f"auto-confirm at {job.auto_confirm_at}"
         )
 
-        # 🆕 Notify the client
+        # Notify the client
         try:
             from apps.notifications.services import NotificationService
             NotificationService().notify_job_completed(
@@ -263,6 +262,121 @@ class JobAssignmentService:
                 'status_display': dict(JobStatus.CHOICES).get(job.status),
                 'completed_at': job.completed_at,
             },
+        }
+
+    # ============================================
+    # AUTO-CONFIRM (called by background task) (NEW)
+    # ============================================
+
+    @transaction.atomic
+    def auto_confirm_job(self, job) -> Dict[str, Any]:
+        """
+        Auto-confirm a job that has passed its grace period without the
+        client responding.
+
+        Mirrors `client_confirm_complete` so the resulting state is
+        identical — with one extra timestamp (`auto_confirmed_at`) to
+        record that the system did it, not the client.
+        """
+        now = timezone.now()
+
+        # ---------- GUARDS ----------
+        if job.status != JobStatus.AWAITING_CONFIRMATION:
+            raise BusinessRuleViolation(
+                f"Cannot auto-confirm a job with status '{job.status}'."
+            )
+
+        if job.auto_confirm_at is None:
+            raise BusinessRuleViolation(
+                "Job has no auto_confirm_at timestamp."
+            )
+
+        if job.auto_confirm_at > now:
+            raise BusinessRuleViolation(
+                "Job is not yet eligible for auto-confirm."
+            )
+
+        if job.auto_confirmed_at is not None:
+            raise BusinessRuleViolation(
+                "Job has already been auto-confirmed."
+            )
+
+        # ---------- APPLY SAME CHANGES AS MANUAL CONFIRM ----------
+        job.status = JobStatus.COMPLETED
+        job.client_confirmed_complete = True
+        job.client_confirmed_at = now
+        job.auto_confirmed_at = now
+        job.completed_at = now
+        job.save(update_fields=[
+            'status',
+            'client_confirmed_complete',
+            'client_confirmed_at',
+            'auto_confirmed_at',
+            'completed_at',
+            'updated_at',
+        ])
+
+        assignment = job.assignments.filter(
+            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
+        ).first()
+        if assignment:
+            assignment.status = AssignmentStatus.COMPLETED
+            assignment.completed_at = now
+            assignment.save(update_fields=[
+                'status', 'completed_at', 'updated_at'
+            ])
+
+        logger.info(
+            f"[auto_confirm] Job {job.id} auto-confirmed "
+            f"(grace={job.auto_confirm_grace_minutes}min)"
+        )
+
+        # ---------- AUDIT LOG ----------
+        try:
+            AuditLog.objects.create(
+                user=None,
+                action='JOB_AUTO_CONFIRMED',
+                entity_type='JOB',
+                entity_id=job.id,
+                details={
+                    'grace_minutes': job.auto_confirm_grace_minutes,
+                    'auto_confirm_at': job.auto_confirm_at.isoformat(),
+                    'auto_confirmed_at': now.isoformat(),
+                    'assignment_id': assignment.id if assignment else None,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"[auto_confirm] audit log failed: {e}")
+
+        # ---------- NOTIFY BOTH PARTIES ----------
+        try:
+            from apps.notifications.services import NotificationService
+            notif = NotificationService()
+
+            if assignment and assignment.worker_id:
+                try:
+                    notif.notify_job_completed(
+                        client=job.client,
+                        job=job,
+                        worker=assignment.worker,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"[auto_confirm] notification failed: {e}"
+                    )
+        except Exception as e:
+            logger.warning(f"[auto_confirm] notification setup failed: {e}")
+
+        return {
+            'message': 'Job auto-confirmed.',
+            'job': {
+                'id': job.id,
+                'status': job.status,
+                'status_display': dict(JobStatus.CHOICES).get(job.status),
+                'completed_at': job.completed_at,
+                'auto_confirmed_at': job.auto_confirmed_at,
+            },
+            'assignment_id': assignment.id if assignment else None,
         }
 
     # ============================================

@@ -204,6 +204,19 @@ class Job(BaseModel):
     auto_confirm_at = models.DateTimeField(null=True, blank=True)
     auto_confirm_grace_minutes = models.IntegerField(default=10)
 
+    # Set by the background auto-confirm task only.
+    # NULL if the client confirmed manually.
+    auto_confirmed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "When the job was auto-confirmed by the background task "
+            "because the client didn't respond within the grace period. "
+            "NULL if the client confirmed manually."
+        ),
+    )
+
     # ============================================
     # DISPUTE TRACKING
     # ============================================
@@ -274,6 +287,10 @@ class Job(BaseModel):
         return self.status == self.COMPLETED
 
     @property
+    def is_auto_confirmed(self):
+        return self.auto_confirmed_at is not None
+
+    @property
     def is_hidden_by_client(self):
         return self.client_hidden_at is not None
 
@@ -334,9 +351,6 @@ class Job(BaseModel):
     def is_accepted_by_worker(self, worker_id: int) -> bool:
         """
         Check if a specific worker has been assigned/accepted this job.
-
-        Returns True if the worker has (or had) an assignment on this job.
-        Used by: can_view_full_details(), serializers, views
         """
         from apps.jobs.models import JobAssignment
         from apps.common.constants import AssignmentStatus

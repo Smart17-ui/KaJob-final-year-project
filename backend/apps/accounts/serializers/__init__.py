@@ -24,7 +24,11 @@ from .auth_serializer import (
     LogoutResponseSerializer,
     TokenResponseSerializer,
     UpdatePhoneSerializer,
-    UpdateEmailSerializer, 
+    UpdateEmailSerializer,
+    # Account Management (NEW)
+    UpdateNameSerializer,
+    DeactivateAccountSerializer,
+    DeleteAccountSerializer,
 )
 
 # Profile Serializers
@@ -34,6 +38,14 @@ from .profile_serializer import (
     WorkerProfileUpdateSerializer,
     ClientProfileSerializer,
     ClientProfileUpdateSerializer,
+)
+
+# Worker Skill Serializers
+from .worker_skill_serializer import (
+    SkillSerializer,
+    WorkerSkillSerializer,
+    WorkerSkillCreateSerializer,
+    WorkerSkillUpdateSerializer,
 )
 
 __all__ = [
@@ -62,7 +74,12 @@ __all__ = [
     'LogoutResponseSerializer',
     'TokenResponseSerializer',
     'UpdatePhoneSerializer',
-    'UpdateEmailSerializer', 
+    'UpdateEmailSerializer',
+
+    # Account Management Serializers (NEW)
+    'UpdateNameSerializer',
+    'DeactivateAccountSerializer',
+    'DeleteAccountSerializer',
 
     # Profile Serializers
     'ProfileUpdateSerializer',
@@ -70,4 +87,10 @@ __all__ = [
     'WorkerProfileUpdateSerializer',
     'ClientProfileSerializer',
     'ClientProfileUpdateSerializer',
+
+    # Worker Skill Serializers
+    'SkillSerializer',
+    'WorkerSkillSerializer',
+    'WorkerSkillCreateSerializer',
+    'WorkerSkillUpdateSerializer',
 ]

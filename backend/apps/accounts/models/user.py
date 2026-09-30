@@ -56,6 +56,20 @@ class User(BaseModel):
     is_verified = models.BooleanField(default=False)
 
     # ============================================
+    # SELF-DEACTIVATION TRACKING (NEW)
+    # ============================================
+    deactivated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the user self-deactivated their account.",
+    )
+    deactivation_reason = models.TextField(
+        blank=True,
+        default='',
+        help_text="Reason the user provided when deactivating.",
+    )
+
+    # ============================================
     # DISCIPLINARY / SUSPENSION TRACKING
     # ============================================
     suspended_at = models.DateTimeField(null=True, blank=True)
@@ -147,6 +161,10 @@ class User(BaseModel):
             self.account_status == UserAccountStatus.ACTIVE
             and not self.is_deleted
         )
+
+    @property
+    def is_deactivated(self):
+        return self.account_status == UserAccountStatus.DEACTIVATED
 
     # ============================================
     # PERMISSIONS
@@ -274,6 +292,12 @@ class User(BaseModel):
         """
         Central check used by the login service.
         Returns (allowed: bool, reason: str | None).
+
+        NOTE: DEACTIVATED is intentionally treated as blocked here.
+        The login service reactivates a self-deactivated user BEFORE
+        calling this method, so by the time we reach the DEACTIVATED
+        branch it's an admin-deactivated account (shouldn't happen
+        with the current design, but kept as a safety net).
         """
         from django.utils import timezone
 
