@@ -3,6 +3,7 @@
 import logging
 from datetime import date
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from typing import Dict, Any, List, Optional
 from apps.jobs.repositories import JobRepository
@@ -48,6 +49,21 @@ class JobService:
             'map_url': map_url,
             'directions_url': directions_url,
         }
+
+    # ============================================
+    # HELPER: FILTER OUT EXPIRED JOBS
+    # ============================================
+
+    @staticmethod
+    def _exclude_expired(qs):
+        """
+        Remove jobs whose job_date has passed.
+
+        Jobs with no job_date are always kept (anytime/flexible jobs).
+        """
+        return qs.filter(
+            Q(job_date__isnull=True) | Q(job_date__gte=timezone.now().date())
+        )
 
     # ============================================
     # CREATE JOB
@@ -109,7 +125,6 @@ class JobService:
                     first = results[0]
                     lat_c = first.get('latitude')
                     lng_c = first.get('longitude')
-                    # Guard against the (0.0, 0.0) "null island" fallback
                     if lat_c and lng_c and (lat_c != 0.0 or lng_c != 0.0):
                         latitude = lat_c
                         longitude = lng_c
@@ -190,12 +205,14 @@ class JobService:
 
         logger.info(f"Job created: {job.title} by {client.email} (ID: {job.id})")
 
-        # Notify nearby available workers (within 5 km)
+        # Notify nearby available workers (within 10 km)
         try:
             from apps.matching.services.matching_service import MatchingService
             from apps.notifications.services import NotificationService
 
-            nearby = MatchingService().find_workers_near_job(job_id=job.id, radius_km=5.0)
+            nearby = MatchingService().find_workers_near_job(
+                job_id=job.id, radius_km=10.0
+            )
 
             if nearby:
                 notif = NotificationService()
@@ -217,7 +234,7 @@ class JobService:
                 )
             else:
                 logger.info(
-                    f"[notify] job_posted: no nearby workers within 5km of job {job.id}"
+                    f"[notify] job_posted: no nearby workers within 10km of job {job.id}"
                 )
         except Exception as e:
             logger.error(f"[notify] job_posted broadcast failed: {e}")
@@ -232,7 +249,7 @@ class JobService:
     # ============================================
 
     def get_job_by_id(self, job_id: int) -> Optional[Job]:
-        """Get job by ID"""
+        """Get job by ID (no date filter — caller decides visibility)."""
         try:
             job = Job.objects.get(id=job_id, deleted_at__isnull=True)
             return job
@@ -240,36 +257,40 @@ class JobService:
             raise ResourceNotFound("Job not found.")
 
     def get_open_jobs(self) -> List[Job]:
-        """Get all open jobs"""
-        return Job.objects.filter(
+        """Get all open jobs, excluding expired ones."""
+        qs = Job.objects.filter(
             status=JobStatus.OPEN,
             deleted_at__isnull=True
-        ).order_by('-posted_at')
+        )
+        qs = self._exclude_expired(qs)
+        return qs.order_by('-posted_at')
 
     def get_urgent_jobs(self) -> List[Job]:
-        """Get urgent and immediate jobs"""
-        return Job.objects.filter(
+        """Get urgent and immediate jobs, excluding expired ones."""
+        qs = Job.objects.filter(
             status=JobStatus.OPEN,
             urgency__in=['IMMEDIATE', 'URGENT'],
             deleted_at__isnull=True
-        ).order_by('job_date', '-posted_at')
+        )
+        qs = self._exclude_expired(qs)
+        return qs.order_by('job_date', '-posted_at')
 
     def get_jobs_by_client(self, client_id: int) -> List[Job]:
-        """Get jobs posted by a client"""
+        """Get jobs posted by a client (including expired ones)."""
         return Job.objects.filter(
             client_id=client_id,
             deleted_at__isnull=True
         ).order_by('-posted_at')
 
     def get_jobs_by_worker(self, worker_id: int) -> List[Job]:
-        """Get jobs assigned to a worker"""
+        """Get jobs assigned to a worker."""
         return Job.objects.filter(
             assignments__worker_id=worker_id,
             deleted_at__isnull=True
         ).distinct().order_by('-posted_at')
 
     def get_active_jobs_by_worker(self, worker_id: int) -> List[Job]:
-        """Get active jobs assigned to a worker"""
+        """Get active jobs assigned to a worker."""
         return Job.objects.filter(
             assignments__worker_id=worker_id,
             assignments__status=AssignmentStatus.ACTIVE,
@@ -277,7 +298,7 @@ class JobService:
         ).distinct().order_by('-posted_at')
 
     def get_open_jobs_by_client(self, client_id: int) -> List[Job]:
-        """Get open jobs posted by a client"""
+        """Get open jobs posted by a client (including expired ones)."""
         return Job.objects.filter(
             client_id=client_id,
             status=JobStatus.OPEN,
@@ -285,20 +306,24 @@ class JobService:
         ).order_by('-posted_at')
 
     def get_jobs_by_skills(self, skill_ids: List[int]) -> List[Job]:
-        """Get jobs that require specific skills (optional)"""
-        return Job.objects.filter(
+        """Get jobs that require specific skills (excluding expired ones)."""
+        qs = Job.objects.filter(
             required_skills__in=skill_ids,
             status=JobStatus.OPEN,
             deleted_at__isnull=True
-        ).distinct().order_by('-posted_at')
+        ).distinct()
+        qs = self._exclude_expired(qs)
+        return qs.order_by('-posted_at')
 
     def search_jobs(self, query: str) -> List[Job]:
-        """Search jobs by title or description"""
-        return Job.objects.filter(
+        """Search jobs by title or description (excluding expired ones)."""
+        qs = Job.objects.filter(
             title__icontains=query,
             status=JobStatus.OPEN,
             deleted_at__isnull=True
-        ).order_by('-posted_at')
+        )
+        qs = self._exclude_expired(qs)
+        return qs.order_by('-posted_at')
 
     # ============================================
     # FILTER JOBS (Non-location filters)
@@ -319,6 +344,7 @@ class JobService:
             status=JobStatus.OPEN,
             deleted_at__isnull=True
         )
+        jobs = self._exclude_expired(jobs)
 
         if category_id:
             jobs = jobs.filter(category_id=category_id)
@@ -351,6 +377,17 @@ class JobService:
 
         if job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]:
             raise BusinessRuleViolation(f"Cannot update a {job.status} job.")
+
+        # ── Validate new date if present ─────────────────────────
+        # Prevents a client from moving the date backwards (which
+        # would silently re-expire the job for workers).
+        new_job_date = data.get('job_date')
+        if new_job_date:
+            if new_job_date < timezone.now().date():
+                raise BusinessRuleViolation(
+                    "Job date cannot be in the past. "
+                    "Please choose today or a future date."
+                )
 
         for key, value in data.items():
             if key == 'required_skills':
@@ -397,14 +434,22 @@ class JobService:
 
     @transaction.atomic
     def delete_job(self, client, job_id: int) -> Dict[str, Any]:
-        """Delete (soft delete) a job."""
+        """
+        Delete (soft delete) a job.
+
+        Completed jobs cannot be deleted — they are part of the
+        platform's historical record (reviews, disputes, audits).
+        """
         job = self.get_job_by_id(job_id)
 
         if job.client_id != client.id:
             raise BusinessRuleViolation("You don't have permission to delete this job.")
 
         if job.status == JobStatus.COMPLETED:
-            raise BusinessRuleViolation("Cannot delete a completed job.")
+            raise BusinessRuleViolation(
+                "Cannot delete a completed job. "
+                "Completed jobs are part of your history."
+            )
 
         job.deleted_at = timezone.now()
         job.deleted_by = client
@@ -460,7 +505,6 @@ class JobService:
 
         previous_status = job.status
 
-        # Free any active assignment (signal will flip worker -> AVAILABLE)
         active_assignment = job.assignments.filter(
             status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.IN_PROGRESS]
         ).first()
@@ -496,15 +540,6 @@ class JobService:
     def worker_withdraw(self, worker, job_id: int) -> Dict[str, Any]:
         """
         Worker withdraws from a job.
-
-        Policy:
-        - Allowed only while Job.status == ASSIGNED (not yet started)
-        - Once IN_PROGRESS, the worker is committed; must use dispute instead
-
-        On withdraw:
-        - JobAssignment -> CANCELLED
-        - Job.status    -> OPEN (back to the pool)
-        - Worker        -> AVAILABLE (via post_save signal)
         """
         job = self.get_job_by_id(job_id)
 
@@ -533,7 +568,6 @@ class JobService:
         assignment.cancelled_at = timezone.now()
         assignment.save(update_fields=['status', 'cancelled_at', 'updated_at'])
 
-        # Reopen the job
         job.status = JobStatus.OPEN
         job.save(update_fields=['status', 'updated_at'])
 
@@ -558,10 +592,7 @@ class JobService:
 
     @transaction.atomic
     def worker_start_job(self, worker, job_id: int) -> Dict[str, Any]:
-        """
-        Worker starts the job. This is the commit point:
-        after this, the worker can no longer withdraw.
-        """
+        """Worker starts the job."""
         job = self.get_job_by_id(job_id)
 
         assignment = job.assignments.filter(
@@ -615,10 +646,7 @@ class JobService:
         reason: str,
         notes: str = '',
     ) -> Dict[str, Any]:
-        """
-        Raise a dispute on a job. Available to either party
-        (client or the assigned worker) once the job is underway.
-        """
+        """Raise a dispute on a job."""
         job = self.get_job_by_id(job_id)
 
         is_client = job.client_id == user.id
@@ -680,18 +708,9 @@ class JobService:
     def get_job_for_worker(self, job_id: int, worker_id: int) -> Dict[str, Any]:
         """
         Get job details for a worker with conditional disclosure.
-
-        Rules:
-        - Assigned workers (any past/present assignment) can view
-          COMPLETED and CANCELLED jobs — they still need the details
-          for reviews.
-        - Everyone else is blocked once the job is COMPLETED or CANCELLED.
-        - On currently assigned jobs, only the assigned worker is allowed.
         """
         job = self.get_job_by_id(job_id)
 
-        # Was this worker assigned to this job? Check first so the
-        # completed/cancelled guard can let them through.
         is_assigned = JobAssignment.objects.filter(
             job=job,
             worker_id=worker_id,
@@ -703,16 +722,12 @@ class JobService:
             ],
         ).exists()
 
-        # Assigned workers can view their completed/cancelled jobs.
-        # Everyone else is blocked once the job is no longer active.
         if (
             job.status in [JobStatus.COMPLETED, JobStatus.CANCELLED]
             and not is_assigned
         ):
             raise BusinessRuleViolation("This job is no longer available.")
 
-        # If the job is currently assigned to someone, only that
-        # worker can view it. Unrelated workers get blocked.
         if job.status in [JobStatus.ASSIGNED, JobStatus.IN_PROGRESS]:
             has_active_assignment = JobAssignment.objects.filter(
                 job=job,
@@ -744,6 +759,7 @@ class JobService:
     # ============================================
 
     def count_open_jobs(self) -> int:
+        """Count all open jobs (including expired — admin metric)."""
         return Job.objects.filter(
             status=JobStatus.OPEN,
             deleted_at__isnull=True
