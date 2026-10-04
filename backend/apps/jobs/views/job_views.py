@@ -78,7 +78,7 @@ class JobDetailView(APIView):
                                 (worker nested full, client null)
       - Admin                → JobDetailSerializer
                                 (both nested full)
-      - Worker               → WorkerJobDetailSerializer
+      - Worker              → WorkerJobDetailSerializer
                                 (client nested full if assigned,
                                  name-only if unrelated,
                                  owner self hidden)
@@ -176,6 +176,24 @@ class MyJobsView(APIView):
             'count': len(serializer.data),
             'role': role,
             'results': serializer.data,
+        }, status=status.HTTP_200_OK)
+
+
+class MyHiddenJobsView(APIView):
+    """
+    GET /api/jobs/my-hidden-jobs/
+
+    Get jobs hidden by the authenticated client.
+    Used by the Client Recycle Bin.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
+
+    def get(self, request):
+        jobs = job_service.get_hidden_jobs_by_client(request.user.id)
+
+        return Response({
+            'count': len(jobs),
+            'results': JobListSerializer(jobs, many=True).data,
         }, status=status.HTTP_200_OK)
 
 
@@ -447,7 +465,7 @@ class RaiseDisputeView(APIView):
 class HideJobView(APIView):
     """
     POST /api/jobs/{job_id}/hide/
-    Hide a completed job from the client's dashboard.
+    Hide a completed or cancelled job from the client's dashboard.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
 

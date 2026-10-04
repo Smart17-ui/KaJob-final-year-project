@@ -1,6 +1,25 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
 
+let isRedirecting = false;
+
+const handleUnauthorized = () => {
+  if (isRedirecting) return;
+
+  isRedirecting = true;
+
+  // Clear all authentication data
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("selected_role");
+  localStorage.removeItem("user");
+
+  // Redirect to the public home page
+  if (window.location.pathname !== "/") {
+    window.location.href = "/";
+  }
+};
+
 const apiClient = async (
   endpoint: string,
   options: RequestInit = {}
@@ -20,6 +39,13 @@ const apiClient = async (
     headers,
     cache: "no-store",
   });
+
+  // JWT expired or invalid
+  if (response.status === 401) {
+    handleUnauthorized();
+
+    throw new Error("Your session has expired. Please log in again.");
+  }
 
   const data = await response.json().catch(() => null);
 

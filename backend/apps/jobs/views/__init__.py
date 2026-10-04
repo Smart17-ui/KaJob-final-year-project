@@ -1,5 +1,3 @@
-# apps/jobs/views/__init__.py
-
 from .job_views import (
     CreateJobView,
     JobDetailView,
@@ -24,6 +22,7 @@ from .job_views import (
     HideAssignmentView,
     UnhideAssignmentView,
 )
+
 from .job_application_views import (
     ApplyForJobView,
     JobApplicationsView,
@@ -34,11 +33,15 @@ from .job_application_views import (
     MyJobApplicationsView,
     ClientApplicationsView,
 )
+
 from .job_assignment_views import (
     AssignWorkerView,
+    WorkerAssignmentsView,
+    ActiveAssignmentsView,
     WorkerMarkCompleteView,
     ClientConfirmCompleteView,
 )
+
 from .application_status_views import (
     ApplicationStatusView,
     ApplicationStatusTransitionView,
@@ -61,10 +64,12 @@ __all__ = [
     'CancelJobView',
     'CompleteJobView',
     'JobDetailForWorkerView',
+
     # Job lifecycle
     'WorkerWithdrawView',
     'WorkerStartJobView',
     'RaiseDisputeView',
+
     # Hide / Unhide (NEW)
     'HideJobView',
     'UnhideJobView',
@@ -83,6 +88,8 @@ __all__ = [
 
     # Job Assignment Views
     'AssignWorkerView',
+    'WorkerAssignmentsView',
+    'ActiveAssignmentsView',
     'WorkerMarkCompleteView',
     'ClientConfirmCompleteView',
 

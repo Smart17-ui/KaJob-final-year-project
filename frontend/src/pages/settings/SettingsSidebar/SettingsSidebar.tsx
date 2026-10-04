@@ -4,20 +4,10 @@ import {
   UserCircleIcon,
   IdentificationIcon,
   LockClosedIcon,
-  MapPinIcon,
   BellIcon,
   ShieldCheckIcon,
-  ClockIcon,
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
-
-/* =========================================================
-   SETTINGS SIDEBAR PROPS
-========================================================= */
-
-type SettingsSidebarProps = {
-  isWorker?: boolean;
-};
 
 /* =========================================================
    NAV ITEM CLASS
@@ -40,9 +30,7 @@ const navItemClass = ({ isActive }: { isActive: boolean }) =>
    SETTINGS SIDEBAR
 ========================================================= */
 
-const SettingsSidebar = ({
-  isWorker = false,
-}: SettingsSidebarProps) => {
+const SettingsSidebar = () => {
   return (
     <nav className="w-full">
       {/* =====================================================
@@ -69,14 +57,6 @@ const SettingsSidebar = ({
           >
             <IdentificationIcon className="h-5 w-5 shrink-0" />
             <span>Account</span>
-          </NavLink>
-
-          <NavLink
-            to="location"
-            className={navItemClass}
-          >
-            <MapPinIcon className="h-5 w-5 shrink-0" />
-            <span>Location</span>
           </NavLink>
 
           <NavLink
@@ -116,28 +96,6 @@ const SettingsSidebar = ({
           </NavLink>
         </div>
       </div>
-
-      {/* =====================================================
-          WORKER
-      ===================================================== */}
-
-      {isWorker && (
-        <div className="py-3">
-          <p className="px-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Worker
-          </p>
-
-          <div className="mt-2">
-            <NavLink
-              to="availability"
-              className={navItemClass}
-            >
-              <ClockIcon className="h-5 w-5 shrink-0" />
-              <span>Availability</span>
-            </NavLink>
-          </div>
-        </div>
-      )}
 
       {/* =====================================================
           SUPPORT

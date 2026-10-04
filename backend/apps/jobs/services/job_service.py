@@ -283,6 +283,14 @@ class JobService:
             client_hidden_at__isnull=True,
         ).order_by('-posted_at')
 
+    def get_hidden_jobs_by_client(self, client_id: int) -> List[Job]:
+        """Get jobs hidden by a client for the client's Recycle Bin."""
+        return Job.objects.filter(
+            client_id=client_id,
+            deleted_at__isnull=True,
+            client_hidden_at__isnull=False,
+        ).order_by('-client_hidden_at')
+
     def get_jobs_by_worker(self, worker_id: int) -> List[Job]:
         """Get jobs assigned to a worker (excluding worker-hidden ones)."""
         return Job.objects.filter(
@@ -757,10 +765,10 @@ class JobService:
     @transaction.atomic
     def hide_job(self, client, job_id: int) -> Dict[str, Any]:
         """
-        Hide a completed job from the client's dashboard.
+        Hide a completed or cancelled job from the client's dashboard.
 
-        Only COMPLETED jobs can be hidden. The job stays visible to
-        workers and admins — the client just stops seeing it in My Jobs.
+        The job stays visible to workers and admins — the client just
+        stops seeing it in My Jobs.
         """
         job = self.get_job_by_id(job_id)
 
@@ -769,10 +777,12 @@ class JobService:
                 "You don't have permission to hide this job."
             )
 
-        if job.status != JobStatus.COMPLETED:
+        if job.status not in [
+            JobStatus.COMPLETED,
+            JobStatus.CANCELLED,
+        ]:
             raise BusinessRuleViolation(
-                "Only completed jobs can be hidden. "
-                "Cancelled jobs can be deleted instead."
+                "Only completed or cancelled jobs can be hidden."
             )
 
         if job.client_hidden_at is not None:

@@ -2,6 +2,7 @@ import {
   BriefcaseIcon,
   ArrowPathIcon,
   ExclamationCircleIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 
 import {
@@ -22,9 +23,12 @@ import {
   getJobById,
   getMyJobs,
   cancelJob,
-  deleteJob,
   confirmJob,
 } from "../../../components/services/jobService";
+
+import {
+  hideJob,
+} from "@/api/jobs";
 
 import type {
   MyJob,
@@ -352,6 +356,16 @@ const MyJobs = () => {
   };
 
   /* =======================================================
+     OPEN RECYCLE BIN
+  ======================================================= */
+
+  const handleOpenRecycleBin = () => {
+    navigate(
+      "/client/dashboard/recycle-bin"
+    );
+  };
+
+  /* =======================================================
      OPEN CONFIRMATION
   ======================================================= */
 
@@ -650,21 +664,52 @@ const MyJobs = () => {
         }
 
         /* =================================================
-           DELETE
+           MOVE TO RECYCLE BIN
         ================================================= */
 
         if (
           action === "delete"
         ) {
-          await deleteJob(
+          const job =
+            jobs.find(
+              (currentJob) =>
+                currentJob.id ===
+                jobId
+            );
+
+          /*
+           * Only completed and cancelled jobs
+           * can be moved to the Recycle Bin.
+           */
+          if (
+            !job ||
+            (
+              job.status !==
+                "COMPLETED" &&
+              job.status !==
+                "CANCELLED"
+            )
+          ) {
+            return;
+          }
+
+          /*
+           * Backend calls this "hide".
+           * Frontend presents it as "Delete".
+           */
+          await hideJob(
             jobId
           );
 
+          /*
+           * Remove it from the current My Jobs
+           * list immediately.
+           */
           setJobs(
             (currentJobs) =>
               currentJobs.filter(
-                (job) =>
-                  job.id !==
+                (currentJob) =>
+                  currentJob.id !==
                   jobId
               )
           );
@@ -772,7 +817,7 @@ const MyJobs = () => {
           action === "delete"
         ) {
           setActionError(
-            "Failed to delete the job. Please try again."
+            "Failed to move the job to the Recycle Bin. Please try again."
           );
         } else {
           setActionError(
@@ -816,11 +861,11 @@ const MyJobs = () => {
       ) {
         return {
           title:
-            "Delete this job?",
+            "Move to Recycle Bin?",
           message:
-            "This will permanently remove the job from your jobs list. This action cannot be undone.",
+            "This job will be moved to your Recycle Bin. You can restore it later.",
           confirmLabel:
-            "Delete job",
+            "Move to Recycle Bin",
           cancelLabel:
             "Keep job",
           variant:
@@ -1009,20 +1054,54 @@ const MyJobs = () => {
         ================================================= */}
 
         <div className="shrink-0 pb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-              <BriefcaseIcon className="h-6 w-6 text-green-600" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+                <BriefcaseIcon className="h-6 w-6 text-green-600" />
+              </div>
+
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  My Jobs
+                </h1>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Manage the jobs you have posted.
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                My Jobs
-              </h1>
+            {/* =================================================
+                RECYCLE BIN
+            ================================================= */}
 
-              <p className="mt-1 text-sm text-gray-500">
-                Manage the jobs you have posted.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={
+                handleOpenRecycleBin
+              }
+              className="
+                inline-flex
+                items-center
+                gap-2
+                rounded-xl
+                border
+                border-gray-200
+                bg-white
+                px-4
+                py-2.5
+                text-sm
+                font-semibold
+                text-gray-700
+                shadow-sm
+                transition
+                hover:bg-gray-50
+                hover:text-gray-900
+              "
+            >
+              <TrashIcon className="h-5 w-5" />
+              Recycle Bin
+            </button>
           </div>
         </div>
 
@@ -1190,11 +1269,17 @@ const MyJobs = () => {
                                 )
                             : undefined
                         }
-                        onDelete={() =>
-                          openConfirmation(
-                            "delete",
-                            job.id
-                          )
+                        onDelete={
+                          job.status ===
+                            "COMPLETED" ||
+                          job.status ===
+                            "CANCELLED"
+                            ? () =>
+                                openConfirmation(
+                                  "delete",
+                                  job.id
+                                )
+                            : undefined
                         }
                         onConfirmCompletion={() =>
                           openConfirmation(
