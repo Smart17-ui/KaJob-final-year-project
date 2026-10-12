@@ -439,8 +439,7 @@ class JobService:
         }
 
     # ============================================
-    # DELETE JOB
-    # ============================================
+    # DELETE JOB    # ============================================
 
     @transaction.atomic
     def delete_job(self, client, job_id: int) -> Dict[str, Any]:
@@ -700,6 +699,15 @@ class JobService:
 
         logger.info(f"Dispute raised on job {job_id} by user {user.id}")
 
+        # Notify admins of the new dispute (best-effort)
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_admins_new_dispute(job)
+        except Exception as e:
+            logger.warning(
+                f"[notify_admins] new dispute failed: {e}"
+            )
+
         return {
             'job': job,
             'message': 'Dispute raised. An admin will review this shortly.',
@@ -766,9 +774,6 @@ class JobService:
     def hide_job(self, client, job_id: int) -> Dict[str, Any]:
         """
         Hide a completed or cancelled job from the client's dashboard.
-
-        The job stays visible to workers and admins — the client just
-        stops seeing it in My Jobs.
         """
         job = self.get_job_by_id(job_id)
 
@@ -846,8 +851,6 @@ class JobService:
         """
         Hide a completed or cancelled assignment from the worker's
         My Work page.
-
-        The job stays visible to the client and admin.
         """
         assignment = JobAssignment.objects.filter(
             id=assignment_id, deleted_at__isnull=True

@@ -339,13 +339,24 @@ class DisciplinaryActionType:
 
 class NotificationType:
     """Notification types"""
+    # Worker / client-facing
     JOB_POSTED = 'JOB_POSTED'
     APPLICATION_RECEIVED = 'APPLICATION_RECEIVED'
-    APPLICATION_ACCEPTED = 'APPLICATION_ACCEPTED'   # 🆕
-    APPLICATION_REJECTED = 'APPLICATION_REJECTED'   # 🆕
+    APPLICATION_ACCEPTED = 'APPLICATION_ACCEPTED'
+    APPLICATION_REJECTED = 'APPLICATION_REJECTED'
     WORKER_ASSIGNED = 'WORKER_ASSIGNED'
     JOB_COMPLETED = 'JOB_COMPLETED'
     JOB_CANCELLED = 'JOB_CANCELLED'
+    REVIEW_RECEIVED = 'REVIEW_RECEIVED'
+
+    # Admin-facing
+    NEW_USER_REGISTERED = 'NEW_USER_REGISTERED'
+    NEW_REPORT_SUBMITTED = 'NEW_REPORT_SUBMITTED'
+    NEW_VERIFICATION_SUBMITTED = 'NEW_VERIFICATION_SUBMITTED'
+    NEW_DISPUTE_RAISED = 'NEW_DISPUTE_RAISED'
+    REVIEW_FLAGGED = 'REVIEW_FLAGGED'
+
+    # Shared (both user + admin can see)
     REPORT_RESOLVED = 'REPORT_RESOLVED'
     VERIFICATION_APPROVED = 'VERIFICATION_APPROVED'
     VERIFICATION_REJECTED = 'VERIFICATION_REJECTED'
@@ -354,13 +365,24 @@ class NotificationType:
     WARNING_ISSUED = 'WARNING_ISSUED'
 
     CHOICES = [
+        # Worker / client-facing
         (JOB_POSTED, 'Job Posted'),
         (APPLICATION_RECEIVED, 'Application Received'),
-        (APPLICATION_ACCEPTED, 'Application Accepted'),   # 🆕
-        (APPLICATION_REJECTED, 'Application Rejected'),   # 🆕
+        (APPLICATION_ACCEPTED, 'Application Accepted'),
+        (APPLICATION_REJECTED, 'Application Rejected'),
         (WORKER_ASSIGNED, 'Worker Assigned'),
         (JOB_COMPLETED, 'Job Completed'),
         (JOB_CANCELLED, 'Job Cancelled'),
+        (REVIEW_RECEIVED, 'Review Received'),
+
+        # Admin-facing
+        (NEW_USER_REGISTERED, 'New User Registered'),
+        (NEW_REPORT_SUBMITTED, 'New Report Submitted'),
+        (NEW_VERIFICATION_SUBMITTED, 'New Verification Submitted'),
+        (NEW_DISPUTE_RAISED, 'New Dispute Raised'),
+        (REVIEW_FLAGGED, 'Review Flagged'),
+
+        # Shared
         (REPORT_RESOLVED, 'Report Resolved'),
         (VERIFICATION_APPROVED, 'Verification Approved'),
         (VERIFICATION_REJECTED, 'Verification Rejected'),

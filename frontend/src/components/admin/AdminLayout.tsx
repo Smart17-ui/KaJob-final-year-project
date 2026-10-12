@@ -10,7 +10,6 @@ import {
     Flag,
     BarChart3,
     ClipboardList,
-    Bell,
     Settings,
     Menu,
     X,
@@ -19,6 +18,7 @@ import {
     User as UserIcon,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import NotificationBell from '@/components/dashboard/TopBar/NotificationBell';
 
 // ============================================
 // NAVIGATION CONFIG
@@ -106,13 +106,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                     {/* Right: Notifications + Settings + Profile */}
                     <div className="flex items-center gap-2">
                         {/* Notifications */}
-                        <button
-                            className="relative p-2 text-admin-text-secondary hover:text-admin-text-primary rounded-md hover:bg-admin-bg-hover transition-colors"
-                            aria-label="Notifications"
-                        >
-                            <Bell size={20} />
-                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-admin-danger rounded-full" />
-                        </button>
+                        <NotificationBell userRole="ADMIN" />
 
                         {/* Settings */}
                         <button

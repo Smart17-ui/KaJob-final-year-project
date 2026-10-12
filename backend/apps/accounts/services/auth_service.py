@@ -121,6 +121,15 @@ class AuthService:
         # Send phone OTP (Phase 1)
         self.verification_service.send_phone_otp(user)
 
+        # Notify admins of the new registration (best-effort)
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_admins_new_user_registered(user)
+        except Exception as e:
+            logger.warning(
+                f"[notify_admins] new user registration failed: {e}"
+            )
+
         # Generate access tokens
         tokens = self.token_service.generate_tokens(user)
 
@@ -513,7 +522,7 @@ class AuthService:
         return True
 
     # ============================================
-    # NAME UPDATE (NEW)
+    # NAME UPDATE
     # ============================================
 
     @transaction.atomic

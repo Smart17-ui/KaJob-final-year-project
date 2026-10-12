@@ -131,14 +131,17 @@ export const getUnreadNotificationCount =
 /**
  * Delete one notification.
  *
- * Backend:
- * DELETE /api/notifications/{id}/delete/
+ * Backend: DELETE /api/notifications/{id}/
+ *
+ * NOTE: This endpoint uses the NotificationDetailView's
+ * `delete` method — the URL is `/notifications/{id}/`,
+ * NOT `/notifications/{id}/delete/`.
  */
 export const deleteNotification = async (
   notificationId: number
 ): Promise<DeleteNotificationResponse> => {
   return (await apiClient(
-    `/notifications/${notificationId}/delete/`,
+    `/notifications/${notificationId}/`,
     {
       method: "DELETE",
     }

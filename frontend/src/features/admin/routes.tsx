@@ -32,6 +32,11 @@ const ReportDetailPage = lazy(
 const AnalyticsPage = lazy(() => import('./analytics/AnalyticsPage'));
 const AuditLogsPage = lazy(() => import('./auditLogs/AuditLogsPage'));
 
+// Notifications
+const NotificationsPage = lazy(
+    () => import('@/pages/dashboard/admin/Notifications')
+);
+
 // ============================================
 // LOADING FALLBACK
 // ============================================
@@ -123,6 +128,12 @@ export const AdminRoutes = () => {
                             <Route
                                 path="audit-logs"
                                 element={<AuditLogsPage />}
+                            />
+
+                            {/* Notifications */}
+                            <Route
+                                path="notifications"
+                                element={<NotificationsPage />}
                             />
                         </Routes>
                     </Suspense>
