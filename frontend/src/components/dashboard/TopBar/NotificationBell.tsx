@@ -23,7 +23,7 @@ import {
 
 import ConfirmationModal from "@/components/pop/ConfirmationModal/ConfirmationModal";
 
-type UserRole = "CLIENT" | "WORKER";
+type UserRole = "CLIENT" | "WORKER" | "ADMIN";
 
 type NotificationBellProps = {
   userRole: UserRole;
@@ -73,6 +73,8 @@ const NotificationBell = ({
   const notificationsPagePath =
     userRole === "WORKER"
       ? "/worker/dashboard/notifications"
+      : userRole === "ADMIN"
+      ? "/admin/notifications"
       : "/client/dashboard/notifications";
 
   /*

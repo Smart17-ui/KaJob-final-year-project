@@ -6,10 +6,6 @@ from apps.common.constants import RoleType
 class RegisterSerializer(serializers.Serializer):
     """
     Serializer for user registration.
-
-    Role is REQUIRED at registration (user must choose Worker or Client).
-
-    Used by: RegisterView (POST /api/auth/register/)
     """
     first_name = serializers.CharField(max_length=100, required=True)
     last_name = serializers.CharField(max_length=100, required=True)
@@ -27,13 +23,6 @@ class RegisterSerializer(serializers.Serializer):
     )
 
     def validate_email(self, value):
-        """
-        Normalize email to lowercase and reject duplicates.
-
-        Uses iexact so 'Smart@x.com' collides with 'smart@x.com'.
-        Without this, the DB's unique constraint triggers a 500
-        instead of a clean 400.
-        """
         from apps.accounts.models import User
 
         normalized = value.strip().lower()
@@ -46,13 +35,6 @@ class RegisterSerializer(serializers.Serializer):
         return normalized
 
     def validate_phone_number(self, value):
-        """
-        Validate and normalize phone number.
-
-        Supports:
-        - Zambia: 0971234567, +260971234567
-        - International: +[country_code][number]
-        """
         from apps.identity_verification.services import VerificationService
 
         verification_service = VerificationService()
@@ -61,41 +43,25 @@ class RegisterSerializer(serializers.Serializer):
         if not result['is_valid']:
             raise serializers.ValidationError(result['error'])
 
-        # Return normalized phone number
         return result['normalized']
 
 
 class LoginSerializer(serializers.Serializer):
     """
     Serializer for user login.
-
-    NO ROLE FIELD — Role is auto-detected after authentication.
-
-    Used by: LoginView (POST /api/auth/login/)
     """
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True)
 
     def validate_email(self, value):
-        """Normalize email to lowercase for case-insensitive login."""
         return value.lower().strip()
 
 
 class RefreshTokenSerializer(serializers.Serializer):
-    """
-    Serializer for refreshing JWT token.
-
-    Used by: RefreshTokenView (POST /api/auth/refresh/)
-    """
     refresh = serializers.CharField(required=True)
 
 
 class ChangePasswordSerializer(serializers.Serializer):
-    """
-    Serializer for changing password.
-
-    Used by: ChangePasswordView (POST /api/auth/change-password/)
-    """
     old_password = serializers.CharField(write_only=True, required=True)
     new_password = serializers.CharField(
         write_only=True,
@@ -106,24 +72,13 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
-    """
-    Serializer for forgot password.
-
-    Used by: ForgotPasswordView (POST /api/auth/forgot-password/)
-    """
     email = serializers.EmailField(required=True)
 
     def validate_email(self, value):
-        """Normalize email to lowercase."""
         return value.lower().strip()
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    """
-    Serializer for resetting password.
-
-    Used by: ResetPasswordView (POST /api/auth/reset-password/)
-    """
     token = serializers.CharField(required=True)
     new_password = serializers.CharField(
         write_only=True,
@@ -134,41 +89,22 @@ class ResetPasswordSerializer(serializers.Serializer):
 
 
 class VerifyEmailSerializer(serializers.Serializer):
-    """
-    Serializer for email verification.
-
-    Used by: VerifyEmailView (POST /api/auth/verify-email/)
-    """
     token = serializers.CharField(required=True)
 
 
 class ResendVerificationSerializer(serializers.Serializer):
-    """
-    Serializer for resending verification email.
-
-    Used by: ResendVerificationView (POST /api/auth/resend-verification/)
-    """
     email = serializers.EmailField(required=False)
 
     def validate_email(self, value):
-        """Normalize email to lowercase if provided."""
         if value:
             return value.lower().strip()
         return value
 
 
 class UpdatePhoneSerializer(serializers.Serializer):
-    """
-    Serializer for updating phone number.
-
-    Used by: UpdatePhoneNumberView (PUT /api/auth/profile/phone/)
-    """
     phone_number = serializers.CharField(max_length=20, required=True)
 
     def validate_phone_number(self, value):
-        """
-        Validate and normalize phone number.
-        """
         from apps.identity_verification.services import VerificationService
 
         verification_service = VerificationService()
@@ -185,9 +121,6 @@ class UpdatePhoneSerializer(serializers.Serializer):
 # ============================================
 
 class AuthResponseSerializer(serializers.Serializer):
-    """
-    Serializer for authentication responses.
-    """
     user = serializers.DictField()
     tokens = serializers.DictField()
     message = serializers.CharField()
@@ -201,41 +134,20 @@ class AuthResponseSerializer(serializers.Serializer):
 
 
 class LogoutResponseSerializer(serializers.Serializer):
-    """
-    Serializer for logout response.
-    """
     message = serializers.CharField()
 
 
 class TokenResponseSerializer(serializers.Serializer):
-    """
-    Serializer for token refresh response.
-    """
     access = serializers.CharField()
 
 
 class UpdateEmailSerializer(serializers.Serializer):
-    """
-    Serializer for updating email address.
-
-    Used by: UpdateEmailView (PUT /api/auth/profile/email/)
-    """
     email = serializers.EmailField(required=True)
 
     def validate_email(self, value):
-        """
-        Normalize email to lowercase and reject duplicates.
-
-        Prevents users from changing their email to one that is
-        already registered by someone else.
-        """
         from apps.accounts.models import User
 
         normalized = value.strip().lower()
-
-        # For update, exclude the current user — they can keep their
-        # own email if they're updating other fields (though this
-        # endpoint only updates email, so it's a no-op case)
         current_user = self.context.get('request').user if self.context.get('request') else None
 
         qs = User.objects.filter(email__iexact=normalized)
@@ -248,3 +160,68 @@ class UpdateEmailSerializer(serializers.Serializer):
             )
 
         return normalized
+
+
+# ============================================
+# ACCOUNT MANAGEMENT SERIALIZERS (NEW)
+# ============================================
+
+class UpdateNameSerializer(serializers.Serializer):
+    """
+    Serializer for updating first_name and last_name.
+
+    Used by: UpdateNameView (PUT /api/auth/profile/name/)
+    """
+    first_name = serializers.CharField(max_length=100, required=True)
+    last_name = serializers.CharField(max_length=100, required=True)
+
+    def validate_first_name(self, value):
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError("First name cannot be empty.")
+        return value
+
+    def validate_last_name(self, value):
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError("Last name cannot be empty.")
+        return value
+
+
+class DeactivateAccountSerializer(serializers.Serializer):
+    """
+    Serializer for self-deactivating an account.
+
+    Requires password + reason.
+
+    Used by: DeactivateAccountView (POST /api/auth/deactivate/)
+    """
+    password = serializers.CharField(write_only=True, required=True)
+    reason = serializers.CharField(required=True, min_length=3, max_length=1000)
+
+    def validate_reason(self, value):
+        value = (value or '').strip()
+        if len(value) < 3:
+            raise serializers.ValidationError(
+                "Please provide a reason (at least 3 characters)."
+            )
+        return value
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    """
+    Serializer for permanently soft-deleting an account.
+
+    Requires password + typed confirmation 'DELETE'.
+
+    Used by: DeleteAccountView (DELETE /api/auth/account/)
+    """
+    password = serializers.CharField(write_only=True, required=True)
+    confirmation = serializers.CharField(required=True)
+
+    def validate_confirmation(self, value):
+        if value != 'DELETE':
+            raise serializers.ValidationError(
+                "You must type DELETE (all caps) to confirm."
+            )
+        return value

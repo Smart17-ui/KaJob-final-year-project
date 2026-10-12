@@ -427,3 +427,183 @@ class NotificationService:
             data={'reason': reason},
             role=None,
         )
+
+    # ============================================
+    # ADMIN NOTIFICATIONS (fan-out to all admins)
+    # ============================================
+
+    def _get_admin_user_ids(self) -> List[int]:
+        """
+        Return the IDs of all active users with the ADMIN role.
+        """
+        from apps.accounts.models import User
+        from apps.common.constants import RoleType
+
+        return list(
+            User.objects.filter(
+                account_status='ACTIVE',
+                deleted_at__isnull=True,
+                user_roles__role__name=RoleType.ADMIN,
+            )
+            .values_list('id', flat=True)
+            .distinct()
+        )
+
+    @transaction.atomic
+    def notify_admins(
+        self,
+        notification_type: str,
+        title: str,
+        message: str,
+        related_entity_id: int = None,
+        related_entity_type: str = None,
+        redirect_url: str = None,
+        data: dict = None,
+        send_email: bool = False,
+    ) -> List[Notification]:
+        """
+        Create a notification for every active admin.
+
+        Returns the list of created Notification rows.
+
+        `send_email` defaults to False — admin notifications are
+        in-app by default to avoid inbox spam.
+        """
+        admin_ids = self._get_admin_user_ids()
+        created = []
+
+        if not admin_ids:
+            logger.warning(
+                f"[notify_admins] No active admins found for "
+                f"notification_type={notification_type}"
+            )
+            return created
+
+        for admin_id in admin_ids:
+            try:
+                n = self.create_notification(
+                    recipient_id=admin_id,
+                    notification_type=notification_type,
+                    title=title,
+                    message=message,
+                    related_entity_id=related_entity_id,
+                    related_entity_type=related_entity_type,
+                    redirect_url=redirect_url,
+                    data=data or {},
+                    send_email=send_email,
+                    send_push=True,
+                    role='ADMIN',
+                )
+                if n:
+                    created.append(n)
+            except Exception as e:
+                logger.error(
+                    f"[notify_admins] failed for admin {admin_id}: {e}"
+                )
+
+        logger.info(
+            f"[notify_admins] {notification_type} sent to "
+            f"{len(created)}/{len(admin_ids)} admins"
+        )
+        return created
+
+    # --------------------------------------------
+    # Convenience methods for admin events
+    # --------------------------------------------
+
+    def notify_admins_new_user_registered(self, user):
+        """Fired when a new user finishes registration."""
+        return self.notify_admins(
+            notification_type='NEW_USER_REGISTERED',
+            title='New User Registered',
+            message=(
+                f"{user.full_name} ({user.email}) just registered "
+                f"as {'a worker' if user.is_worker else 'a client'}."
+            ),
+            related_entity_id=user.id,
+            related_entity_type='USER',
+            redirect_url=f"/admin/users/{user.id}",
+            data={
+                'user_id': user.id,
+                'email': user.email,
+                'roles': user.get_roles_names(),
+            },
+        )
+
+    def notify_admins_new_report(self, report):
+        """Fired when a user submits a report."""
+        reporter_name = (
+            report.reporter.full_name
+            if getattr(report, 'reporter', None) else 'Unknown'
+        )
+        return self.notify_admins(
+            notification_type='NEW_REPORT_SUBMITTED',
+            title='New Report Submitted',
+            message=(
+                f"{reporter_name} submitted a "
+                f"{getattr(report, 'category', 'report')} report."
+            ),
+            related_entity_id=report.id,
+            related_entity_type='REPORT',
+            redirect_url=f"/admin/reports/{report.id}",
+            data={
+                'report_id': report.id,
+                'category': getattr(report, 'category', None),
+                'reporter_id': getattr(report, 'reporter_id', None),
+            },
+        )
+
+    def notify_admins_new_verification(self, user):
+        """Fired when a user submits documents for verification."""
+        return self.notify_admins(
+            notification_type='NEW_VERIFICATION_SUBMITTED',
+            title='New Verification Submitted',
+            message=(
+                f"{user.full_name} ({user.email}) submitted documents "
+                f"for identity verification."
+            ),
+            related_entity_id=user.id,
+            related_entity_type='USER',
+            redirect_url=f"/admin/verifications?user_id={user.id}",
+            data={
+                'user_id': user.id,
+                'email': user.email,
+            },
+        )
+
+    def notify_admins_new_dispute(self, job):
+        """Fired when a client or worker raises a dispute on a job."""
+        return self.notify_admins(
+            notification_type='NEW_DISPUTE_RAISED',
+            title='New Dispute Raised',
+            message=(
+                f"A dispute was raised on job '{job.title}' "
+                f"(#{job.id})."
+            ),
+            related_entity_id=job.id,
+            related_entity_type='JOB',
+            redirect_url=f"/admin/jobs/{job.id}",
+            data={
+                'job_id': job.id,
+                'dispute_status': job.dispute_status,
+                'dispute_raised_by': job.dispute_raised_by_id,
+            },
+        )
+
+    def notify_admins_review_flagged(self, review):
+        """Fired when a review is auto-flagged by moderation rules."""
+        return self.notify_admins(
+            notification_type='REVIEW_FLAGGED',
+            title='Review Flagged',
+            message=(
+                f"A review was flagged and needs moderation "
+                f"(review #{review.id})."
+            ),
+            related_entity_id=review.id,
+            related_entity_type='REVIEW',
+            redirect_url=f"/admin/reviews/{review.id}",
+            data={
+                'review_id': review.id,
+                'job_id': getattr(review, 'job_id', None),
+            },
+        )

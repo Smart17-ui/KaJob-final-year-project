@@ -12,6 +12,10 @@ from .auth_views import (
     AddRoleView,
     SwitchRoleView,
     GetUserRolesView,
+    # Account Management (NEW)
+    UpdateNameView,
+    DeactivateAccountView,
+    DeleteAccountView,
 )
 from .profile_views import (
     UserProfileView,
@@ -22,13 +26,18 @@ from .profile_views import (
     ClientProfileUpdateView,
     UpdateLocationView,
     UpdatePhoneNumberView,
-    UpdateEmailView, 
+    UpdateEmailView,
 )
 from .worker_views import (
     WorkerDetailView,
     WorkerSummaryView,
     WorkerApplicationsView,
     WorkerAvailabilityView,
+)
+from .worker_skill_views import (
+    SkillListView,
+    MySkillsView,
+    MySkillDetailView,
 )
 
 __all__ = [
@@ -46,6 +55,10 @@ __all__ = [
     'AddRoleView',
     'SwitchRoleView',
     'GetUserRolesView',
+    # Account Management Views (NEW)
+    'UpdateNameView',
+    'DeactivateAccountView',
+    'DeleteAccountView',
     # Profile Views
     'UserProfileView',
     'UserProfileUpdateView',
@@ -61,4 +74,8 @@ __all__ = [
     'WorkerSummaryView',
     'WorkerApplicationsView',
     'WorkerAvailabilityView',
+    # Worker Skill Views
+    'SkillListView',
+    'MySkillsView',
+    'MySkillDetailView',
 ]

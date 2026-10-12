@@ -81,7 +81,7 @@ const Notifications = () => {
         );
 
         setError(
-          "We couldn't load your notifications. Please try again."
+          "We couldn't load the notifications. Please try again."
         );
       } finally {
         setIsLoading(false);
@@ -519,8 +519,8 @@ const Notifications = () => {
           {/* HEADER */}
           <section className="mb-8">
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50">
-                <BellIcon className="h-6 w-6 text-amber-600" />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
+                <BellIcon className="h-6 w-6 text-emerald-600" />
               </div>
 
               <div className="min-w-0">
@@ -529,9 +529,9 @@ const Notifications = () => {
                 </h1>
 
                 <p className="mt-2 text-sm text-slate-600 sm:text-base">
-                  Stay updated with your jobs,
-                  applications, messages, and
-                  other activity.
+                  Stay updated with new users,
+                  reports, verifications, and
+                  platform activity.
                 </p>
               </div>
             </div>
@@ -575,10 +575,10 @@ const Notifications = () => {
                         gap-1.5 rounded-lg
                         px-3 py-2
                         text-xs font-semibold
-                        text-amber-600
+                        text-emerald-600
                         transition
-                        hover:bg-amber-50
-                        hover:text-amber-700
+                        hover:bg-emerald-50
+                        hover:text-emerald-700
                         disabled:cursor-not-allowed
                         disabled:opacity-50
                       "
@@ -718,7 +718,7 @@ const Notifications = () => {
                             ${
                               notification.is_read
                                 ? "bg-white hover:bg-slate-50/70"
-                                : "bg-amber-50/30 hover:bg-amber-50/60"
+                                : "bg-emerald-50/30 hover:bg-emerald-50/60"
                             }
                           `}
                         >
@@ -776,7 +776,7 @@ const Notifications = () => {
                                 </p>
 
                                 {!notification.is_read && (
-                                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                                 )}
                               </div>
 
@@ -808,13 +808,13 @@ const Notifications = () => {
                                     items-center
                                     gap-1.5
                                     rounded-lg
-                                    bg-amber-50
+                                    bg-emerald-50
                                     px-3 py-1.5
                                     text-xs
                                     font-medium
-                                    text-amber-700
+                                    text-emerald-700
                                     transition
-                                    hover:bg-amber-100
+                                    hover:bg-emerald-100
                                   "
                                 >
                                   <CheckIcon className="h-3.5 w-3.5" />

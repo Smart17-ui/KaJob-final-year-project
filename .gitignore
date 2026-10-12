@@ -58,6 +58,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+auto_confirm.log
+
 __pycache__/
 *.pyc
 *.pyo

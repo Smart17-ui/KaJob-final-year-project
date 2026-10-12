@@ -451,6 +451,15 @@ class VerificationService:
             f"Verification submitted for user {user.email} (ID: {verification.id})"
         )
 
+        # Notify admins of the new verification (best-effort)
+        try:
+            from apps.notifications.services import NotificationService
+            NotificationService().notify_admins_new_verification(user)
+        except Exception as e:
+            logger.warning(
+                f"[notify_admins] new verification failed: {e}"
+            )
+
         return {
             'verification': verification,
             'documents': documents,

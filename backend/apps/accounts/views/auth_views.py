@@ -17,6 +17,10 @@ from apps.accounts.serializers import (
     AddRoleSerializer,
     SwitchRoleSerializer,
     RoleResponseSerializer,
+    # Account Management (NEW)
+    UpdateNameSerializer,
+    DeactivateAccountSerializer,
+    DeleteAccountSerializer,
 )
 from apps.common.permissions import IsActiveUser, IsVerifiedUser
 from apps.common.exceptions import BusinessRuleViolation
@@ -37,20 +41,20 @@ class RegisterView(APIView):
     """
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
-    
+
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             result = auth_service.register_user(serializer.validated_data)
-            
+
             return Response({
                 'message': result['message'],
                 'user': UserSerializer(result['user']).data,
                 'tokens': result['tokens'],
             }, status=status.HTTP_201_CREATED)
-            
+
         except BusinessRuleViolation as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -61,39 +65,21 @@ class LoginView(APIView):
     """
     POST /api/auth/login/
     User login endpoint with AUTO-DETECTED role.
-    
-    Request:
-        { "email": "...", "password": "..." }
-    
-    Response:
-        {
-            "message": "Login successful",
-            "user": {...},
-            "tokens": {...},
-            "detected_role": "WORKER",
-            "redirect_to": "/worker/dashboard",
-            "available_roles": ["WORKER", "CLIENT"]
-        }
-    
-    Role is auto-detected by priority:
-    - ADMIN   → /admin/dashboard
-    - WORKER  → /worker/dashboard   (also for "worker + client" users)
-    - CLIENT  → /client/dashboard
     """
     permission_classes = [AllowAny]
     throttle_classes = []
-    
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             result = auth_service.login_user(
                 serializer.validated_data['email'],
                 serializer.validated_data['password'],
                 request=request,
             )
-            
+
             return Response({
                 'message': 'Login successful',
                 'user': UserSerializer(result['user']).data,
@@ -102,7 +88,7 @@ class LoginView(APIView):
                 'redirect_to': result['redirect_to'],
                 'available_roles': result['available_roles'],
             }, status=status.HTTP_200_OK)
-            
+
         except BusinessRuleViolation as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -110,17 +96,14 @@ class LoginView(APIView):
 
 
 class RefreshTokenView(APIView):
-    """
-    Refresh access token endpoint.
-    """
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = RefreshTokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         result = auth_service.refresh_token(serializer.validated_data['refresh'])
-        
+
         if result:
             return Response({
                 'access': result['access'],
@@ -132,21 +115,18 @@ class RefreshTokenView(APIView):
 
 
 class LogoutView(APIView):
-    """
-    Logout endpoint.
-    """
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request):
         refresh_token = request.data.get('refresh')
-        
+
         if not refresh_token:
             return Response({
                 'error': 'Refresh token is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         success = auth_service.logout_user(refresh_token)
-        
+
         if success:
             return Response({
                 'message': 'Logout successful'
@@ -158,11 +138,8 @@ class LogoutView(APIView):
 
 
 class MeView(APIView):
-    """
-    Get current user information with roles.
-    """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def get(self, request):
         return Response({
             'user': UserSerializer(request.user).data
@@ -170,26 +147,23 @@ class MeView(APIView):
 
 
 class ChangePasswordView(APIView):
-    """
-    Change user password endpoint.
-    """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             auth_service.change_password(
                 request.user,
                 serializer.validated_data['old_password'],
                 serializer.validated_data['new_password']
             )
-            
+
             return Response({
                 'message': 'Password changed successfully'
             }, status=status.HTTP_200_OK)
-            
+
         except BusinessRuleViolation as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -197,43 +171,37 @@ class ChangePasswordView(APIView):
 
 
 class ForgotPasswordView(APIView):
-    """
-    Forgot password endpoint.
-    """
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
-    
+
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         auth_service.forgot_password(serializer.validated_data['email'])
-        
+
         return Response({
             'message': 'If an account exists with this email, you will receive a password reset link.'
         }, status=status.HTTP_200_OK)
 
 
 class ResetPasswordView(APIView):
-    """
-    Reset password endpoint.
-    """
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             auth_service.reset_password(
                 serializer.validated_data['token'],
                 serializer.validated_data['new_password']
             )
-            
+
             return Response({
                 'message': 'Password reset successfully'
             }, status=status.HTTP_200_OK)
-            
+
         except BusinessRuleViolation as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -241,22 +209,19 @@ class ResetPasswordView(APIView):
 
 
 class VerifyEmailView(APIView):
-    """
-    Verify email endpoint.
-    """
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             auth_service.verify_email(serializer.validated_data['token'])
-            
+
             return Response({
                 'message': 'Email verified successfully'
             }, status=status.HTTP_200_OK)
-            
+
         except BusinessRuleViolation as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -264,19 +229,16 @@ class VerifyEmailView(APIView):
 
 
 class ResendVerificationView(APIView):
-    """
-    Resend verification email endpoint.
-    """
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request):
         try:
             auth_service.resend_verification_email(request.user)
-            
+
             return Response({
                 'message': 'Verification email sent successfully'
             }, status=status.HTTP_200_OK)
-            
+
         except BusinessRuleViolation as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -288,36 +250,17 @@ class ResendVerificationView(APIView):
 # ============================================
 
 class AddRoleView(APIView):
-    """
-    POST /api/auth/add-role/
-    Add a new role to an existing user.
-    
-    NO RE-REGISTRATION NEEDED!
-    Verification status carries over!
-    
-    Request Body:
-        { "role": "WORKER" }
-    
-    Response:
-        {
-            "message": "WORKER role added successfully!",
-            "user": {...},
-            "tokens": {...},
-            "is_verified": true,
-            "available_roles": ["WORKER", "CLIENT"]
-        }
-    """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def post(self, request):
         serializer = AddRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         role_name = serializer.validated_data['role']
-        
+
         try:
             result = auth_service.add_role_to_user(request.user, role_name)
-            
+
             return Response({
                 'message': result['message'],
                 'user': UserSerializer(result['user']).data,
@@ -325,7 +268,7 @@ class AddRoleView(APIView):
                 'is_verified': result['is_verified'],
                 'available_roles': result['available_roles'],
             }, status=status.HTTP_200_OK)
-            
+
         except BusinessRuleViolation as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -333,33 +276,17 @@ class AddRoleView(APIView):
 
 
 class SwitchRoleView(APIView):
-    """
-    POST /api/auth/switch-role/
-    Switch between roles.
-    
-    Request Body:
-        { "role": "WORKER" }
-    
-    Response:
-        {
-            "message": "Switched to WORKER role.",
-            "user": {...},
-            "tokens": {...},
-            "current_role": "WORKER",
-            "available_roles": ["WORKER", "CLIENT"]
-        }
-    """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def post(self, request):
         serializer = SwitchRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         role_name = serializer.validated_data['role']
-        
+
         try:
             result = auth_service.switch_role(request.user, role_name)
-            
+
             return Response({
                 'message': f'Switched to {role_name} role.',
                 'user': UserSerializer(result['user']).data,
@@ -367,7 +294,7 @@ class SwitchRoleView(APIView):
                 'current_role': result['current_role'],
                 'available_roles': result['available_roles'],
             }, status=status.HTTP_200_OK)
-            
+
         except BusinessRuleViolation as e:
             return Response({
                 'error': str(e.detail) if hasattr(e, 'detail') else str(e)
@@ -375,30 +302,123 @@ class SwitchRoleView(APIView):
 
 
 class GetUserRolesView(APIView):
-    """
-    GET /api/auth/roles/
-    Get all roles for the authenticated user.
-    
-    Response:
-        {
-            "roles": ["WORKER", "CLIENT"],
-            "current_role": "WORKER"
-        }
-    """
     permission_classes = [IsAuthenticated, IsActiveUser]
-    
+
     def get(self, request):
         roles = auth_service.get_user_roles(request.user)
-        
-        # Get current role from token or use first role
+
         current_role = None
         if hasattr(request, 'auth') and hasattr(request.auth, 'payload'):
             current_role = request.auth.payload.get('current_role')
-        
+
         if not current_role and roles:
             current_role = roles[0]
-        
+
         return Response({
             'roles': roles,
             'current_role': current_role,
+        }, status=status.HTTP_200_OK)
+
+
+# ============================================
+# ACCOUNT MANAGEMENT VIEWS (NEW)
+# ============================================
+
+class UpdateNameView(APIView):
+    """
+    PUT /api/auth/profile/name/
+    Update first_name and last_name.
+
+    Request: { "first_name": "...", "last_name": "..." }
+    Response: { "message": "...", "user": {...} }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
+    def put(self, request):
+        serializer = UpdateNameSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            user = auth_service.update_name(
+                request.user,
+                serializer.validated_data['first_name'],
+                serializer.validated_data['last_name'],
+            )
+            return Response({
+                'message': 'Name updated successfully.',
+                'user': UserSerializer(user).data,
+            }, status=status.HTTP_200_OK)
+        except BusinessRuleViolation as e:
+            return Response({
+                'error': str(e.detail) if hasattr(e, 'detail') else str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeactivateAccountView(APIView):
+    """
+    POST /api/auth/deactivate/
+
+    Self-deactivate the account (Facebook-style). Requires the user's
+    password + a reason.
+
+    Request: { "password": "...", "reason": "..." }
+    Response: { "message": "..." }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
+    def post(self, request):
+        serializer = DeactivateAccountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        password = serializer.validated_data['password']
+        reason = serializer.validated_data['reason']
+
+        if not request.user.check_password(password):
+            return Response({
+                'error': 'Password is incorrect.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.accounts.services.account_status_service import (
+            AccountStatusService,
+        )
+        AccountStatusService.deactivate_user(request.user, reason=reason)
+
+        return Response({
+            'message': (
+                'Account deactivated. Log in again at any time to '
+                'reactivate it.'
+            ),
+        }, status=status.HTTP_200_OK)
+
+
+class DeleteAccountView(APIView):
+    """
+    DELETE /api/auth/account/
+
+    Permanently (soft) delete the account. Requires password + the
+    typed confirmation 'DELETE'.
+
+    Request: { "password": "...", "confirmation": "DELETE" }
+    Response: { "message": "..." }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
+    def delete(self, request):
+        serializer = DeleteAccountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        password = serializer.validated_data['password']
+
+        if not request.user.check_password(password):
+            return Response({
+                'error': 'Password is incorrect.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.accounts.services.account_status_service import (
+            AccountStatusService,
+        )
+        AccountStatusService.delete_account(request.user)
+
+        return Response({
+            'message': "Account deleted. We're sorry to see you go.",
         }, status=status.HTTP_200_OK)
