@@ -35,6 +35,8 @@ from apps.jobs.views import (
     ClientApplicationsView,
     # Job Assignment Views
     AssignWorkerView,
+    WorkerAssignmentsView,
+    ActiveAssignmentsView,
     WorkerMarkCompleteView,
     ClientConfirmCompleteView,
     # Application Status Views
@@ -44,7 +46,11 @@ from apps.jobs.views import (
     ApplicationStatusOptionsView,
 )
 
+from apps.jobs.views.job_views import MyHiddenJobsView
+
+
 app_name = 'jobs'
+
 
 urlpatterns = [
     # ============================================
@@ -81,51 +87,158 @@ urlpatterns = [
     # ============================================
     # JOB APPLICATIONS (Client View)
     # ============================================
-    path('<int:job_id>/applications/', JobApplicationsView.as_view(), name='job-applications'),
-    path('<int:job_id>/applications/pending/', PendingApplicationsView.as_view(), name='pending-applications'),
-    path('<int:job_id>/applications/summary/', ApplicationStatusSummaryView.as_view(), name='application-status-summary'),
-    path('applications/client/', ClientApplicationsView.as_view(), name='client-applications'),
-    path('applications/<int:application_id>/status/', UpdateApplicationStatusView.as_view(), name='update-application-status'),
-    path('applications/<int:application_id>/withdraw/', WithdrawApplicationView.as_view(), name='withdraw-application'),
+    path(
+        '<int:job_id>/applications/',
+        JobApplicationsView.as_view(),
+        name='job-applications',
+    ),
+    path(
+        '<int:job_id>/applications/pending/',
+        PendingApplicationsView.as_view(),
+        name='pending-applications',
+    ),
+    path(
+        '<int:job_id>/applications/summary/',
+        ApplicationStatusSummaryView.as_view(),
+        name='application-status-summary',
+    ),
+    path(
+        'applications/client/',
+        ClientApplicationsView.as_view(),
+        name='client-applications',
+    ),
+    path(
+        'applications/<int:application_id>/status/',
+        UpdateApplicationStatusView.as_view(),
+        name='update-application-status',
+    ),
+    path(
+        'applications/<int:application_id>/withdraw/',
+        WithdrawApplicationView.as_view(),
+        name='withdraw-application',
+    ),
 
     # ============================================
     # APPLICATION STATUS MANAGEMENT
     # ============================================
-    path('applications/<int:application_id>/status-info/', ApplicationStatusView.as_view(), name='application-status-info'),
-    path('applications/<int:application_id>/transition/', ApplicationStatusTransitionView.as_view(), name='application-transition'),
-    path('applications/statuses/', ApplicationStatusOptionsView.as_view(), name='application-statuses'),
+    path(
+        'applications/<int:application_id>/status-info/',
+        ApplicationStatusView.as_view(),
+        name='application-status-info',
+    ),
+    path(
+        'applications/<int:application_id>/transition/',
+        ApplicationStatusTransitionView.as_view(),
+        name='application-transition',
+    ),
+    path(
+        'applications/statuses/',
+        ApplicationStatusOptionsView.as_view(),
+        name='application-statuses',
+    ),
 
     # ============================================
     # MY JOBS & APPLICATIONS (Worker View)
     # ============================================
-    path('my-applications/', MyApplicationsView.as_view(), name='my-applications'),
-    path('my-job-applications/', MyJobApplicationsView.as_view(), name='my-job-applications'),
+    path(
+        'my-applications/',
+        MyApplicationsView.as_view(),
+        name='my-applications',
+    ),
+    path(
+        'my-job-applications/',
+        MyJobApplicationsView.as_view(),
+        name='my-job-applications',
+    ),
 
     # ============================================
     # WORKER JOB DETAIL (Conditional Disclosure)
     # ============================================
-    path('<int:job_id>/worker/', JobDetailForWorkerView.as_view(), name='job-detail-for-worker'),
+    path(
+        '<int:job_id>/worker/',
+        JobDetailForWorkerView.as_view(),
+        name='job-detail-for-worker',
+    ),
 
     # ============================================
     # JOB ASSIGNMENTS & LIFECYCLE
     # ============================================
-    path('<int:job_id>/assign/', AssignWorkerView.as_view(), name='assign-worker'),
-    path('<int:job_id>/start/', WorkerStartJobView.as_view(), name='worker-start-job'),
-    path('<int:job_id>/withdraw/', WorkerWithdrawView.as_view(), name='worker-withdraw'),
-    path('<int:job_id>/mark-complete/', WorkerMarkCompleteView.as_view(), name='worker-mark-complete'),
-    path('<int:job_id>/confirm/', ClientConfirmCompleteView.as_view(), name='client-confirm-complete'),
-    path('<int:job_id>/dispute/', RaiseDisputeView.as_view(), name='raise-dispute'),
+    path(
+        '<int:job_id>/assign/',
+        AssignWorkerView.as_view(),
+        name='assign-worker',
+    ),
+    path(
+        'assignments/worker/',
+        WorkerAssignmentsView.as_view(),
+        name='worker-assignments',
+    ),
+    path(
+        'assignments/worker/active/',
+        ActiveAssignmentsView.as_view(),
+        name='active-worker-assignments',
+    ),
+    path(
+        '<int:job_id>/start/',
+        WorkerStartJobView.as_view(),
+        name='worker-start-job',
+    ),
+    path(
+        '<int:job_id>/withdraw/',
+        WorkerWithdrawView.as_view(),
+        name='worker-withdraw',
+    ),
+    path(
+        '<int:job_id>/mark-complete/',
+        WorkerMarkCompleteView.as_view(),
+        name='worker-mark-complete',
+    ),
+    path(
+        '<int:job_id>/confirm/',
+        ClientConfirmCompleteView.as_view(),
+        name='client-confirm-complete',
+    ),
+    path(
+        '<int:job_id>/dispute/',
+        RaiseDisputeView.as_view(),
+        name='raise-dispute',
+    ),
 
     # ============================================
     # MY JOBS
     # ============================================
-    path('my-jobs/', MyJobsView.as_view(), name='my-jobs'),
-    path('my-open-jobs/', MyOpenJobsView.as_view(), name='my-open-jobs'),
-    path('my-active-jobs/', MyActiveJobsView.as_view(), name='my-active-jobs'),
+    path(
+        'my-jobs/',
+        MyJobsView.as_view(),
+        name='my-jobs',
+    ),
+    path(
+        'my-hidden-jobs/',
+        MyHiddenJobsView.as_view(),
+        name='my-hidden-jobs',
+    ),
+    path(
+        'my-open-jobs/',
+        MyOpenJobsView.as_view(),
+        name='my-open-jobs',
+    ),
+    path(
+        'my-active-jobs/',
+        MyActiveJobsView.as_view(),
+        name='my-active-jobs',
+    ),
 
     # ============================================
     # SEARCH & FILTER
     # ============================================
-    path('search/', SearchJobsView.as_view(), name='search-jobs'),
-    path('filter/', FilterJobsView.as_view(), name='filter-jobs'),
+    path(
+        'search/',
+        SearchJobsView.as_view(),
+        name='search-jobs',
+    ),
+    path(
+        'filter/',
+        FilterJobsView.as_view(),
+        name='filter-jobs',
+    ),
 ]

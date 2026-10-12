@@ -41,11 +41,12 @@ const ClientJobCard = ({
     job.status === "ASSIGNED" &&
     onCancel !== undefined;
 
-  // Completed jobs are kept as part of the client's
-  // job history and are not deletable from the UI.
+  // Completed and cancelled jobs can be moved
+  // to the client's Recycle Bin.
   const canDelete =
-    job.status === "OPEN" ||
-    job.status === "CANCELLED";
+    (job.status === "COMPLETED" ||
+      job.status === "CANCELLED") &&
+    onDelete !== undefined;
 
   const canConfirmCompletion =
     job.status === "AWAITING_CONFIRMATION";

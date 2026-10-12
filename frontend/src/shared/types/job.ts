@@ -157,10 +157,6 @@ export interface Job {
    * ---------------------------------------------------------
    * CLIENT
    * ---------------------------------------------------------
-   *
-   * The general job-details endpoint now returns both the
-   * simple client fields and the complete nested client
-   * profile.
    */
 
   client_id?: number | null;
@@ -236,6 +232,26 @@ export interface Job {
    */
 
   can_view_full_details?: boolean;
+
+  /*
+   * ---------------------------------------------------------
+   * WORKER HIDE / RESTORE
+   * ---------------------------------------------------------
+   *
+   * Backend uses "hide" / "unhide".
+   * The frontend presents these as:
+   *
+   * hide   -> Delete
+   * unhide -> Restore
+   */
+
+  assignment_id?: number | null;
+
+  is_hidden_by_worker?: boolean;
+
+  can_hide_assignment?: boolean;
+
+  can_unhide_assignment?: boolean;
 }
 
 /* =========================================================
@@ -402,6 +418,24 @@ export interface WorkerJobResponse {
   assignment_status?: string | null;
 
   application_status?: ApplicationStatus | null;
+
+  /*
+   * ---------------------------------------------------------
+   * WORKER ASSIGNMENT
+   * ---------------------------------------------------------
+   *
+   * These fields come from:
+   *
+   * GET /api/jobs/{job_id}/worker/
+   */
+
+  assignment_id?: number | null;
+
+  is_hidden_by_worker?: boolean;
+
+  can_hide_assignment?: boolean;
+
+  can_unhide_assignment?: boolean;
 }
 
 /* =========================================================

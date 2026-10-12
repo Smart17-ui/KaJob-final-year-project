@@ -5,6 +5,7 @@ import {
   ClockIcon,
   MapPinIcon,
   PlayIcon,
+  TrashIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 
@@ -21,6 +22,8 @@ import {
 import {
   getJobById,
   getMyJobs,
+  getWorkerJobDetails,
+  hideJobAssignment,
   markJobComplete,
   startJob,
 } from "@/api/jobs";
@@ -60,6 +63,10 @@ type Work = {
   job: Job;
   status: WorkStatus;
   workerHasReviewedClient: boolean;
+  assignmentId: number | null;
+  isHiddenByWorker: boolean;
+  canHideAssignment: boolean;
+  canUnhideAssignment: boolean;
 };
 
 /* =========================================================
@@ -91,6 +98,22 @@ type JobWithClient = Job & {
   };
 
   worker_has_reviewed_client?: boolean;
+};
+
+/* =========================================================
+   WORKER DETAIL RESPONSE
+========================================================= */
+
+type WorkerDetailResponse = {
+  job?: Job;
+
+  assignment_id?: number | null;
+
+  is_hidden_by_worker?: boolean;
+
+  can_hide_assignment?: boolean;
+
+  can_unhide_assignment?: boolean;
 };
 
 /* =========================================================
@@ -261,7 +284,11 @@ const formatDuration = (
 
 const mapJobToWork = (
   job: Job,
-  workerHasReviewedClient = false
+  workerHasReviewedClient = false,
+  assignmentId: number | null = null,
+  isHiddenByWorker = false,
+  canHideAssignment = false,
+  canUnhideAssignment = false
 ): Work => {
   return {
     id: job.id,
@@ -270,6 +297,10 @@ const mapJobToWork = (
       job.status
     ),
     workerHasReviewedClient,
+    assignmentId,
+    isHiddenByWorker,
+    canHideAssignment,
+    canUnhideAssignment,
   };
 };
 
@@ -294,7 +325,7 @@ const MyWork = () => {
 
   const [actionLoading, setActionLoading] =
     useState<
-      "start" | "complete" | null
+      "start" | "complete" | "delete" | null
     >(null);
 
   const [actionError, setActionError] =
@@ -302,6 +333,13 @@ const MyWork = () => {
 
   const [actionSuccess, setActionSuccess] =
     useState<string | null>(null);
+
+  /* =======================================================
+     DELETE CONFIRMATION STATE
+  ======================================================= */
+
+  const [workToDelete, setWorkToDelete] =
+    useState<Work | null>(null);
 
   /* =======================================================
      REVIEW STATE
@@ -328,14 +366,6 @@ const MyWork = () => {
       const jobs =
         response?.results ?? [];
 
-      /*
-       * Keep all worker workflow statuses,
-       * including CANCELLED.
-       *
-       * Cancelled jobs are intentionally retained
-       * so workers can see them under the Cancelled
-       * filter instead of losing them from My Work.
-       */
       const workerJobs =
         jobs.filter((job) =>
           WORK_JOB_STATUSES.includes(
@@ -343,70 +373,144 @@ const MyWork = () => {
           )
         );
 
-      /*
-       * The My Jobs list endpoint does not contain
-       * worker_has_reviewed_client.
-       *
-       * For completed jobs, fetch:
-       *
-       * GET /api/jobs/{job_id}/
-       *
-       * The normal job detail endpoint is now
-       * the source of the worker's persistent
-       * review status.
-       */
       const mappedWorks =
         await Promise.all(
           workerJobs.map(
             async (job) => {
-              if (
-                job.status !==
-                "COMPLETED"
-              ) {
-                return mapJobToWork(
-                  job,
-                  false
-                );
-              }
+              let assignmentId:
+                | number
+                | null = null;
+
+              let isHiddenByWorker =
+                false;
+
+              let canHideAssignment =
+                false;
+
+              let canUnhideAssignment =
+                false;
+
+              let enrichedJob =
+                job;
+
+              /* =========================================
+                 GET WORKER ASSIGNMENT DETAILS
+              ========================================= */
 
               try {
-                const detailResponse =
-                  await getJobById(
+                const workerDetailResponse =
+                  await getWorkerJobDetails(
                     job.id
                   );
 
-                const detailedJob =
-                  detailResponse?.job as
-                    | JobWithClient
+                const workerDetail =
+                  workerDetailResponse as
+                    | WorkerDetailResponse
                     | undefined;
 
-                return mapJobToWork(
-                  job,
-                  Boolean(
-                    detailedJob?.worker_has_reviewed_client
-                  )
-                );
-              } catch (detailError) {
-                /*
-                 * Keep the completed job visible
-                 * even if the detail request fails.
-                 */
-                console.error(
-                  `Failed to load review status for job ${job.id}:`,
-                  detailError
-                );
+                assignmentId =
+                  workerDetail?.assignment_id ??
+                  null;
 
-                return mapJobToWork(
-                  job,
-                  false
+                isHiddenByWorker =
+                  Boolean(
+                    workerDetail?.is_hidden_by_worker
+                  );
+
+                canHideAssignment =
+                  Boolean(
+                    workerDetail?.can_hide_assignment
+                  );
+
+                canUnhideAssignment =
+                  Boolean(
+                    workerDetail?.can_unhide_assignment
+                  );
+
+                if (workerDetail?.job) {
+                  enrichedJob =
+                    workerDetail.job;
+                }
+              } catch (workerDetailError) {
+                console.error(
+                  `Failed to load worker assignment details for job ${job.id}:`,
+                  workerDetailError
                 );
               }
+
+              /*
+               * Hidden work belongs in Recycle Bin,
+               * not normal My Work.
+               */
+              if (isHiddenByWorker) {
+                return null;
+              }
+
+              /* =========================================
+                 GET REVIEW STATUS FOR COMPLETED JOBS
+              ========================================= */
+
+              if (
+                enrichedJob.status ===
+                "COMPLETED"
+              ) {
+                try {
+                  const detailResponse =
+                    await getJobById(
+                      enrichedJob.id
+                    );
+
+                  const detailedJob =
+                    detailResponse?.job as
+                      | JobWithClient
+                      | undefined;
+
+                  return mapJobToWork(
+                    enrichedJob,
+                    Boolean(
+                      detailedJob?.worker_has_reviewed_client
+                    ),
+                    assignmentId,
+                    isHiddenByWorker,
+                    canHideAssignment,
+                    canUnhideAssignment
+                  );
+                } catch (detailError) {
+                  console.error(
+                    `Failed to load review status for job ${enrichedJob.id}:`,
+                    detailError
+                  );
+
+                  return mapJobToWork(
+                    enrichedJob,
+                    false,
+                    assignmentId,
+                    isHiddenByWorker,
+                    canHideAssignment,
+                    canUnhideAssignment
+                  );
+                }
+              }
+
+              return mapJobToWork(
+                enrichedJob,
+                false,
+                assignmentId,
+                isHiddenByWorker,
+                canHideAssignment,
+                canUnhideAssignment
+              );
             }
           )
         );
 
       setWorks(
-        mappedWorks
+        mappedWorks.filter(
+          (
+            work
+          ): work is Work =>
+            work !== null
+        )
       );
     } catch (err) {
       console.error(
@@ -426,101 +530,10 @@ const MyWork = () => {
     let mounted = true;
 
     const load = async () => {
-      try {
-        setLoading(true);
-        setError("");
+      await loadMyWork();
 
-        const response =
-          await getMyJobs();
-
-        if (!mounted) {
-          return;
-        }
-
-        const jobs =
-          response?.results ?? [];
-
-        const workerJobs =
-          jobs.filter((job) =>
-            WORK_JOB_STATUSES.includes(
-              job.status
-            )
-          );
-
-        /*
-         * Fetch review status for completed jobs
-         * using the normal job details endpoint:
-         *
-         * GET /api/jobs/{job_id}/
-         */
-        const mappedWorks =
-          await Promise.all(
-            workerJobs.map(
-              async (job) => {
-                if (
-                  job.status !==
-                  "COMPLETED"
-                ) {
-                  return mapJobToWork(
-                    job,
-                    false
-                  );
-                }
-
-                try {
-                  const detailResponse =
-                    await getJobById(
-                      job.id
-                    );
-
-                  const detailedJob =
-                    detailResponse?.job as
-                      | JobWithClient
-                      | undefined;
-
-                  return mapJobToWork(
-                    job,
-                    Boolean(
-                      detailedJob?.worker_has_reviewed_client
-                    )
-                  );
-                } catch (detailError) {
-                  console.error(
-                    `Failed to load review status for job ${job.id}:`,
-                    detailError
-                  );
-
-                  return mapJobToWork(
-                    job,
-                    false
-                  );
-                }
-              }
-            )
-          );
-
-        if (!mounted) {
-          return;
-        }
-
-        setWorks(
-          mappedWorks
-        );
-      } catch (err) {
-        console.error(
-          "Failed to load my work:",
-          err
-        );
-
-        if (mounted) {
-          setError(
-            "We couldn't load your work. Please try again."
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+      if (!mounted) {
+        return;
       }
     };
 
@@ -556,23 +569,136 @@ const MyWork = () => {
   };
 
   /* =======================================================
+     OPEN RECYCLE BIN
+  ======================================================= */
+
+  const handleOpenRecycleBin = () => {
+    navigate(
+      "/worker/dashboard/recycle-bin"
+    );
+  };
+
+  /* =======================================================
+     OPEN DELETE CONFIRMATION
+  ======================================================= */
+
+  const handleDeleteWork = (
+    work: Work
+  ) => {
+    /*
+     * Delete is only available for completed
+     * and cancelled work.
+     */
+    if (
+      work.status !== "Completed" &&
+      work.status !== "Cancelled"
+    ) {
+      return;
+    }
+
+    /*
+     * The backend hide endpoint requires
+     * the worker assignment ID.
+     */
+    if (!work.assignmentId) {
+      setActionError(
+        "We couldn't identify this work assignment. Please refresh the page and try again."
+      );
+
+      return;
+    }
+
+    setActionError(null);
+    setActionSuccess(null);
+
+    setWorkToDelete(work);
+  };
+
+  /* =======================================================
+     CONFIRM DELETE
+  ======================================================= */
+
+  const confirmDeleteWork = async () => {
+    if (!workToDelete) {
+      return;
+    }
+
+    const work =
+      workToDelete;
+
+    if (!work.assignmentId) {
+      setWorkToDelete(null);
+
+      setActionError(
+        "We couldn't identify this work assignment. Please refresh the page and try again."
+      );
+
+      return;
+    }
+
+    try {
+      setActionLoading("delete");
+      setActionError(null);
+      setActionSuccess(null);
+
+      await hideJobAssignment(
+        work.assignmentId
+      );
+
+      /*
+       * Remove it immediately from My Work.
+       */
+      setWorks(
+        (currentWorks) =>
+          currentWorks.filter(
+            (currentWork) =>
+              currentWork.assignmentId !==
+              work.assignmentId
+          )
+      );
+
+      setWorkToDelete(null);
+
+      setActionSuccess(
+        "Work was moved to the Recycle Bin."
+      );
+    } catch (err) {
+      console.error(
+        "Failed to delete work:",
+        err
+      );
+
+      setActionError(
+        "We couldn't move this work to the Recycle Bin. Please try again."
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  /* =======================================================
+     CANCEL DELETE
+  ======================================================= */
+
+  const cancelDeleteWork = () => {
+    if (actionLoading === "delete") {
+      return;
+    }
+
+    setWorkToDelete(null);
+  };
+
+  /* =======================================================
      RATE CLIENT
   ======================================================= */
 
   const handleReviewClient = async (
     work: Work
   ) => {
-    /*
-     * Only completed jobs can be reviewed.
-     */
     if (work.status !== "Completed") {
       return;
     }
 
-    /*
-     * Do not open the review flow if the worker
-     * has already reviewed this job.
-     */
     if (work.workerHasReviewedClient) {
       return;
     }
@@ -581,11 +707,6 @@ const MyWork = () => {
       setActionError(null);
       setActionSuccess(null);
 
-      /*
-       * Get the latest job information from:
-       *
-       * GET /api/jobs/{job_id}/
-       */
       const response =
         await getJobById(
           work.id
@@ -602,12 +723,6 @@ const MyWork = () => {
         );
       }
 
-      /*
-       * Double-check the server-side review status.
-       *
-       * This prevents a stale My Work page from
-       * allowing a second review.
-       */
       if (
         detailedJob.worker_has_reviewed_client
       ) {
@@ -629,11 +744,6 @@ const MyWork = () => {
         return;
       }
 
-      /*
-       * Get the client ID from:
-       *
-       * job.client.id
-       */
       const clientId =
         detailedJob.client?.id;
 
@@ -689,13 +799,6 @@ const MyWork = () => {
   ======================================================= */
 
   const handleReviewSuccess = async () => {
-    /*
-     * Reload the work list from the backend.
-     *
-     * The new worker_has_reviewed_client value
-     * will then be picked up and Rate Client
-     * will disappear.
-     */
     await loadMyWork();
 
     setIsReviewModalOpen(false);
@@ -730,6 +833,14 @@ const MyWork = () => {
                 work.id === jobId
                   ? {
                       ...updatedWork,
+                      assignmentId:
+                        work.assignmentId,
+                      isHiddenByWorker:
+                        work.isHiddenByWorker,
+                      canHideAssignment:
+                        work.canHideAssignment,
+                      canUnhideAssignment:
+                        work.canUnhideAssignment,
                       workerHasReviewedClient:
                         work.workerHasReviewedClient,
                     }
@@ -788,6 +899,14 @@ const MyWork = () => {
                 work.id === jobId
                   ? {
                       ...updatedWork,
+                      assignmentId:
+                        work.assignmentId,
+                      isHiddenByWorker:
+                        work.isHiddenByWorker,
+                      canHideAssignment:
+                        work.canHideAssignment,
+                      canUnhideAssignment:
+                        work.canUnhideAssignment,
                       workerHasReviewedClient:
                         work.workerHasReviewedClient,
                     }
@@ -900,20 +1019,37 @@ const MyWork = () => {
         =================================================== */}
 
         <div className="shrink-0 pb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
-              <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
+              </div>
+
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  My Work
+                </h1>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Manage your assigned work and track each job through completion.
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                My Work
-              </h1>
+            {/* =================================================
+                RECYCLE BIN
+            ================================================= */}
 
-              <p className="mt-1 text-sm text-gray-500">
-                Manage your assigned work and track each job through completion.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={
+                handleOpenRecycleBin
+              }
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
+            >
+              <TrashIcon className="h-5 w-5" />
+              Recycle Bin
+            </button>
           </div>
         </div>
 
@@ -1105,6 +1241,11 @@ const MyWork = () => {
                             work
                           )
                         }
+                        onDeleteWork={() =>
+                          handleDeleteWork(
+                            work
+                          )
+                        }
                         actionLoading={
                           actionLoading
                         }
@@ -1117,6 +1258,85 @@ const MyWork = () => {
           </div>
         )}
       </div>
+
+      {/* =====================================================
+          DELETE CONFIRMATION MODAL
+      ===================================================== */}
+
+      {workToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-work-title"
+          onClick={cancelDeleteWork}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50">
+                <TrashIcon className="h-5 w-5 text-red-600" />
+              </div>
+
+              <div className="min-w-0">
+                <h2
+                  id="delete-work-title"
+                  className="text-lg font-semibold text-gray-900"
+                >
+                  Move to Recycle Bin?
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-gray-600">
+                  Are you sure you want to move{" "}
+                  <span className="font-semibold text-gray-900">
+                    "{workToDelete.job.title}"
+                  </span>{" "}
+                  to the Recycle Bin?
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  You can restore this work later from the Recycle Bin.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={cancelDeleteWork}
+                disabled={
+                  actionLoading === "delete"
+                }
+                className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  confirmDeleteWork
+                }
+                disabled={
+                  actionLoading === "delete"
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <TrashIcon className="h-4 w-4" />
+
+                {actionLoading ===
+                "delete"
+                  ? "Moving..."
+                  : "Move to Recycle Bin"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =====================================================
           CLIENT REVIEW MODAL
@@ -1283,9 +1503,11 @@ type WorkCardProps = {
   onStartWork: () => void;
   onMarkComplete: () => void;
   onReviewClient: () => void;
+  onDeleteWork: () => void;
   actionLoading:
     | "start"
     | "complete"
+    | "delete"
     | null;
 };
 
@@ -1296,32 +1518,33 @@ const WorkCard = ({
   onStartWork,
   onMarkComplete,
   onReviewClient,
+  onDeleteWork,
   actionLoading,
 }: WorkCardProps) => {
   const job =
     work.job;
 
-  /*
-   * Every assigned job can be opened from My Work,
-   * regardless of its current status.
-   *
-   * Status only controls the workflow actions below.
-   */
   const canViewJobDetails = true;
 
-  /*
-   * Cancelled work has no active workflow actions.
-   */
   const isCancelled =
     work.status === "Cancelled";
 
-  /*
-   * Only completed jobs that have not yet been
-   * reviewed can display Rate Client.
-   */
   const canRateClient =
     work.status === "Completed" &&
     !work.workerHasReviewedClient;
+
+  /*
+   * IMPORTANT:
+   *
+   * Delete is displayed based ONLY on the job status.
+   *
+   * We no longer require canHideAssignment here.
+   * The backend will still control whether the actual
+   * hide request is accepted.
+   */
+  const canDelete =
+    work.status === "Completed" ||
+    work.status === "Cancelled";
 
   return (
     <article
@@ -1664,6 +1887,27 @@ const WorkCard = ({
                   Rate Client
                 </button>
               )}
+
+              {canDelete && (
+                <button
+                  type="button"
+                  disabled={
+                    actionLoading !== null
+                  }
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteWork();
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <TrashIcon className="h-4 w-4" />
+
+                  {actionLoading ===
+                  "delete"
+                    ? "Deleting..."
+                    : "Delete"}
+                </button>
+              )}
             </>
           )}
 
@@ -1673,17 +1917,40 @@ const WorkCard = ({
 
           {work.status ===
             "Cancelled" && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onViewJobDetails();
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
-            >
-              <BriefcaseIcon className="h-4 w-4" />
-              View Details
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onViewJobDetails();
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
+              >
+                <BriefcaseIcon className="h-4 w-4" />
+                View Details
+              </button>
+
+              {canDelete && (
+                <button
+                  type="button"
+                  disabled={
+                    actionLoading !== null
+                  }
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteWork();
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <TrashIcon className="h-4 w-4" />
+
+                  {actionLoading ===
+                  "delete"
+                    ? "Deleting..."
+                    : "Delete"}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   Navigate,
@@ -62,6 +63,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout/DashboardLay
 import ClientDashboard from "@/pages/dashboard/client/ClientDashboard";
 import MyJobs from "@/pages/dashboard/client/MyJobs";
 import ClientJobDetails from "@/pages/dashboard/client/JobDetails";
+import ClientRecycleBin from "@/pages/dashboard/client/RecycleBin";
 import PostJob from "@/pages/dashboard/client/PostJob/PostJob";
 import Applications from "@/pages/dashboard/client/Applications";
 import JobApplications from "@/pages/dashboard/client/JobApplications";
@@ -78,6 +80,7 @@ import WorkerJobDetails from "@/pages/dashboard/worker/JobDetails";
 import MyApplications from "@/pages/dashboard/worker/MyApplications";
 import ApplicationDetails from "@/pages/dashboard/worker/ApplicationDetails";
 import MyWork from "@/pages/dashboard/worker/MyWork";
+import RecycleBin from "@/pages/dashboard/worker/RecycleBin";
 import WorkerDirections from "@/pages/dashboard/worker/Directions/Directions";
 import Performance from "@/pages/dashboard/worker/Performance";
 import WorkerComplaints from "@/pages/dashboard/worker/Complaints";
@@ -91,10 +94,8 @@ import SettingsLayout from "@/pages/settings/SettingsLayout";
 import ProfileSection from "@/pages/settings/Sections/ProfileSection";
 import AccountSection from "@/pages/settings/Sections/AccountSection";
 import SecuritySection from "@/pages/settings/Sections/SecuritySection";
-import LocationSection from "@/pages/settings/Sections/LocationSection";
 import NotificationsSection from "@/pages/settings/Sections/NotificationsSection";
 import VerificationSection from "@/pages/settings/Sections/VerificationSection";
-import AvailabilitySection from "@/pages/settings/Sections/AvailabilitySection";
 import MyReports from "@/pages/settings/Sections/MyReports";
 
 /* =========================
@@ -538,6 +539,15 @@ function App() {
           }
         />
 
+        {/* Client Recycle Bin */}
+
+        <Route
+          path="recycle-bin"
+          element={
+            <ClientRecycleBin />
+          }
+        />
+
         {/* Job details */}
 
         <Route
@@ -643,13 +653,6 @@ function App() {
             path="security"
             element={
               <SecuritySection />
-            }
-          />
-
-          <Route
-            path="location"
-            element={
-              <LocationSection />
             }
           />
 
@@ -765,6 +768,15 @@ function App() {
           }
         />
 
+        {/* Recycle Bin */}
+
+        <Route
+          path="recycle-bin"
+          element={
+            <RecycleBin />
+          }
+        />
+
         {/* Performance */}
 
         <Route
@@ -838,13 +850,6 @@ function App() {
           />
 
           <Route
-            path="location"
-            element={
-              <LocationSection />
-            }
-          />
-
-          <Route
             path="notifications"
             element={
               <NotificationsSection />
@@ -855,13 +860,6 @@ function App() {
             path="verification"
             element={
               <VerificationSection />
-            }
-          />
-
-          <Route
-            path="availability"
-            element={
-              <AvailabilitySection />
             }
           />
 
