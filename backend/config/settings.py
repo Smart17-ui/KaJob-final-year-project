@@ -594,21 +594,27 @@ SPECTACULAR_SETTINGS = {
 # LOGGING
 # ============================================
 
-# Use file logging only when LOG_DIR exists locally.
-# On Render, we log to console only.
+# Render sets RENDER=true on deployed services.
+IS_RENDER = os.getenv('RENDER') is not None
 
 LOG_DIR = BASE_DIR / 'logs'
-IS_LOCAL = os.getenv('RENDER') is None
 
-# Ensure local log dir exists (no-op on Render)
-if IS_LOCAL and not LOG_DIR.exists():
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
+# Only create the log directory locally — never on Render.
+if not IS_RENDER and not LOG_DIR.exists():
+    try:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
 
 
-def _handlers():
-    if IS_LOCAL:
-        return ['console', 'file']
-    return ['console']
+# File handler config — only used locally.
+FILE_HANDLER = {
+    'level': 'INFO',
+    'class': 'logging.FileHandler',
+    'filename': str(LOG_DIR / 'kajob.log'),
+    'formatter': 'verbose',
+    'encoding': 'utf-8',
+}
 
 
 LOGGING = {
@@ -643,31 +649,28 @@ LOGGING = {
             'formatter': 'simple',
         },
 
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': LOG_DIR / 'kajob.log',
-            'formatter': 'verbose',
-            'encoding': 'utf-8',
-        },
+        **({} if IS_RENDER else {'file': FILE_HANDLER}),
     },
 
     'loggers': {
 
         'django': {
-            'handlers': _handlers(),
+            'handlers':
+                ['console'] if IS_RENDER else ['console', 'file'],
             'level': 'INFO',
             'propagate': True,
         },
 
         'apps': {
-            'handlers': _handlers(),
+            'handlers':
+                ['console'] if IS_RENDER else ['console', 'file'],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
 
         'channels': {
-            'handlers': _handlers(),
+            'handlers':
+                ['console'] if IS_RENDER else ['console', 'file'],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
@@ -695,6 +698,11 @@ print(
 print(
     f"Debug Mode: "
     f"{DEBUG}"
+)
+
+print(
+    f"Running on Render: "
+    f"{IS_RENDER}"
 )
 
 print(
