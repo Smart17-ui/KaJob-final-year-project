@@ -94,4 +94,27 @@ print(f'Skills created this run: {created}')
 print(f'Total skills in DB: {Skill.objects.count()}')
 "
 
+echo "==> Backfilling missing roles for existing users..."
+python manage.py shell -c "
+from apps.accounts.models import User, Role, UserRole
+
+try:
+    client_role = Role.objects.get(name='CLIENT')
+except Role.DoesNotExist:
+    print('CLIENT role missing — seeding may have failed.')
+else:
+    fixed = 0
+    for u in User.objects.all():
+        if not u.user_roles.exists():
+            UserRole.objects.create(user=u, role=client_role)
+            print(f'Assigned CLIENT to {u.email}')
+            fixed += 1
+    print(f'Backfilled {fixed} user(s) with CLIENT role.')
+
+print('--- Current role assignments ---')
+for u in User.objects.all():
+    roles = [ur.role.name for ur in u.user_roles.all()]
+    print(f'{u.email}: {roles}')
+"
+
 echo "==> Build complete."
