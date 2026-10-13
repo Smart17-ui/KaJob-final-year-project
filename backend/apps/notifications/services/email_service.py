@@ -8,6 +8,11 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
 
+try:
+    import resend  # Optional dependency — only required when RESEND_API_KEY is set
+except ImportError:
+    resend = None
+
 logger = logging.getLogger(__name__)
 
 # Maximum seconds to wait for any SMTP operation (connect, send, quit).
@@ -15,12 +20,16 @@ logger = logging.getLogger(__name__)
 # Django's SMTP backend to hang for the OS-level TCP timeout (minutes).
 # This cap makes failures fast so the HTTP request can return.
 # Locally, SMTP works fine and this timeout is never hit.
-SMTP_TIMEOUT_SECONDS = 2
+SMTP_TIMEOUT_SECONDS = 10
 
 
 class EmailService:
     """
     Service for sending email notifications.
+
+    Transport priority:
+    1. Resend (HTTPS API on port 443) — works on Render free tier.
+    2. SMTP (port 587) — works locally and on paid infrastructure.
     """
 
     # ============================================
@@ -77,10 +86,11 @@ class EmailService:
         """
         Send an email using a template.
 
-        SMTP operations are capped at SMTP_TIMEOUT_SECONDS so a blocked port
-        (e.g. on Render's free tier) fails fast instead of hanging the caller
-        for minutes. Locally, the timeout is not hit and emails send normally.
+        Tries Resend (HTTPS) first if RESEND_API_KEY is configured; falls
+        back to SMTP otherwise. SMTP is capped at SMTP_TIMEOUT_SECONDS so
+        a blocked port fails fast instead of hanging the caller for minutes.
         """
+        # --- Render the templates ---
         try:
             if from_email is None:
                 from_email = getattr(
@@ -93,6 +103,44 @@ class EmailService:
             )
             text_content = strip_tags(html_content)
 
+        except Exception as e:
+            logger.error(
+                f"Failed to render email template {template_name}: {e}"
+            )
+            return False
+
+        # --- Transport 1: Resend (HTTPS) ---
+        resend_api_key = getattr(settings, 'RESEND_API_KEY', None)
+
+        if resend_api_key and resend is not None:
+            try:
+                resend.api_key = resend_api_key
+                resend.Emails.send({
+                    "from": from_email,
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_content,
+                    "text": text_content,
+                })
+                logger.info(
+                    f"Email sent via Resend to {to_email}: {subject}"
+                )
+                return True
+
+            except Exception as e:
+                logger.warning(
+                    f"Resend failed for {to_email}, "
+                    f"falling back to SMTP: {e}"
+                )
+
+        elif resend_api_key and resend is None:
+            logger.warning(
+                "RESEND_API_KEY is set but the 'resend' package "
+                "is not installed. Falling back to SMTP."
+            )
+
+        # --- Transport 2: SMTP (fallback) ---
+        try:
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,
@@ -101,20 +149,18 @@ class EmailService:
             )
             email.attach_alternative(html_content, "text/html")
 
-            # --- SMTP timeout guard ---
             previous_timeout = socket.getdefaulttimeout()
             socket.setdefaulttimeout(SMTP_TIMEOUT_SECONDS)
             try:
                 email.send(fail_silently=False)
             finally:
                 socket.setdefaulttimeout(previous_timeout)
-            # --------------------------
 
-            logger.info(f"Email sent to {to_email}: {subject}")
+            logger.info(f"Email sent via SMTP to {to_email}: {subject}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {str(e)}")
+            logger.error(f"Both transports failed for {to_email}: {e}")
             return False
 
     @staticmethod
@@ -127,15 +173,38 @@ class EmailService:
         """
         Send a plain-text email (no template).
 
-        Also capped by SMTP_TIMEOUT_SECONDS.
+        Also tries Resend first, then falls back to SMTP.
         """
-        try:
-            if from_email is None:
-                from_email = getattr(
-                    settings, 'DEFAULT_FROM_EMAIL', 'noreply@kajob.com'
+        if from_email is None:
+            from_email = getattr(
+                settings, 'DEFAULT_FROM_EMAIL', 'noreply@kajob.com'
+            )
+
+        # --- Transport 1: Resend (HTTPS) ---
+        resend_api_key = getattr(settings, 'RESEND_API_KEY', None)
+
+        if resend_api_key and resend is not None:
+            try:
+                resend.api_key = resend_api_key
+                resend.Emails.send({
+                    "from": from_email,
+                    "to": [to_email],
+                    "subject": subject,
+                    "text": message,
+                })
+                logger.info(
+                    f"Plain email sent via Resend to {to_email}: {subject}"
+                )
+                return True
+
+            except Exception as e:
+                logger.warning(
+                    f"Resend (plain) failed for {to_email}, "
+                    f"falling back to SMTP: {e}"
                 )
 
-            # --- SMTP timeout guard ---
+        # --- Transport 2: SMTP (fallback) ---
+        try:
             previous_timeout = socket.getdefaulttimeout()
             socket.setdefaulttimeout(SMTP_TIMEOUT_SECONDS)
             try:
@@ -148,13 +217,12 @@ class EmailService:
                 )
             finally:
                 socket.setdefaulttimeout(previous_timeout)
-            # --------------------------
 
-            logger.info(f"Plain email sent to {to_email}: {subject}")
+            logger.info(f"Plain email sent via SMTP to {to_email}: {subject}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send plain email to {to_email}: {str(e)}")
+            logger.error(f"Both transports failed for {to_email}: {e}")
             return False
 
     # ============================================

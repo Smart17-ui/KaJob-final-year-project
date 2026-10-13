@@ -504,7 +504,7 @@ SIMPLE_JWT = {
 
 
 # ============================================
-# EMAIL CONFIGURATION
+# EMAIL CONFIGURATION (SMTP — fallback transport)
 # ============================================
 
 EMAIL_BACKEND = get_env(
@@ -547,6 +547,28 @@ DEFAULT_FROM_EMAIL = get_env(
 FRONTEND_URL = get_env(
     'FRONTEND_URL',
     default='http://localhost:5173'
+)
+
+
+# ============================================
+# RESEND (HTTPS email API — primary transport on Render)
+# ============================================
+#
+# Resend sends emails over HTTPS (port 443), which Render allows.
+# Render's free tier blocks outbound SMTP (ports 25/465/587), so on
+# deployed instances the EmailService will use Resend first and fall
+# back to SMTP only if Resend isn't configured or fails.
+#
+# Get an API key from https://resend.com → API Keys.
+# Set RESEND_API_KEY in your .env (locally) and in Render's
+# Environment tab (production).
+#
+# If RESEND_API_KEY is empty, the app falls back to plain SMTP —
+# which works locally but not on Render free tier.
+
+RESEND_API_KEY = get_env(
+    'RESEND_API_KEY',
+    default=''
 )
 
 
@@ -723,6 +745,11 @@ print(
 print(
     f"Email User: "
     f"{EMAIL_HOST_USER}"
+)
+
+print(
+    f"Resend Email: "
+    f"{'ENABLED (primary)' if RESEND_API_KEY else 'DISABLED (using SMTP)'}"
 )
 
 print("\n" + "=" * 50)
