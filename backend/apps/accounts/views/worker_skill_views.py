@@ -4,7 +4,7 @@ import logging
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 
 from apps.accounts.models import Skill
@@ -23,17 +23,22 @@ service = WorkerSkillService()
 
 
 # ============================================================
-# MASTER SKILL LIST (public within auth)
+# MASTER SKILL LIST (PUBLIC)
 # ============================================================
 
 class SkillListView(APIView):
     """
-    GET /api/accounts/skills/
+    GET /api/skills/
 
     Returns the full master list of skills.
-    Used by the frontend to populate the "add a skill" dropdown.
+
+    Public endpoint — no authentication required.
+    Used by the frontend to populate:
+      - Worker registration skill picker
+      - Post Job "required skills" multi-select
+      - Worker profile "add a skill" dropdown
     """
-    permission_classes = [IsAuthenticated, IsActiveUser]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         skills = Skill.objects.all().order_by('name')
@@ -50,8 +55,8 @@ class SkillListView(APIView):
 
 class MySkillsView(APIView):
     """
-    GET  /api/accounts/workers/me/skills/   — list my skills
-    POST /api/accounts/workers/me/skills/   — add a skill
+    GET  /api/workers/me/skills/   — list my skills
+    POST /api/workers/me/skills/   — add a skill
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 
@@ -95,8 +100,8 @@ class MySkillsView(APIView):
 
 class MySkillDetailView(APIView):
     """
-    PUT    /api/accounts/workers/me/skills/{id}/   — update
-    DELETE /api/accounts/workers/me/skills/{id}/   — remove
+    PUT    /api/workers/me/skills/{id}/   — update
+    DELETE /api/workers/me/skills/{id}/   — remove
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 

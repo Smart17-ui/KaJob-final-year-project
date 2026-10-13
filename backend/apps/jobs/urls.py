@@ -44,6 +44,9 @@ from apps.jobs.views import (
     ApplicationStatusTransitionView,
     ApplicationStatusSummaryView,
     ApplicationStatusOptionsView,
+    #job category views
+    JobCategoryListView,
+    JobCategoryDetailView,
 )
 
 from apps.jobs.views.job_views import MyHiddenJobsView
@@ -240,5 +243,14 @@ urlpatterns = [
         'filter/',
         FilterJobsView.as_view(),
         name='filter-jobs',
+    ),
+        # ============================================
+    # JOB CATEGORIES
+    # ============================================
+    path('categories/', JobCategoryListView.as_view(), name='job-categories'),
+    path(
+        'categories/<int:category_id>/',
+        JobCategoryDetailView.as_view(),
+        name='job-category-detail',
     ),
 ]

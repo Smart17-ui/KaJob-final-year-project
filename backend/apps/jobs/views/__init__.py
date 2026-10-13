@@ -22,6 +22,10 @@ from .job_views import (
     HideAssignmentView,
     UnhideAssignmentView,
 )
+from .job_category_views import (
+    JobCategoryListView,
+    JobCategoryDetailView,
+)
 
 from .job_application_views import (
     ApplyForJobView,
@@ -92,6 +96,10 @@ __all__ = [
     'ActiveAssignmentsView',
     'WorkerMarkCompleteView',
     'ClientConfirmCompleteView',
+
+    # Job Category Views
+    'JobCategoryListView',
+    'JobCategoryDetailView',
 
     # Application Status Views
     'ApplicationStatusView',
