@@ -14,7 +14,7 @@ import { getAccessToken } from "@/shared/auth";
    API URL
 ========================= */
 
-const API_URL = "https://kajob-final-year-project.onrender.com/api/api";
+const API_URL = "https://kajob-final-year-project.onrender.com/api";
 
 /* =========================
    API ERROR

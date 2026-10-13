@@ -1,7 +1,7 @@
 // frontend/src/api/admin/client.ts
 
 const API_BASE_URL =
-    import.meta.env.VITE_API_URL || 'https://kajob-final-year-project.onrender.com/api/api';
+    import.meta.env.VITE_API_URL || 'https://kajob-final-year-project.onrender.com/api';
 
 /**
  * Admin API Client

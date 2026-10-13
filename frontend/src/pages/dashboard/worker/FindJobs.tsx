@@ -30,7 +30,7 @@ import JobsGrid from "@/components/find-jobs/JobsGrid";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "https://kajob-final-year-project.onrender.com/api/api";
+  "https://kajob-final-year-project.onrender.com/api";
 
 type Job = {
   id: number;

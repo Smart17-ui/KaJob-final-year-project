@@ -1,7 +1,7 @@
 
 // src/services/reviewService.ts
 
-const API_BASE_URL = "https://kajob-final-year-project.onrender.com/api/api";
+const API_BASE_URL = "https://kajob-final-year-project.onrender.com/api";
 
 /* =========================================================
    TYPES

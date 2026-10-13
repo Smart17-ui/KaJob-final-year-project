@@ -7,7 +7,7 @@ import type {
   ReportableJobsResponse,
 } from "../../shared/types/report";
 
-const API_BASE_URL = "https://kajob-final-year-project.onrender.com/api/api";
+const API_BASE_URL = "https://kajob-final-year-project.onrender.com/api";
 
 /* =========================================================
    API ERROR HELPER
