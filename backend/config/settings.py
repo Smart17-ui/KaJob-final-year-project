@@ -13,9 +13,6 @@ from datetime import timedelta
 # ============================================
 # FORCE UTF-8 ON STDOUT/STDERR (Windows fix)
 # ============================================
-# Windows terminals default to cp1252, which can't encode emoji/star
-# characters. Wrap stdout/stderr with UTF-8 so log lines like
-# "Email sent: New Review: 5★" don't crash with UnicodeEncodeError.
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
     sys.stdout = io.TextIOWrapper(
@@ -114,6 +111,13 @@ ALLOWED_HOSTS = get_env(
     cast=list
 )
 
+# Render automatically provides RENDER_EXTERNAL_HOSTNAME.
+# Add it to ALLOWED_HOSTS if present.
+RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    if RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 
 # ============================================
 # APPLICATION DEFINITION
@@ -163,6 +167,7 @@ MIDDLEWARE = [
 
     # Django default middleware
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
 
     # Custom CORS middleware
@@ -187,10 +192,11 @@ MIDDLEWARE = [
 # CORS SETTINGS
 # ============================================
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOWED_ORIGINS = get_env(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:5173,http://127.0.0.1:5173',
+    cast=list
+)
 
 CORS_ALLOWED_METHODS = [
     'DELETE',
@@ -366,6 +372,16 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'static'
 ] if (BASE_DIR / 'static').exists() else []
+
+# WhiteNoise: compress + cache static files in production
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 
 # ============================================
@@ -578,6 +594,23 @@ SPECTACULAR_SETTINGS = {
 # LOGGING
 # ============================================
 
+# Use file logging only when LOG_DIR exists locally.
+# On Render, we log to console only.
+
+LOG_DIR = BASE_DIR / 'logs'
+IS_LOCAL = os.getenv('RENDER') is None
+
+# Ensure local log dir exists (no-op on Render)
+if IS_LOCAL and not LOG_DIR.exists():
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _handlers():
+    if IS_LOCAL:
+        return ['console', 'file']
+    return ['console']
+
+
 LOGGING = {
 
     'version': 1,
@@ -608,71 +641,38 @@ LOGGING = {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
-            # NOTE: 'encoding' is NOT supported by StreamHandler.
-            # stdout/stderr are wrapped as UTF-8 at the top of this file instead.
         },
 
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'kajob.log',
+            'filename': LOG_DIR / 'kajob.log',
             'formatter': 'verbose',
-            'encoding': 'utf-8',   # FileHandler DOES support encoding
+            'encoding': 'utf-8',
         },
     },
 
     'loggers': {
 
         'django': {
-            'handlers': [
-                'console',
-                'file'
-            ],
-
+            'handlers': _handlers(),
             'level': 'INFO',
-
             'propagate': True,
         },
 
         'apps': {
-
-            'handlers': [
-                'console',
-                'file'
-            ],
-
-            'level':
-                'DEBUG' if DEBUG else 'INFO',
-
+            'handlers': _handlers(),
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
 
         'channels': {
-            'handlers': [
-                'console',
-                'file'
-            ],
-
-            'level':
-                'DEBUG' if DEBUG else 'INFO',
-
+            'handlers': _handlers(),
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
     },
 }
-
-
-# ============================================
-# ENSURE LOG DIRECTORY EXISTS
-# ============================================
-
-LOG_DIR = BASE_DIR / 'logs'
-
-if not LOG_DIR.exists():
-    LOG_DIR.mkdir(
-        parents=True,
-        exist_ok=True
-    )
 
 
 # ============================================

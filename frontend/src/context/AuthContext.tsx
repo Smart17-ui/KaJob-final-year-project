@@ -12,6 +12,8 @@ import {
   logoutUser,
 } from "@/api/auth/auth";
 
+import apiClient from "@/api/client";
+
 import {
   getCurrentUser,
   getRefreshToken,
@@ -35,16 +37,14 @@ interface AuthContextType {
   ) => Promise<LoginResult>;
 
   logout: () => Promise<void>;
+
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext =
   createContext<AuthContextType | undefined>(
     undefined
   );
-
-/* =========================
-   PROVIDER
-========================= */
 
 export function AuthProvider({
   children,
@@ -61,21 +61,15 @@ export function AuthProvider({
       () => isAuthenticated()
     );
 
-  /* =========================
-     LOGIN (auto-detect role)
-  ========================= */
-
   async function login(
     email: string,
     password: string
   ): Promise<LoginResult> {
-    // ✅ Send only email + password — backend auto-detects role
     const data = await loginUser({
       email,
       password,
     });
 
-    // ✅ Save auth with the auto-detected role
     saveAuth(
       data.tokens.access,
       data.tokens.refresh,
@@ -86,16 +80,11 @@ export function AuthProvider({
     setUser(data.user);
     setIsLoggedIn(true);
 
-    // ✅ Return redirect target from backend
     return {
       user: data.user,
       redirectTo: data.redirect_to,
     };
   }
-
-  /* =========================
-     LOGOUT
-  ========================= */
 
   async function logout(): Promise<void> {
     const refreshToken =
@@ -114,6 +103,38 @@ export function AuthProvider({
     }
   }
 
+  async function refreshUser(): Promise<void> {
+    try {
+      const data = (await apiClient("/auth/me/")) as {
+        user: User;
+      };
+
+      // Also persist the new user to localStorage so it
+      // survives a page reload.
+      try {
+        const raw = localStorage.getItem("kajob_auth");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          parsed.user = data.user;
+          localStorage.setItem(
+            "kajob_auth",
+            JSON.stringify(parsed)
+          );
+        }
+      } catch (storageErr) {
+        // localStorage format differs — swallow and continue
+        console.warn(
+          "[refreshUser] localStorage update failed:",
+          storageErr
+        );
+      }
+
+      setUser(data.user);
+    } catch (err) {
+      console.error("Failed to refresh user:", err);
+    }
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -121,16 +142,13 @@ export function AuthProvider({
         isLoggedIn,
         login,
         logout,
+        refreshUser,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
-
-/* =========================
-   HOOK
-========================= */
 
 export function useAuth() {
   const context =
