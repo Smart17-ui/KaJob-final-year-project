@@ -107,7 +107,7 @@ export type SubmitVerificationResponse = {
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  "http://127.0.0.1:8000/api";
+  "https://kajob-final-year-project.onrender.com/api/api";
 
 export const getVerificationStatus =
   async (): Promise<VerificationStatusResponse> => {

@@ -1,7 +1,7 @@
 
 // src/services/reviewService.ts
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://kajob-final-year-project.onrender.com/api/api";
 
 /* =========================================================
    TYPES

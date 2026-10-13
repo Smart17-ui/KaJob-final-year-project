@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 
 const MEDIA_BASE_URL =
     import.meta.env.VITE_API_URL?.replace('/api', '') ||
-    'http://127.0.0.1:8000';
+    'https://kajob-final-year-project.onrender.com/api';
 
 interface Document {
     id: number;
