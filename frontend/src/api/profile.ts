@@ -164,3 +164,83 @@ export async function updateClientProfile(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+/* =========================
+   ACCOUNT MANAGEMENT
+========================= */
+
+/**
+ * Update first + last name.
+ *
+ * Backend: PUT /api/auth/profile/name/
+ */
+export async function updateMyName(
+  firstName: string,
+  lastName: string
+): Promise<{ message: string; user: Record<string, unknown> }> {
+  return apiClient("/auth/profile/name/", {
+    method: "PUT",
+    body: JSON.stringify({
+      first_name: firstName,
+      last_name: lastName,
+    }),
+  });
+}
+
+/**
+ * Update email address.
+ *
+ * Backend: PUT /api/auth/profile/email/
+ * Triggers a verification email to the new address.
+ */
+export async function updateMyEmail(
+  email: string
+): Promise<{
+  message: string;
+  email: string;
+  email_sent: boolean;
+  next_step: string;
+}> {
+  return apiClient("/auth/profile/email/", {
+    method: "PUT",
+    body: JSON.stringify({ email }),
+  });
+}
+
+/**
+ * Update phone number.
+ *
+ * Backend: PUT /api/auth/profile/phone/
+ * Resets phone verification — user must re-verify.
+ */
+export async function updateMyPhone(
+  phoneNumber: string
+): Promise<{
+  message: string;
+  phone_number: string;
+  verification_reset: boolean;
+  next_step: string;
+}> {
+  return apiClient("/auth/profile/phone/", {
+    method: "PUT",
+    body: JSON.stringify({ phone_number: phoneNumber }),
+  });
+}
+
+/**
+ * Change password.
+ *
+ * Backend: POST /api/auth/change-password/
+ */
+export async function changeMyPassword(
+  oldPassword: string,
+  newPassword: string
+): Promise<{ message: string }> {
+  return apiClient("/auth/change-password/", {
+    method: "POST",
+    body: JSON.stringify({
+      old_password: oldPassword,
+      new_password: newPassword,
+    }),
+  });
+}

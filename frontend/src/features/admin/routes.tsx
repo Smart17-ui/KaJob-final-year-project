@@ -37,6 +37,9 @@ const NotificationsPage = lazy(
     () => import('@/pages/dashboard/admin/Notifications')
 );
 
+// Profile
+const ProfilePage = lazy(() => import('./profile/ProfilePage'));
+
 // ============================================
 // LOADING FALLBACK
 // ============================================
@@ -134,6 +137,12 @@ export const AdminRoutes = () => {
                             <Route
                                 path="notifications"
                                 element={<NotificationsPage />}
+                            />
+
+                            {/* Profile */}
+                            <Route
+                                path="profile"
+                                element={<ProfilePage />}
                             />
                         </Routes>
                     </Suspense>
