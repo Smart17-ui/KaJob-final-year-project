@@ -49,6 +49,9 @@ class AuthService:
         """
         Register a new user OR add a role to existing user.
         Implements the Role Player Pattern - one user can have multiple roles.
+
+        NOTE: No emails/OTPs are sent here. Verification emails/OTPs are sent
+        only when the user explicitly requests them from the /verify page.
         """
         # Normalize email - case insensitive
         data['email'] = data['email'].lower().strip()
@@ -115,13 +118,17 @@ class AuthService:
             details={'role': role.name},
         )
 
-        # Create verification record
+        # Create verification record so the /verify page has something to
+        # work with immediately after registration.
+        #
+        # IMPORTANT: We intentionally DO NOT send the phone OTP or the
+        # verification email here. Those are sent on-demand from the
+        # verification page (phone_views.py / email_views.py). This keeps
+        # registration instant and avoids blocking on SMTP (Render blocks
+        # outbound SMTP on free tier, which would hang the request).
         self.verification_service.get_or_create_verification(user)
 
-        # Send phone OTP (Phase 1)
-        self.verification_service.send_phone_otp(user)
-
-        # Notify admins of the new registration (best-effort)
+        # Notify admins of the new registration (best-effort, non-blocking)
         try:
             from apps.notifications.services import NotificationService
             NotificationService().notify_admins_new_user_registered(user)
@@ -136,7 +143,9 @@ class AuthService:
         return {
             'user': user,
             'tokens': tokens,
-            'message': 'Registration successful! Please verify your phone number to continue.',
+            'message': (
+                'Registration successful! Please verify your account to continue.'
+            ),
             'next_step': 'phone_verification',
             'available_roles': user.get_roles_names(),
         }
@@ -145,7 +154,9 @@ class AuthService:
     # PRIVATE METHODS
     # ============================================
 
-    def _add_role_to_existing_user(self, user: User, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _add_role_to_existing_user(
+        self, user: User, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Add a new role to an existing user (Role Player Pattern).
         NO RE-REGISTRATION NEEDED!
@@ -158,14 +169,16 @@ class AuthService:
 
         # Check if user already has this role
         if user.has_role(data['role']):
-            raise BusinessRuleViolation(f"User already has the '{data['role']}' role.")
+            raise BusinessRuleViolation(
+                f"User already has the '{data['role']}' role."
+            )
 
-        #Check if phone needs updating
+        # Check if phone needs updating
         if user.phone_number != data['phone_number']:
             user.phone_number = data['phone_number']
             user.save(update_fields=['phone_number'])
 
-        #Check if email needs updating
+        # Check if email needs updating
         if user.email != data['email']:
             user.email = data['email']
             user.save(update_fields=['email'])
@@ -179,7 +192,7 @@ class AuthService:
         elif role.name == RoleType.CLIENT and not hasattr(user, 'client_profile'):
             self.client_repo.create(user=user)
 
-        #Verification status carries over!
+        # Verification status carries over!
         # User is already verified, no need to re-verify
 
         # Audit log
@@ -234,7 +247,9 @@ class AuthService:
 
         # Check if user already has this role
         if user.has_role(role_name):
-            raise BusinessRuleViolation(f"User already has the '{role_name}' role.")
+            raise BusinessRuleViolation(
+                f"User already has the '{role_name}' role."
+            )
 
         # Add the new role to the user
         user.add_role(role)

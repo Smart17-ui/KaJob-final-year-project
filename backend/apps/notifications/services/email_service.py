@@ -1,6 +1,7 @@
 # apps/notifications/services/email_service.py
 
 import logging
+import socket
 from typing import Dict, Any, Optional
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -8,6 +9,13 @@ from django.utils.html import strip_tags
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+# Maximum seconds to wait for any SMTP operation (connect, send, quit).
+# Render's free tier blocks outbound SMTP on ports 25/465/587, which causes
+# Django's SMTP backend to hang for the OS-level TCP timeout (minutes).
+# This cap makes failures fast so the HTTP request can return.
+# Locally, SMTP works fine and this timeout is never hit.
+SMTP_TIMEOUT_SECONDS = 2
 
 
 class EmailService:
@@ -66,7 +74,13 @@ class EmailService:
         context: Dict[str, Any],
         from_email: Optional[str] = None,
     ) -> bool:
-        """Send an email using a template."""
+        """
+        Send an email using a template.
+
+        SMTP operations are capped at SMTP_TIMEOUT_SECONDS so a blocked port
+        (e.g. on Render's free tier) fails fast instead of hanging the caller
+        for minutes. Locally, the timeout is not hit and emails send normally.
+        """
         try:
             if from_email is None:
                 from_email = getattr(
@@ -86,7 +100,15 @@ class EmailService:
                 to=[to_email],
             )
             email.attach_alternative(html_content, "text/html")
-            email.send(fail_silently=False)
+
+            # --- SMTP timeout guard ---
+            previous_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(SMTP_TIMEOUT_SECONDS)
+            try:
+                email.send(fail_silently=False)
+            finally:
+                socket.setdefaulttimeout(previous_timeout)
+            # --------------------------
 
             logger.info(f"Email sent to {to_email}: {subject}")
             return True
@@ -102,20 +124,32 @@ class EmailService:
         message: str,
         from_email: Optional[str] = None,
     ) -> bool:
-        """Send a plain-text email (no template)."""
+        """
+        Send a plain-text email (no template).
+
+        Also capped by SMTP_TIMEOUT_SECONDS.
+        """
         try:
             if from_email is None:
                 from_email = getattr(
                     settings, 'DEFAULT_FROM_EMAIL', 'noreply@kajob.com'
                 )
 
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=from_email,
-                recipient_list=[to_email],
-                fail_silently=False,
-            )
+            # --- SMTP timeout guard ---
+            previous_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(SMTP_TIMEOUT_SECONDS)
+            try:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=from_email,
+                    recipient_list=[to_email],
+                    fail_silently=False,
+                )
+            finally:
+                socket.setdefaulttimeout(previous_timeout)
+            # --------------------------
+
             logger.info(f"Plain email sent to {to_email}: {subject}")
             return True
 
