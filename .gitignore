@@ -1,65 +1,35 @@
-# Environment variables - NEVER COMMIT THESE!
+# Environment
 .env
 .env.local
-.env.production
-.env.development
-*.env
+.env.*.local
+*.local
 
-# Database
-*.db
-*.sqlite3
-*.sql
-*.sql.gz
-backups/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-venv/
-env/
-ENV/
-.venv
-
-# Django
+# Logs
+logs
 *.log
-*.pid
-*.pid.*
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-media/
-staticfiles/
-logs/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-.DS_Store
-
-# Node / React / Vite
-node_modules/
-frontend/node_modules/
-
-# Build files
-dist/
-frontend/dist/
-
-# Vite
-.vite/
-
-# npm
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-auto_confirm.log
+node_modules
+dist
+dist-ssr
 
-__pycache__/
-*.pyc
-*.pyo
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Vite
+.vite/
+
+# OS
+Thumbs.db
