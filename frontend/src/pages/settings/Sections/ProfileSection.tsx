@@ -489,7 +489,7 @@ const ProfileSection = () => {
 
   if (loading) {
     return (
-      <div className="w-full px-6 py-8 sm:px-8">
+      <div className="w-full px-4 py-6 sm:px-8 sm:py-8">
         <div className="border-b border-slate-200 pb-4">
           <h2 className="text-xl font-semibold text-slate-900">
             Public profile
@@ -512,7 +512,7 @@ const ProfileSection = () => {
   }
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
+    <div className="w-full px-4 py-6 sm:px-8 sm:py-8">
       {/* =====================================================
           HEADER
       ===================================================== */}

@@ -362,7 +362,7 @@ const NotificationsSection = () => {
             return (
               <div
                 key={channel.key}
-                className="flex items-center justify-between gap-6 px-6 py-5"
+                className="flex flex-col items-start gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
               >
                 <div className="flex items-center gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
@@ -443,7 +443,7 @@ const NotificationsSection = () => {
             return (
               <div
                 key={item.key}
-                className="flex items-center justify-between gap-6 px-6 py-5"
+                className="flex flex-col items-start gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6"
               >
                 <div>
                   <p className="text-sm font-medium text-gray-900">

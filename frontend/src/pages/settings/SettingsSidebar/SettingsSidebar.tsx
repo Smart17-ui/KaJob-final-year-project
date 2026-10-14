@@ -30,7 +30,44 @@ const navItemClass = ({ isActive }: { isActive: boolean }) =>
    SETTINGS SIDEBAR
 ========================================================= */
 
-const SettingsSidebar = () => {
+const compactItems = [
+  { label: "Profile", path: "profile", icon: UserCircleIcon },
+  { label: "Account", path: "account", icon: IdentificationIcon },
+  { label: "Notifications", path: "notifications", icon: BellIcon },
+  { label: "Security", path: "security", icon: LockClosedIcon },
+  { label: "Verification", path: "verification", icon: ShieldCheckIcon },
+  { label: "Reports", path: "my-reports", icon: DocumentTextIcon },
+];
+
+const SettingsSidebar = ({ compact = false }: { compact?: boolean }) => {
+  if (compact) {
+    return (
+      <nav
+        aria-label="Settings navigation"
+        className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="flex w-max min-w-full gap-1 px-2 py-2">
+          {compactItems.map(({ label, path, icon: Icon }) => (
+            <NavLink
+              key={path}
+              to={path}
+              className={({ isActive }) =>
+                `inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`
+              }
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav className="w-full">
       {/* =====================================================

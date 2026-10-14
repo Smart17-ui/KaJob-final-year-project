@@ -20,18 +20,18 @@ const SettingsLayout = () => {
         : "/admin/dashboard";
 
   return (
-    <div className="flex h-[calc(100vh-80px)] w-full min-w-0 flex-col overflow-hidden">
+    <div className="flex min-h-[calc(100dvh-80px)] w-full min-w-0 flex-col overflow-visible md:h-[calc(100vh-80px)] md:min-h-0 md:overflow-hidden">
       {/* =====================================================
           PAGE HEADER
       ===================================================== */}
 
-      <div className="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-4 pb-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between gap-3 px-3 pb-4 sm:px-6 sm:pb-6 lg:px-8">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">
             Settings
           </h1>
 
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 hidden text-sm text-slate-500 sm:block">
             Manage your account settings and preferences.
           </p>
         </div>
@@ -42,6 +42,7 @@ const SettingsLayout = () => {
 
         <Link
           to={dashboardPath}
+          aria-label="Back to dashboard"
           className="
             inline-flex
             shrink-0
@@ -51,7 +52,7 @@ const SettingsLayout = () => {
             border
             border-slate-300
             bg-white
-            px-4
+            px-3
             py-2.5
             text-sm
             font-medium
@@ -62,7 +63,8 @@ const SettingsLayout = () => {
           "
         >
        
-          Back to Dashboard
+          <ArrowLeftIcon className="h-4 w-4 sm:hidden" />
+          <span className="hidden sm:inline">Back to Dashboard</span>
         </Link>
       </div>
 
@@ -78,11 +80,13 @@ const SettingsLayout = () => {
           w-full
           max-w-6xl
           flex-1
-          overflow-hidden
-          px-4
-          pb-6
+          overflow-visible
+          px-2
+          pb-4
           sm:px-6
+          sm:pb-6
           lg:px-8
+          md:overflow-hidden
         "
       >
         <div
@@ -90,19 +94,27 @@ const SettingsLayout = () => {
             flex
             min-h-0
             w-full
-            overflow-hidden
+            flex-col
+            overflow-visible
             rounded-xl
             border
             border-slate-200
             bg-white
+            md:flex-row
+            md:overflow-hidden
           "
         >
+          <div className="border-b border-slate-200 bg-slate-50 md:hidden">
+            <SettingsSidebar compact />
+          </div>
+
           {/* =================================================
               SETTINGS SIDEBAR
           ================================================= */}
 
           <aside
             className="
+              hidden
               w-[220px]
               shrink-0
               overflow-y-auto
@@ -113,6 +125,7 @@ const SettingsLayout = () => {
               [scrollbar-width:none]
               [-ms-overflow-style:none]
               [&::-webkit-scrollbar]:hidden
+              md:block
             "
           >
             <SettingsSidebar />
@@ -127,12 +140,13 @@ const SettingsLayout = () => {
               min-h-0
               min-w-0
               flex-1
-              overflow-y-auto
+              overflow-visible
               bg-white
 
               [scrollbar-width:none]
               [-ms-overflow-style:none]
               [&::-webkit-scrollbar]:hidden
+              md:overflow-y-auto
             "
           >
             <Outlet />

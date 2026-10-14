@@ -187,7 +187,7 @@ const AccountSection = () => {
 
         <div className="divide-y divide-gray-100">
           {/* First Name */}
-          <div className="flex items-center justify-between gap-6 px-6 py-5">
+          <div className="flex flex-col items-start gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
                 <UserIcon className="h-5 w-5 text-gray-500" />
@@ -209,7 +209,7 @@ const AccountSection = () => {
           </div>
 
           {/* Last Name */}
-          <div className="flex items-center justify-between gap-6 px-6 py-5">
+          <div className="flex flex-col items-start gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
                 <UserCircleIcon className="h-5 w-5 text-gray-500" />
@@ -245,7 +245,7 @@ const AccountSection = () => {
 
         <div className="divide-y divide-gray-100">
           {/* Account Status */}
-          <div className="flex items-center justify-between gap-6 px-6 py-5">
+          <div className="flex flex-col items-start gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
                 <CheckCircleIcon className="h-5 w-5 text-green-600" />
@@ -276,7 +276,7 @@ const AccountSection = () => {
           </div>
 
           {/* Current Role */}
-          <div className="flex items-center justify-between gap-6 px-6 py-5">
+          <div className="flex flex-col items-start gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
                 <UserCircleIcon className="h-5 w-5 text-gray-500" />
@@ -298,7 +298,7 @@ const AccountSection = () => {
           </div>
 
           {/* Member Since */}
-          <div className="flex items-center justify-between gap-6 px-6 py-5">
+          <div className="flex flex-col items-start gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
                 <CalendarDaysIcon className="h-5 w-5 text-gray-500" />
@@ -400,7 +400,7 @@ const AccountSection = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="account-action-title"
-            className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 shadow-xl sm:p-6"
           >
             <h2 id="account-action-title" className="text-lg font-semibold text-gray-900">
               {accountAction === "deactivate" ? "Deactivate your account?" : "Delete your account?"}
