@@ -10,7 +10,7 @@ import {
   CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 
-import CategorySelect from "./categorySelect";
+import CategorySelect from "./categoryselect";
 
 type JobDetailsFormProps = {
   form: JobForm;
