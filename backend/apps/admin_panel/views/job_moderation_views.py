@@ -9,6 +9,7 @@ from apps.admin_panel.services import AdminService
 from apps.admin_panel.serializers import AdminJobSerializer, AdminJobListSerializer
 from apps.common.permissions import IsAdmin, IsActiveUser
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
+from apps.common.utilities import paginate_request
 
 
 admin_service = AdminService()
@@ -17,22 +18,46 @@ admin_service = AdminService()
 class AdminJobListView(APIView):
     """
     GET /api/admin/jobs/
-    Get all jobs with optional filters (Admin only).
+    Get all jobs with optional filters and pagination (Admin only).
+
+    Query params:
+        status     -- JobStatus value, e.g. OPEN
+        search     -- substring match on title/description
+        page       -- 1-based (default 1)
+        page_size  -- 1..100 (default 20)
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def get(self, request):
-        filters = {
-            'status': request.query_params.get('status'),
-            'search': request.query_params.get('search'),
-        }
-        filters = {k: v for k, v in filters.items() if v is not None}
-        
-        jobs = admin_service.get_all_jobs(filters)
-        
+        from django.db.models import Q
+        from apps.jobs.models import Job
+
+        qs = Job.objects.filter(deleted_at__isnull=True).select_related(
+            'client', 'category'
+        ).prefetch_related('assignments__worker')
+
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        search = request.query_params.get('search')
+        if search:
+            qs = qs.filter(
+                Q(title__icontains=search) | Q(description__icontains=search)
+            )
+
+        qs = qs.order_by('-posted_at')
+
+        page, size = paginate_request(request)
+        total = qs.count()
+        start = (page - 1) * size
+        page_qs = qs[start:start + size]
+
         return Response({
-            'count': len(jobs),
-            'results': AdminJobListSerializer(jobs, many=True).data,
+            'count': total,
+            'page': page,
+            'page_size': size,
+            'results': AdminJobListSerializer(page_qs, many=True).data,
         }, status=status.HTTP_200_OK)
 
 
@@ -42,11 +67,11 @@ class AdminJobDetailView(APIView):
     Get job details (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def get(self, request, job_id):
         try:
             from apps.jobs.models import Job
-            job = Job.objects.get(id=job_id)
+            job = Job.objects.select_related('client', 'category').get(id=job_id)
             return Response({
                 'job': AdminJobSerializer(job).data,
             }, status=status.HTTP_200_OK)
@@ -63,13 +88,16 @@ class AdminJobDeleteView(APIView):
     Delete a job (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
-    
+
     def post(self, request, job_id):
         reason = request.data.get('reason', 'No reason provided')
-        
+
         try:
             result = admin_service.delete_job(request.user, job_id, reason)
-            return Response(result, status=status.HTTP_200_OK)
+            return Response({
+                'job': AdminJobSerializer(result['job']).data,
+                'message': result['message'],
+            }, status=status.HTTP_200_OK)
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response(
                 {'error': str(e)},

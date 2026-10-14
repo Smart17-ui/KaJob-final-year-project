@@ -34,6 +34,8 @@ from .disciplinary_views import (
     DisciplinaryActionDetailView,
     DisciplinaryUserActionsView,
     DisciplinaryCreateView,
+    DisciplinaryRevokeView,
+    DisciplinaryUserStatusView,
 )
 from .report_views import (
     AdminReportListView,
@@ -74,6 +76,8 @@ __all__ = [
     'DisciplinaryActionDetailView',
     'DisciplinaryUserActionsView',
     'DisciplinaryCreateView',
+    'DisciplinaryRevokeView',
+    'DisciplinaryUserStatusView',
     # Reports
     'AdminReportListView',
     'AdminReportDetailView',

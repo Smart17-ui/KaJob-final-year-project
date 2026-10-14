@@ -396,6 +396,92 @@ class EmailService:
             context=context,
         )
 
+    # ---- Disciplinary emails (new) ----
+
+    @staticmethod
+    def send_account_banned_email(user, reason):
+        """
+        Sent when an admin bans a user. Email is the only channel that
+        reaches a banned user, so this must always succeed independently
+        of the in-app pipeline.
+        """
+        context = {
+            'user': user,
+            'full_name': user.full_name,
+            'title': 'Your KaJob account has been banned',
+            'message': (
+                f"Your account has been permanently banned.\n\n"
+                f"Reason: {reason}\n\n"
+                f"If you believe this is a mistake, contact "
+                f"kajobsupport@gmail.com."
+            ),
+            'frontend_url': EmailService._frontend_url(),
+        }
+        return EmailService.send_email(
+            to_email=user.email,
+            subject='KaJob -- Account Banned',
+            template_name='notification',
+            context=context,
+        )
+
+    @staticmethod
+    def send_account_suspended_email(user, reason, suspended_until=None):
+        """
+        Sent when an admin suspends a user. `suspended_until` may arrive
+        as an ISO-8601 string (JSON-serialized data payload) or a datetime.
+        """
+        if hasattr(suspended_until, 'strftime'):
+            until_str = suspended_until.strftime('%Y-%m-%d %H:%M')
+        elif suspended_until:
+            until_str = str(suspended_until)
+        else:
+            until_str = 'further notice'
+
+        context = {
+            'user': user,
+            'full_name': user.full_name,
+            'title': 'Your KaJob account has been suspended',
+            'message': (
+                f"Your account has been suspended until {until_str}.\n\n"
+                f"Reason: {reason}\n\n"
+                f"You will be able to log in again once the suspension "
+                f"is lifted."
+            ),
+            'frontend_url': EmailService._frontend_url(),
+        }
+        return EmailService.send_email(
+            to_email=user.email,
+            subject='KaJob -- Account Suspended',
+            template_name='notification',
+            context=context,
+        )
+
+    @staticmethod
+    def send_warning_issued_email(user, reason):
+        """
+        Sent when an admin issues a warning. Warnings don't change account
+        status, but we still email for parity with ban/suspend.
+        """
+        context = {
+            'user': user,
+            'full_name': user.full_name,
+            'title': 'You have received a warning',
+            'message': (
+                f"An administrator has issued a warning on your account.\n\n"
+                f"Reason: {reason}\n\n"
+                f"Repeated violations may result in suspension or a ban."
+            ),
+            'frontend_url': EmailService._frontend_url(),
+        }
+        return EmailService.send_email(
+            to_email=user.email,
+            subject='KaJob -- Warning Issued',
+            template_name='notification',
+            context=context,
+        )
+
+    # ---- Other emails ----
+
     @staticmethod
     def send_password_reset_email(user, token):
         """Send password reset email."""

@@ -21,7 +21,7 @@ export interface CancelJobPayload {
 
 export const adminJobsApi = {
     /**
-     * GET /api/jobs/
+     * GET /api/admin/jobs/
      */
     getJobs: async (
         filters?: JobFilters
@@ -35,32 +35,32 @@ export const adminJobsApi = {
         if (filters?.page_size) params.page_size = filters.page_size;
         if (filters?.ordering) params.ordering = filters.ordering;
 
-        return await http.get('/jobs/', params);
+        return await http.get('/admin/jobs/', params);
     },
 
     /**
-     * GET /api/jobs/{id}/
-     * 
-     * FIXED: Unwraps the response from { job: {...} } to {...}
+     * GET /api/admin/jobs/{id}/
+     *
+     * Unwraps the response from { job: {...} } to {...}
      */
     getJob: async (jobId: number): Promise<AdminJob> => {
-        const response = await http.get(`/jobs/${jobId}/`);
+        const response = await http.get(`/admin/jobs/${jobId}/`);
         // Unwrap: backend returns { job: {...} }
         return (response as any)?.job || response;
     },
 
     /**
-     * POST /api/jobs/{id}/cancel/
+     * POST /api/admin/jobs/{id}/cancel/
      */
     cancelJob: async (jobId: number, payload: CancelJobPayload) => {
-        return await http.post(`/jobs/${jobId}/cancel/`, payload);
+        return await http.post(`/admin/jobs/${jobId}/cancel/`, payload);
     },
 
     /**
-     * POST /api/jobs/{id}/delete/
+     * POST /api/admin/jobs/{id}/delete/
      */
     deleteJob: async (jobId: number) => {
-        return await http.post(`/jobs/${jobId}/delete/`);
+        return await http.post(`/admin/jobs/${jobId}/delete/`);
     },
 };
 

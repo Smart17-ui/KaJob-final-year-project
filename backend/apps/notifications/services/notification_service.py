@@ -48,21 +48,34 @@ class NotificationService:
         Args:
             role: 'CLIENT' | 'WORKER' | 'ADMIN' | None
                   None means role-agnostic (shows on every dashboard).
+
+        Delivery rules:
+          - ACTIVE user              -> in-app + email + push
+          - BANNED / SUSPENDED user  -> email only (no live session, no
+                                        visible inbox until reactivated)
+          - Missing / soft-deleted   -> dropped, warning logged
         """
+        # Existence check only; account status is handled below.
         try:
             user = User.objects.get(
                 id=recipient_id,
-                account_status='ACTIVE',
-                deleted_at__isnull=True
+                deleted_at__isnull=True,
             )
         except User.DoesNotExist:
-            logger.warning(f"User {recipient_id} not found or inactive")
+            logger.warning(f"User {recipient_id} not found or deleted")
             return None
+
+        account_active = (user.account_status == 'ACTIVE')
+        deliver_in_app = account_active
+        deliver_push = account_active
+        # Email always allowed: for banned/suspended users it is the only
+        # channel that reaches them, and the reason matters.
+        deliver_email = True
 
         preferences = self.repository.get_or_create_preferences(recipient_id)
         pref_key = notification_type.lower()
 
-        # Sanitize data — convert any model instance to its PK
+        # Sanitize data -- convert any model instance to its PK
         if data:
             def _sanitize(v):
                 if hasattr(v, '_meta'):
@@ -75,7 +88,11 @@ class NotificationService:
             data = {k: _sanitize(v) for k, v in data.items()}
 
         notification = None
-        if preferences.in_app_enabled and preferences.is_enabled(pref_key):
+        if (
+            deliver_in_app
+            and preferences.in_app_enabled
+            and preferences.is_enabled(pref_key)
+        ):
             notification = self.repository.create(
                 recipient=user,
                 role=role,
@@ -111,12 +128,22 @@ class NotificationService:
                     }
                 )
 
-        if send_email and preferences.email_enabled and preferences.is_enabled(pref_key):
+        if (
+            send_email
+            and deliver_email
+            and preferences.email_enabled
+            and preferences.is_enabled(pref_key)
+        ):
             self._send_email_notification(user, notification_type, title, message, data)
 
-        if send_push and preferences.push_enabled and preferences.is_enabled(pref_key):
+        if (
+            send_push
+            and deliver_push
+            and preferences.push_enabled
+            and preferences.is_enabled(pref_key)
+        ):
             if notification:
-                pass  # already sent
+                pass  # already pushed via websocket
             else:
                 self._send_push_notification(
                     recipient_id, notification_type, title, message,
@@ -186,13 +213,31 @@ class NotificationService:
                 reason = data.get('reason', 'No reason provided')
                 email_service.send_verification_rejected_email(user, reason)
 
+            # ---- Disciplinary emails ----
+            elif email_type == 'account_banned':
+                reason = data.get('reason', 'Not provided')
+                email_service.send_account_banned_email(user, reason)
+
+            elif email_type == 'account_suspended':
+                reason = data.get('reason', 'Not provided')
+                suspended_until = data.get('suspended_until')
+                email_service.send_account_suspended_email(
+                    user, reason, suspended_until
+                )
+
+            elif email_type == 'warning_issued':
+                reason = data.get('reason', 'Not provided')
+                email_service.send_warning_issued_email(user, reason)
+
             else:
                 context = {
                     'user': user,
                     'full_name': user.full_name,
                     'title': title,
                     'message': message,
-                    'frontend_url': getattr(settings, 'FRONTEND_URL', 'http://localhost:5173'),
+                    'frontend_url': getattr(
+                        settings, 'FRONTEND_URL', 'http://localhost:5173'
+                    ),
                 }
                 email_service.send_email(
                     to_email=user.email,
@@ -279,10 +324,6 @@ class NotificationService:
     def delete_all(self, user_id: int, role: Optional[str] = None) -> int:
         return self.repository.delete_all(user_id, role)
 
-    # ─────────────────────────────────────────
-    # NEW: delete a single notification
-    # ─────────────────────────────────────────
-
     def delete_one(self, notification_id: int, user_id: int) -> bool:
         """
         Delete a single notification for the given user.
@@ -306,7 +347,7 @@ class NotificationService:
         return NotificationPreferenceSerializer(preferences).data
 
     # ============================================
-    # CONVENIENCE METHODS — now with roles
+    # CONVENIENCE METHODS -- now with roles
     # ============================================
 
     def notify_job_posted(self, worker, job, distance=None):
@@ -379,7 +420,6 @@ class NotificationService:
         Notify a user about a new review.
         Role inferred from the recipient's current role on the platform.
         """
-        # Infer role: workers get worker notifications, clients get client ones
         if getattr(recipient, 'is_worker', False) and not getattr(recipient, 'is_client', False):
             role = 'WORKER'
             redirect = '/worker/dashboard/settings/profile'
@@ -387,7 +427,6 @@ class NotificationService:
             role = 'CLIENT'
             redirect = '/client/dashboard/settings/profile'
         else:
-            # Dual role — keep it role-agnostic
             role = None
             redirect = '/dashboard'
 
@@ -405,7 +444,7 @@ class NotificationService:
         )
 
     def notify_verification_approved(self, user):
-        """Role-agnostic — user sees this on both dashboards."""
+        """Role-agnostic -- user sees this on both dashboards."""
         return self.create_notification(
             recipient_id=user.id,
             notification_type='VERIFICATION_APPROVED',
@@ -433,9 +472,7 @@ class NotificationService:
     # ============================================
 
     def _get_admin_user_ids(self) -> List[int]:
-        """
-        Return the IDs of all active users with the ADMIN role.
-        """
+        """Return the IDs of all active users with the ADMIN role."""
         from apps.accounts.models import User
         from apps.common.constants import RoleType
 
@@ -466,7 +503,7 @@ class NotificationService:
 
         Returns the list of created Notification rows.
 
-        `send_email` defaults to False — admin notifications are
+        `send_email` defaults to False -- admin notifications are
         in-app by default to avoid inbox spam.
         """
         admin_ids = self._get_admin_user_ids()

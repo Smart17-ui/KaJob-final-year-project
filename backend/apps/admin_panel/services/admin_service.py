@@ -97,7 +97,15 @@ class AdminService:
 
     @transaction.atomic
     def suspend_user(self, admin, user_id: int, reason: str) -> Dict[str, Any]:
-        """Suspend a user."""
+        """
+        Suspend a user via AccountStatusService so account_status,
+        suspended_at, suspended_until, suspension_reason, the
+        DisciplinaryAction row, and the notification all happen.
+        """
+        from apps.accounts.services.account_status_service import (
+            AccountStatusService,
+        )
+
         user = self.get_user_detail(user_id)
 
         if user.is_admin:
@@ -108,8 +116,9 @@ class AdminService:
                 "User is already suspended or inactive."
             )
 
-        user.account_status = 'SUSPENDED'
-        user.save()
+        AccountStatusService.suspend_user(
+            user, reason=reason, admin=admin,
+        )
 
         self.audit_service.log_admin_action(
             admin=admin,
@@ -128,14 +137,24 @@ class AdminService:
 
     @transaction.atomic
     def activate_user(self, admin, user_id: int) -> Dict[str, Any]:
-        """Activate a suspended user."""
+        """
+        Reactivate a user via AccountStatusService so suspended_at,
+        suspended_until, suspension_reason, banned_at and ban_reason
+        are all cleared and an UNBAN row is written to the disciplinary
+        history.
+        """
+        from apps.accounts.services.account_status_service import (
+            AccountStatusService,
+        )
+
         user = self.get_user_detail(user_id)
 
         if user.account_status == 'ACTIVE':
             raise BusinessRuleViolation("User is already active.")
 
-        user.account_status = 'ACTIVE'
-        user.save()
+        AccountStatusService.reactivate_user(
+            user, admin=admin, reason="Manual reactivation by admin.",
+        )
 
         self.audit_service.log_admin_action(
             admin=admin,
@@ -302,8 +321,8 @@ class AdminService:
     ) -> Dict[str, Any]:
         """
         Approve a verification.
-        
-        FIXED: Returns a plain serializable dict, NOT a raw model instance.
+
+        Returns a plain serializable dict, NOT a raw model instance.
         """
         verification = self.get_verification_detail(verification_id)
 
@@ -315,15 +334,12 @@ class AdminService:
                 f"Verification is already {verification.verification_status}."
             )
 
-        # Approve using the model method (handles status + reviewed_at + reviewed_by)
         verification.approve(admin)
 
-        # Add notes if provided
         if notes:
             verification.verification_notes = notes
             verification.save(update_fields=['verification_notes'])
 
-        # Audit log
         self.audit_service.log_admin_action(
             admin=admin,
             action='VERIFICATION_APPROVED',
@@ -341,7 +357,6 @@ class AdminService:
             f"Verification {verification_id} approved by admin {admin.id}"
         )
 
-        # ✅ Return ONLY serializable primitives
         return {
             'verification': {
                 'id': verification.id,
@@ -372,8 +387,8 @@ class AdminService:
     ) -> Dict[str, Any]:
         """
         Reject a verification.
-        
-        FIXED: Returns a plain serializable dict, NOT a raw model instance.
+
+        Returns a plain serializable dict, NOT a raw model instance.
         """
         verification = self.get_verification_detail(verification_id)
 
@@ -385,15 +400,12 @@ class AdminService:
                 f"Verification is already {verification.verification_status}."
             )
 
-        # Reject using the model method
         verification.reject(admin, reason)
 
-        # Add notes if provided
         if notes:
             verification.verification_notes = notes
             verification.save(update_fields=['verification_notes'])
 
-        # Audit log
         self.audit_service.log_admin_action(
             admin=admin,
             action='VERIFICATION_REJECTED',
@@ -412,7 +424,6 @@ class AdminService:
             f"Verification {verification_id} rejected by admin {admin.id}"
         )
 
-        # ✅ Return ONLY serializable primitives
         return {
             'verification': {
                 'id': verification.id,

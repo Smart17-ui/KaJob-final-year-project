@@ -217,12 +217,17 @@ class AdminJobListSerializer(serializers.ModelSerializer):
 
     client_name = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    assigned_worker_name = serializers.SerializerMethodField()
+    posted_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Job
         fields = [
             'id', 'title', 'budget', 'client_name',
-            'general_location', 'status', 'status_display', 'created_at',
+            'category_name', 'assigned_worker_name',
+            'general_location', 'status', 'status_display',
+            'posted_at', 'created_at',
         ]
 
     def get_client_name(self, obj):
@@ -230,6 +235,25 @@ class AdminJobListSerializer(serializers.ModelSerializer):
 
     def get_status_display(self, obj):
         return dict(Job.STATUS_CHOICES).get(obj.status)
+
+    def get_category_name(self, obj):
+        return obj.category.name if obj.category else None
+
+    def get_assigned_worker_name(self, obj):
+        """
+        Most recent non-cancelled assignment. Covers ACTIVE, IN_PROGRESS,
+        and COMPLETED. Falls back to None if no assignment exists.
+        """
+        try:
+            assignment = (
+                obj.assignments
+                .exclude(status='CANCELLED')
+                .order_by('-assigned_at')
+                .first()
+            )
+            return assignment.worker.full_name if assignment else None
+        except Exception:
+            return None
 
 
 # ============================================
@@ -272,14 +296,14 @@ class AdminReviewSerializer(serializers.ModelSerializer):
 class AdminVerificationSerializer(serializers.ModelSerializer):
     """
     Serializer for admin verification management.
-    
-    FIXED: Now returns NESTED user info (full_name, email, phone) 
-    so the frontend can display applicant details.
+
+    Returns NESTED user info (full_name, email, phone) so the frontend
+    can display applicant details.
     """
 
-    user = serializers.SerializerMethodField()      # 🆕 Nested user object
+    user = serializers.SerializerMethodField()
     user_name = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()    # 🆕 Alias for verification_status
+    status = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
     document_count = serializers.SerializerMethodField()
 
@@ -287,12 +311,12 @@ class AdminVerificationSerializer(serializers.ModelSerializer):
         model = IdentityVerification
         fields = [
             'id',
-            'user',                     # 🆕 nested
+            'user',
             'user_name',
             'document_type',
             'document_number',
             'verification_status',
-            'status',                   # 🆕 alias
+            'status',
             'status_display',
             'reviewed_by',
             'reviewed_at',
@@ -305,7 +329,6 @@ class AdminVerificationSerializer(serializers.ModelSerializer):
         ]
 
     def get_user(self, obj):
-        """🆕 Return nested user object for the frontend."""
         try:
             user = obj.user
             if not user:
@@ -327,7 +350,6 @@ class AdminVerificationSerializer(serializers.ModelSerializer):
         return obj.user.full_name if obj.user else None
 
     def get_status(self, obj):
-        """🆕 Alias for verification_status."""
         return obj.verification_status
 
     def get_status_display(self, obj):
@@ -346,13 +368,13 @@ class AdminVerificationSerializer(serializers.ModelSerializer):
 class AdminVerificationDetailSerializer(serializers.ModelSerializer):
     """
     Detailed serializer for verification with documents.
-    
-    FIXED: Returns nested user AND documents.
+
+    Returns nested user AND documents.
     """
 
-    user = serializers.SerializerMethodField()      # 🆕 Nested user object
+    user = serializers.SerializerMethodField()
     user_name = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()    # 🆕 Alias
+    status = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
     documents = serializers.SerializerMethodField()
 
@@ -360,12 +382,12 @@ class AdminVerificationDetailSerializer(serializers.ModelSerializer):
         model = IdentityVerification
         fields = [
             'id',
-            'user',                     # 🆕 nested
+            'user',
             'user_name',
             'document_type',
             'document_number',
             'verification_status',
-            'status',                   # 🆕 alias
+            'status',
             'status_display',
             'reviewed_by',
             'reviewed_at',
@@ -378,7 +400,6 @@ class AdminVerificationDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_user(self, obj):
-        """🆕 Return nested user object."""
         try:
             user = obj.user
             if not user:
@@ -400,7 +421,6 @@ class AdminVerificationDetailSerializer(serializers.ModelSerializer):
         return obj.user.full_name if obj.user else None
 
     def get_status(self, obj):
-        """🆕 Alias for verification_status."""
         return obj.verification_status
 
     def get_status_display(self, obj):
@@ -410,7 +430,6 @@ class AdminVerificationDetailSerializer(serializers.ModelSerializer):
         )
 
     def get_documents(self, obj):
-        """🆕 Return list of documents."""
         try:
             docs = VerificationDocument.objects.filter(verification=obj)
             return [

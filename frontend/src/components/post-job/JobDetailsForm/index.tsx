@@ -10,10 +10,13 @@ import {
   CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 
+import CategorySelect from "./categorySelect";
+
 type JobDetailsFormProps = {
   form: JobForm;
   errors: FormErrors;
   categories: JobCategory[];
+  isLoadingLookups?: boolean;
   onChange: (
     field: keyof JobForm,
     value: string
@@ -24,6 +27,7 @@ const JobDetailsForm = ({
   form,
   errors,
   categories,
+  isLoadingLookups = false,
   onChange,
 }: JobDetailsFormProps) => {
   return (
@@ -110,36 +114,17 @@ const JobDetailsForm = ({
             </span>
           </label>
 
-          <select
-            id="category"
+          <CategorySelect
             value={form.categoryId}
-            onChange={(event) =>
-              onChange(
-                "categoryId",
-                event.target.value
-              )
+            categories={categories}
+            isLoading={isLoadingLookups}
+            hasError={Boolean(errors.categoryId)}
+            onChange={(value) =>
+              onChange("categoryId", value)
             }
-            className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition ${
-              errors.categoryId
-                ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100"
-                : "border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-            }`}
-          >
-            <option value="">
-              Select a category
-            </option>
+          />
 
-            {categories.map((category) => (
-              <option
-                key={category.id}
-                value={category.id}
-              >
-                {category.name}
-              </option>
-            ))}
-          </select>
-
-          {categories.length === 0 && (
+          {!isLoadingLookups && categories.length === 0 && (
             <p className="mt-2 text-xs text-slate-500">
               No categories are currently available.
             </p>
@@ -242,7 +227,6 @@ const JobDetailsForm = ({
                 const value =
                   event.target.value;
 
-                // Allow only whole numbers.
                 if (
                   value === "" ||
                   /^\d+$/.test(value)

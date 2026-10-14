@@ -16,19 +16,17 @@ admin_service = AdminService()
 
 class AdminUserListView(APIView):
     """
-    GET /api/admin/users/
+    GET /api/users/
     Get all users with optional filters (Admin only).
-    
-    FIXED: Now reads `status` and `role` query params.
-    - Removed legacy `is_active` filter (uses `status`/`account_status`)
-    - Added `status` filter for account_status
+
+    Reads `status` and `role` query params.
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
     def get(self, request):
         filters = {
             'role': request.query_params.get('role'),
-            'status': request.query_params.get('status'),           # ✅ ADDED
+            'status': request.query_params.get('status'),
             'is_verified': request.query_params.get('is_verified'),
             'search': request.query_params.get('search'),
         }
@@ -45,7 +43,7 @@ class AdminUserListView(APIView):
 
 class AdminUserDetailView(APIView):
     """
-    GET /api/admin/users/{id}/
+    GET /api/users/{id}/
     Get user details (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
@@ -65,7 +63,7 @@ class AdminUserDetailView(APIView):
 
 class AdminUserSuspendView(APIView):
     """
-    POST /api/admin/users/{id}/suspend/
+    POST /api/users/{id}/suspend/
     Suspend a user (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
@@ -75,7 +73,10 @@ class AdminUserSuspendView(APIView):
 
         try:
             result = admin_service.suspend_user(request.user, user_id, reason)
-            return Response(result, status=status.HTTP_200_OK)
+            return Response({
+                'user': AdminUserSerializer(result['user']).data,
+                'message': result['message'],
+            }, status=status.HTTP_200_OK)
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response(
                 {'error': str(e)},
@@ -85,7 +86,7 @@ class AdminUserSuspendView(APIView):
 
 class AdminUserActivateView(APIView):
     """
-    POST /api/admin/users/{id}/activate/
+    POST /api/users/{id}/activate/
     Activate a suspended user (Admin only).
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
@@ -93,7 +94,10 @@ class AdminUserActivateView(APIView):
     def post(self, request, user_id):
         try:
             result = admin_service.activate_user(request.user, user_id)
-            return Response(result, status=status.HTTP_200_OK)
+            return Response({
+                'user': AdminUserSerializer(result['user']).data,
+                'message': result['message'],
+            }, status=status.HTTP_200_OK)
         except (BusinessRuleViolation, ResourceNotFound) as e:
             return Response(
                 {'error': str(e)},

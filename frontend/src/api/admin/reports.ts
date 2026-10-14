@@ -79,13 +79,10 @@ export const adminReportsApi = {
     },
 
     /**
-     * GET /api/reports/stats/
-     *
-     * Note: stats is also available at /api/reports/admin/stats/.
-     * Either works — keeping this URL since it already returns 200.
+     * GET /api/reports/admin/stats/
      */
     getStats: async (): Promise<ReportStats> => {
-        return await http.get('/reports/stats/');
+        return await http.get('/reports/admin/stats/');
     },
 };
 

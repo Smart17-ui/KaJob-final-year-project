@@ -7,6 +7,8 @@ type JobSkillsSelectorProps = {
 
   selectedSkills: number[];
 
+  isLoading?: boolean;
+
   onChange: (
     skillIds: number[]
   ) => void;
@@ -15,6 +17,7 @@ type JobSkillsSelectorProps = {
 const JobSkillsSelector = ({
   skills,
   selectedSkills,
+  isLoading = false,
   onChange,
 }: JobSkillsSelectorProps) => {
   const toggleSkill = (
@@ -50,15 +53,23 @@ const JobSkillsSelector = ({
         </p>
       </div>
 
-      {skills.length === 0 ? (
+      {isLoading ? (
+        <div className="rounded-xl border border-dashed border-gray-300 p-5 text-center">
+          <div className="mx-auto mb-3 h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-green-600" />
+
+          <p className="text-sm font-medium text-gray-700">
+            Loading skills…
+          </p>
+        </div>
+      ) : skills.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 p-5 text-center">
           <p className="text-sm font-medium text-gray-700">
             No skills available yet
           </p>
 
           <p className="mt-1 text-xs text-gray-500">
-            Skills will appear here once the skills
-            endpoint is connected.
+            Skills will appear here once they have been
+            added to the system.
           </p>
         </div>
       ) : (

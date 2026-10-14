@@ -9,12 +9,11 @@ import type {
 } from "@/shared/types";
 
 import { getAccessToken } from "@/shared/auth";
+import API_BASE_URL from "@/api/config";
 
 /* =========================
    API URL
 ========================= */
-
-const API_URL = "https://kajob-final-year-project.onrender.com/api";
 
 /* =========================
    API ERROR
@@ -61,7 +60,7 @@ async function apiRequest<T>(
   try {
     const accessToken = getAccessToken();
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -192,6 +191,26 @@ export async function logoutUser(refreshToken: string): Promise<void> {
   await apiRequest("/auth/logout/", {
     method: "POST",
     body: JSON.stringify({ refresh: refreshToken }),
+  });
+}
+
+export async function deactivateAccount(payload: {
+  password: string;
+  reason: string;
+}): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>("/auth/deactivate/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAccount(payload: {
+  password: string;
+  confirmation: "DELETE";
+}): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>("/auth/account/", {
+    method: "DELETE",
+    body: JSON.stringify(payload),
   });
 }
 

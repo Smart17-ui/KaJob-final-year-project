@@ -16,18 +16,11 @@ type PostJobSidebarProps = {
   categories: JobCategory[];
   skills: SkillOption[];
 
-  onChange: (
-    field: keyof JobForm,
-    value: string
-  ) => void;
+  isLoadingLookups?: boolean;
 
-  onFlexibleChange: (
-    value: boolean
-  ) => void;
-
-  onSkillsChange: (
-    skillIds: number[]
-  ) => void;
+  onChange: (field: keyof JobForm, value: string) => void;
+  onFlexibleChange: (value: boolean) => void;
+  onSkillsChange: (skillIds: number[]) => void;
 };
 
 const PostJobSidebar = ({
@@ -35,29 +28,26 @@ const PostJobSidebar = ({
   errors,
   categories,
   skills,
+  isLoadingLookups = false,
   onChange,
   onFlexibleChange,
   onSkillsChange,
 }: PostJobSidebarProps) => {
   return (
-    <div className="space-y-8">
-      {/* =====================================================
-          JOB DETAILS
-      ===================================================== */}
+    <div className="space-y-8 lg:space-y-10">
 
+      {/* JOB DETAILS */}
       <section>
         <JobDetailsForm
           form={form}
           errors={errors}
           categories={categories}
+          isLoadingLookups={isLoadingLookups}
           onChange={onChange}
         />
       </section>
 
-      {/* =====================================================
-          SCHEDULE
-      ===================================================== */}
-
+      {/* SCHEDULE */}
       <section>
         <JobScheduleForm
           form={form}
@@ -67,14 +57,12 @@ const PostJobSidebar = ({
         />
       </section>
 
-      {/* =====================================================
-          REQUIRED SKILLS
-      ===================================================== */}
-
+      {/* REQUIRED SKILLS */}
       <section>
         <JobSkillsSelector
           skills={skills}
           selectedSkills={form.requiredSkills}
+          isLoading={isLoadingLookups}
           onChange={onSkillsChange}
         />
       </section>

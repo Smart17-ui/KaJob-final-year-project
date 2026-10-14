@@ -1,8 +1,6 @@
 // frontend/src/api/client.ts
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://kajob-final-year-project.onrender.com/api";
+import API_BASE_URL from "@/api/config";
 
 let isRedirecting = false;
 
@@ -17,9 +15,9 @@ const handleUnauthorized = () => {
   localStorage.removeItem("selected_role");
   localStorage.removeItem("user");
 
-  // Redirect to the public home page
-  if (window.location.pathname !== "/") {
-    window.location.href = "/";
+  // Redirect to the login page (only if not already there)
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
   }
 };
 
@@ -43,8 +41,11 @@ const apiClient = async (
     cache: "no-store",
   });
 
-  // JWT expired or invalid
-  if (response.status === 401) {
+  // Only treat a 401 as "session expired" when we actually sent a token.
+  // An unauthenticated request hitting a protected endpoint is a normal
+  // 401 that the caller should handle -- redirecting on those causes
+  // public pages to bounce anonymous visitors to /login.
+  if (response.status === 401 && token) {
     handleUnauthorized();
 
     throw new Error("Your session has expired. Please log in again.");

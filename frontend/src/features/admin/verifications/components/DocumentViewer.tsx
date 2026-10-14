@@ -9,10 +9,9 @@ import {
     AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import API_BASE_URL from '@/api/config';
 
-const MEDIA_BASE_URL =
-    import.meta.env.VITE_API_URL?.replace('/api', '') ||
-    'https://kajob-final-year-project.onrender.com/api';
+const MEDIA_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
 interface Document {
     id: number;

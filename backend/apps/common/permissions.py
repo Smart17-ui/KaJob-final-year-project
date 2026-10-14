@@ -83,3 +83,33 @@ class HasAnyPermission(BasePermission):
             f"You need one of these permissions: "
             f"{', '.join(self.permission_codenames)}"
         )
+# ---- Fine-grained admin permissions ----
+
+class CanSuspendUser(BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_admin
+            and request.user.has_permission('can_suspend_user')
+        )
+
+
+class CanBanUser(BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_admin
+            and request.user.has_permission('can_ban_user')
+        )
+
+
+class CanUnbanUser(BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_admin
+            and request.user.has_permission('can_unban_user')
+        )

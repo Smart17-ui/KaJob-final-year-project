@@ -369,6 +369,11 @@ class AuthService:
         if not user.check_password(password):
             raise BusinessRuleViolation("Invalid email or password.")
 
+        # Deleted accounts are soft-deleted and anonymized. Do not let the
+        # deactivation reactivation path restore them on a later login.
+        if user.deleted_at:
+            raise BusinessRuleViolation("This account has been deleted.")
+
         # ============================================
         # SELF-DEACTIVATION → AUTO-REACTIVATE ON LOGIN
         # ============================================

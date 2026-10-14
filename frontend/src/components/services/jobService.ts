@@ -5,8 +5,7 @@ import type {
   MyJob,
   JobReviewsResponse,
 } from "../../shared/types/job";
-
-const API_BASE_URL = "https://kajob-final-year-project.onrender.com/api";
+import API_BASE_URL from "@/api/config";
 
 /* =========================================================
    CREATE JOB

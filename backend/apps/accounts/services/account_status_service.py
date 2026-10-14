@@ -2,6 +2,8 @@
 Apply disciplinary actions to user accounts.
 """
 
+import logging
+
 from django.utils import timezone
 
 from apps.common.constants import (
@@ -9,36 +11,51 @@ from apps.common.constants import (
     DisciplinaryActionType,
 )
 from apps.common.policies import DEFAULT_SUSPENSION_DAYS
-from apps.audit.models import AuditLog
+from apps.audit.models import AuditLog, DisciplinaryAction
+
+logger = logging.getLogger(__name__)
 
 
 class AccountStatusService:
 
+    # ============================================
+    # ENFORCEMENT ACTIONS
+    # ============================================
+
     @staticmethod
-    def warn_user(user, reason, admin):
+    def warn_user(user, reason, admin, log=True):
         user.warning_count = (user.warning_count or 0) + 1
         user.save(update_fields=['warning_count'])
 
-        AccountStatusService._log_action(
-            user=user,
-            admin=admin,
-            action_type=DisciplinaryActionType.WARN,
-            reason=reason,
-        )
+        if log:
+            AccountStatusService._log_action(
+                user=user,
+                admin=admin,
+                action_type=DisciplinaryActionType.WARN,
+                reason=reason,
+            )
         AccountStatusService._notify(
             user=user,
             kind="WARNING_ISSUED",
             title="Warning Issued",
             message=f"You have received a warning from KaJob admin. Reason: {reason}",
+            extra_data={'reason': reason},
         )
         return user
 
     @staticmethod
-    def suspend_user(user, reason, admin, days=DEFAULT_SUSPENSION_DAYS):
+    def suspend_user(user, reason, admin, days=DEFAULT_SUSPENSION_DAYS,
+                     expires_at=None, log=True):
         now = timezone.now()
+        if expires_at is None:
+            expires_at = now + timezone.timedelta(days=days)
+        else:
+            # keep `days` in sync for the notification message
+            days = max((expires_at - now).days, 1)
+
         user.account_status = UserAccountStatus.SUSPENDED
         user.suspended_at = now
-        user.suspended_until = now + timezone.timedelta(days=days)
+        user.suspended_until = expires_at
         user.suspension_reason = reason
         user.save(update_fields=[
             'account_status',
@@ -47,13 +64,14 @@ class AccountStatusService:
             'suspension_reason',
         ])
 
-        AccountStatusService._log_action(
-            user=user,
-            admin=admin,
-            action_type=DisciplinaryActionType.SUSPEND,
-            reason=reason,
-            duration_days=days,
-        )
+        if log:
+            AccountStatusService._log_action(
+                user=user,
+                admin=admin,
+                action_type=DisciplinaryActionType.SUSPEND,
+                reason=reason,
+                expires_at=expires_at,
+            )
         AccountStatusService._notify(
             user=user,
             kind="ACCOUNT_SUSPENDED",
@@ -62,11 +80,15 @@ class AccountStatusService:
                 f"Your account has been suspended for {days} days. "
                 f"Reason: {reason}"
             ),
+            extra_data={
+                'reason': reason,
+                'suspended_until': expires_at.isoformat(),
+            },
         )
         return user
 
     @staticmethod
-    def ban_user(user, reason, admin):
+    def ban_user(user, reason, admin, log=True):
         user.account_status = UserAccountStatus.BANNED
         user.banned_at = timezone.now()
         user.ban_reason = reason
@@ -78,22 +100,24 @@ class AccountStatusService:
             'suspended_until',
         ])
 
-        AccountStatusService._log_action(
-            user=user,
-            admin=admin,
-            action_type=DisciplinaryActionType.BAN,
-            reason=reason,
-        )
+        if log:
+            AccountStatusService._log_action(
+                user=user,
+                admin=admin,
+                action_type=DisciplinaryActionType.BAN,
+                reason=reason,
+            )
         AccountStatusService._notify(
             user=user,
             kind="ACCOUNT_BANNED",
             title="Account Banned",
             message=f"Your account has been permanently banned. Reason: {reason}",
+            extra_data={'reason': reason},
         )
         return user
 
     @staticmethod
-    def reactivate_user(user, admin, reason=""):
+    def reactivate_user(user, admin, reason="", log=True):
         user.account_status = UserAccountStatus.ACTIVE
         user.suspended_at = None
         user.suspended_until = None
@@ -109,16 +133,19 @@ class AccountStatusService:
             'ban_reason',
         ])
 
-        AccountStatusService._log_action(
-            user=user,
-            admin=admin,
-            action_type=DisciplinaryActionType.UNBAN,
-            reason=reason or "Manual reactivation",
-        )
+        if log:
+            AccountStatusService._log_action(
+                user=user,
+                admin=admin,
+                action_type=DisciplinaryActionType.UNBAN,
+                reason=reason or "Manual reactivation",
+            )
+        # No notification on reactivation -- the user is already being
+        # restored, and they'll see it when they next log in.
         return user
 
     # ============================================
-    # SELF-SERVICE DEACTIVATION (Facebook-style) (NEW)
+    # SELF-SERVICE DEACTIVATION (unchanged)
     # ============================================
 
     @staticmethod
@@ -183,8 +210,8 @@ class AccountStatusService:
 
         The row stays in the DB so history (jobs, reviews, assignments)
         remains intact, but:
-          - account_status → DEACTIVATED (blocks login)
-          - deleted_at → now (soft delete)
+          - account_status -> DEACTIVATED (blocks login)
+          - deleted_at -> now (soft delete)
           - PII anonymized (email/phone/name)
         """
         now = timezone.now()
@@ -222,57 +249,69 @@ class AccountStatusService:
 
         return user
 
+    # ============================================
+    # INTERNAL HELPERS
+    # ============================================
+
     @staticmethod
-    def _log_action(user, admin, action_type, reason="", duration_days=None):
+    def _log_action(user, admin, action_type, reason="", expires_at=None):
         """
-        Best-effort log. Tries several candidates; falls back to console.
+        Write a DisciplinaryAction row. On failure, fall back to an
+        AuditLog row. Errors are logged, not swallowed silently.
         """
         try:
-            from apps.admin_panel.models import DisciplinaryAction
             DisciplinaryAction.objects.create(
-                user=user,
                 admin=admin,
+                target_user=user,
                 action_type=action_type,
                 reason=reason,
-                duration_days=duration_days,
+                expires_at=expires_at,
             )
             return
         except Exception:
-            pass
+            logger.exception(
+                "DisciplinaryAction log failed user=%s action=%s",
+                getattr(user, 'id', None), action_type,
+            )
 
         try:
-            from apps.audit.services import AuditService
-            AuditService().log_admin_action(
-                admin=admin,
-                action=action_type,
-                entity_type="USER",
+            AuditLog.objects.create(
+                user=user,
+                action=f'DISCIPLINARY_{action_type}',
+                entity_type='USER',
                 entity_id=user.id,
-                details={"reason": reason, "duration_days": duration_days},
-            )
-            return
-        except Exception:
-            pass
-
-        try:
-            print(
-                f"[AccountStatusService] {action_type} on user={user.id} "
-                f"by admin={admin.id} reason={reason!r} days={duration_days}"
+                details={'reason': reason},
             )
         except Exception:
-            pass
+            logger.exception(
+                "AuditLog fallback failed user=%s action=%s",
+                getattr(user, 'id', None), action_type,
+            )
 
     @staticmethod
-    def _notify(user, kind, title, message):
+    def _notify(user, kind, title, message, extra_data=None, send_email=True):
+        """
+        Send an in-app + email notification.
+
+        `extra_data` carries structured fields for the email template
+        (e.g. `reason`, `suspended_until`). Falls back to embedding the
+        full message as `reason` when not supplied.
+        """
         try:
             from apps.notifications.services import NotificationService
+
+            data = {'reason': message}
+            if extra_data:
+                data.update(extra_data)
+
             NotificationService().create_notification(
                 recipient_id=user.id,
                 notification_type=kind,
                 title=title,
                 message=message,
                 redirect_url="/account/status",
-                data={"reason": message},
-                send_email=False,
+                data=data,
+                send_email=send_email,
                 send_push=True,
             )
         except Exception as e:

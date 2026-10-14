@@ -19,23 +19,32 @@ class AdminReportListView(APIView):
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
     def get(self, request):
-        reports = Report.objects.all().select_related('job', 'reporter', 'reported_user')
+        qs = Report.objects.select_related(
+            'job', 'reporter', 'reported_user'
+        )
 
         status_filter = request.query_params.get('status')
         if status_filter:
-            reports = reports.filter(status=status_filter)
+            qs = qs.filter(status=status_filter)
 
         category_filter = request.query_params.get('category')
         if category_filter:
-            reports = reports.filter(category=category_filter)
+            qs = qs.filter(category=category_filter)
 
-        reports = reports.order_by('-submitted_at')
+        qs = qs.order_by('-submitted_at')
+
+        total = qs.count()
+
+        # See apps/reports/views/report_views.py for rationale; kept
+        # identical so both admin surfaces behave the same.
+        MAX_RESULTS = 500
+        results_qs = qs[:MAX_RESULTS]
 
         from apps.reports.serializers import ReportListSerializer
 
         return Response({
-            'count': len(reports),
-            'results': ReportListSerializer(reports, many=True).data,
+            'count': total,
+            'results': ReportListSerializer(results_qs, many=True).data,
         }, status=status.HTTP_200_OK)
 
 

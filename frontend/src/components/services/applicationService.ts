@@ -3,9 +3,7 @@ import type {
   JobApplicationsResponse,
   UpdateApplicationStatusResponse,
 } from "../../shared/types/application";
-
-const API_BASE_URL =
-  "https://kajob-final-year-project.onrender.com/api";
+import API_BASE_URL from "@/api/config";
 
 /*
  * =========================

@@ -1,4 +1,5 @@
 import apiClient from "@/api/client";
+import API_BASE_URL from "@/api/config";
 
 export type VerificationStatus =
   | "NOT_SUBMITTED"
@@ -104,10 +105,6 @@ export type SubmitVerificationResponse = {
   status: VerificationStatus;
   document_count: number;
 };
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://kajob-final-year-project.onrender.com/api";
 
 export const getVerificationStatus =
   async (): Promise<VerificationStatusResponse> => {

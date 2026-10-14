@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
   type FormEvent,
 } from "react";
@@ -10,6 +11,10 @@ import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
 import { createJob } from "@/components/services/jobService.js";
 
 import { getCurrentUser } from "@/shared/auth";
+
+import apiClient from "@/api/client";
+
+import { getSkills } from "@/api/skills";
 
 import type {
   CreateJobData,
@@ -47,6 +52,27 @@ type FeedbackState = {
   message: string;
 };
 
+/* =========================================================
+   SORT HELPER
+   ---------------------------------------------------------
+   Sorts items alphabetically, except "Other" which is
+   always pushed to the end of the list.
+========================================================= */
+
+function sortWithOtherLast<T extends { name: string }>(
+  items: T[]
+): T[] {
+  return [...items].sort((a, b) => {
+    const aIsOther = a.name.trim().toLowerCase() === "other";
+    const bIsOther = b.name.trim().toLowerCase() === "other";
+
+    if (aIsOther && !bIsOther) return 1;
+    if (!aIsOther && bIsOther) return -1;
+
+    return a.name.localeCompare(b.name);
+  });
+}
+
 const PostJob = () => {
   const user = getCurrentUser();
 
@@ -62,6 +88,90 @@ const PostJob = () => {
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
+  /* =========================================================
+     CATEGORIES + SKILLS STATE
+  ========================================================= */
+
+  const [categories, setCategories] =
+    useState<JobCategory[]>([]);
+
+  const [skills, setSkills] =
+    useState<SkillOption[]>([]);
+
+  const [lookupsLoading, setLookupsLoading] =
+    useState(true);
+
+  const [lookupsError, setLookupsError] =
+    useState<string | null>(null);
+
+  /* =========================================================
+     LOAD CATEGORIES + SKILLS ON MOUNT
+  ========================================================= */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLookups() {
+      try {
+        setLookupsLoading(true);
+        setLookupsError(null);
+
+        const [categoriesResponse, skillsResponse] =
+          await Promise.all([
+            apiClient("/jobs/categories/"),
+            getSkills(),
+          ]);
+
+        if (cancelled) return;
+
+        // Categories endpoint may return a plain array
+        // or a paginated object { count, results: [...] }.
+        const rawCategories: any[] = Array.isArray(
+          categoriesResponse
+        )
+          ? categoriesResponse
+          : categoriesResponse?.results ?? [];
+
+        const mappedCategories: JobCategory[] =
+          rawCategories
+            .filter((c) => c && c.id && c.name)
+            .map((c) => ({
+              id: Number(c.id),
+              name: String(c.name),
+            }));
+
+        const rawSkills = skillsResponse?.results ?? [];
+
+        const mappedSkills: SkillOption[] =
+          rawSkills
+            .filter((s) => s && s.id && s.name)
+            .map((s) => ({
+              id: Number(s.id),
+              name: String(s.name),
+            }));
+
+        // "Other" goes last for both lists.
+        setCategories(sortWithOtherLast(mappedCategories));
+        setSkills(sortWithOtherLast(mappedSkills));
+      } catch (err) {
+        if (cancelled) return;
+        setLookupsError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load categories and skills."
+        );
+      } finally {
+        if (!cancelled) setLookupsLoading(false);
+      }
+    }
+
+    loadLookups();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [feedback, setFeedback] =
     useState<FeedbackState>({
       isOpen: false,
@@ -69,15 +179,6 @@ const PostJob = () => {
       title: "",
       message: "",
     });
-
-  const categories: JobCategory[] = [
-    {
-      id: 1,
-      name: "111",
-    },
-  ];
-
-  const skills: SkillOption[] = [];
 
   /* =========================================================
      FORM HELPERS
@@ -100,9 +201,7 @@ const PostJob = () => {
     closeFeedback();
   }
 
-  function updateSkills(
-    skillIds: number[]
-  ) {
+  function updateSkills(skillIds: number[]) {
     setForm((current) => ({
       ...current,
       requiredSkills: skillIds,
@@ -116,9 +215,7 @@ const PostJob = () => {
     closeFeedback();
   }
 
-  function updateFlexible(
-    value: boolean
-  ) {
+  function updateFlexible(value: boolean) {
     setForm((current) => ({
       ...current,
       isFlexible: value,
@@ -147,9 +244,7 @@ const PostJob = () => {
     closeFeedback();
   }
 
-  function updateAddress(
-    location: string
-  ) {
+  function updateAddress(location: string) {
     setForm((current) => ({
       ...current,
       location,
@@ -195,8 +290,7 @@ const PostJob = () => {
     const nextErrors: FormErrors = {};
 
     if (!form.title.trim()) {
-      nextErrors.title =
-        "Job title is required.";
+      nextErrors.title = "Job title is required.";
     }
 
     if (!form.description.trim()) {
@@ -209,28 +303,19 @@ const PostJob = () => {
         "Please select a category.";
     }
 
-    /* =======================================================
-       BUDGET
-    ======================================================= */
-
     if (!form.budget.trim()) {
-      nextErrors.budget =
-        "Budget is required.";
+      nextErrors.budget = "Budget is required.";
     } else {
       const budget = Number(form.budget);
 
-      if (
-        Number.isNaN(budget) ||
-        budget <= 0
-      ) {
+      if (Number.isNaN(budget) || budget <= 0) {
         nextErrors.budget =
           "Budget must be greater than 0.";
       } else {
-        const digitCount =
-          form.budget.replace(
-            /\D/g,
-            ""
-          ).length;
+        const digitCount = form.budget.replace(
+          /\D/g,
+          ""
+        ).length;
 
         if (digitCount > 10) {
           nextErrors.budget =
@@ -239,13 +324,8 @@ const PostJob = () => {
       }
     }
 
-    /* =======================================================
-       DATE
-    ======================================================= */
-
     if (form.jobDate) {
       const today = new Date();
-
       today.setHours(0, 0, 0, 0);
 
       const selectedDate = new Date(
@@ -258,14 +338,8 @@ const PostJob = () => {
       }
     }
 
-    /* =======================================================
-       DURATION
-    ======================================================= */
-
     if (form.durationHours) {
-      const duration = Number(
-        form.durationHours
-      );
+      const duration = Number(form.durationHours);
 
       if (
         Number.isNaN(duration) ||
@@ -277,10 +351,6 @@ const PostJob = () => {
       }
     }
 
-    /* =======================================================
-       LOCATION
-    ======================================================= */
-
     if (
       form.latitude === null ||
       form.longitude === null
@@ -291,9 +361,7 @@ const PostJob = () => {
 
     setErrors(nextErrors);
 
-    return (
-      Object.keys(nextErrors).length === 0
-    );
+    return Object.keys(nextErrors).length === 0;
   }
 
   /* =========================================================
@@ -313,7 +381,6 @@ const PostJob = () => {
         "Login required",
         "You need to be logged in before you can post a job."
       );
-
       return;
     }
 
@@ -323,7 +390,6 @@ const PostJob = () => {
         "Verification required",
         "Verify your account before posting a job."
       );
-
       return;
     }
 
@@ -338,37 +404,17 @@ const PostJob = () => {
         title: form.title.trim(),
         description: form.description.trim(),
         budget: Number(form.budget),
+        category_id: Number(form.categoryId),
+        general_location: form.location.trim(),
 
-        category_id: Number(
-          form.categoryId
-        ),
-
-        general_location:
-          form.location.trim(),
-
-        /*
-         * Round coordinates to 6 decimal places
-         * before sending them to the backend.
-         *
-         * This prevents JavaScript floating-point
-         * values such as:
-         *
-         * -15.414486999999998
-         *
-         * from being sent to Django.
-         */
         latitude:
           form.latitude !== null
-            ? Number(
-                form.latitude.toFixed(6)
-              )
+            ? Number(form.latitude.toFixed(6))
             : null,
 
         longitude:
           form.longitude !== null
-            ? Number(
-                form.longitude.toFixed(6)
-              )
+            ? Number(form.longitude.toFixed(6))
             : null,
 
         job_date: form.jobDate,
@@ -379,19 +425,16 @@ const PostJob = () => {
 
         is_flexible: form.isFlexible,
 
-        duration_hours:
-          form.durationHours
-            ? Number(form.durationHours)
-            : undefined,
+        duration_hours: form.durationHours
+          ? Number(form.durationHours)
+          : undefined,
 
         urgency: form.urgency,
 
-        required_skills:
-          form.requiredSkills,
+        required_skills: form.requiredSkills,
       };
 
-      const result =
-        await createJob(payload);
+      const result = await createJob(payload);
 
       setForm(initialForm);
       setErrors({});
@@ -451,6 +494,12 @@ const PostJob = () => {
 
   return (
     <>
+      {lookupsError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {lookupsError}
+        </div>
+      )}
+
       <form
         id="post-job-form"
         onSubmit={handleSubmit}
@@ -461,6 +510,7 @@ const PostJob = () => {
           categories={categories}
           skills={skills}
           isSubmitting={isSubmitting}
+          isLoadingLookups={lookupsLoading}
           onChange={updateField}
           onFlexibleChange={updateFlexible}
           onSkillsChange={updateSkills}

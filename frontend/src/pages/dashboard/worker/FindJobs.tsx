@@ -5,6 +5,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
+import API_BASE_URL from "@/api/config";
 
 import {
   ArrowPathIcon,
@@ -27,10 +28,6 @@ import DetailsModal from "@/components/pop/DetailsModal/DetailsModal";
 
 import FindJobsHeader from "@/components/find-jobs/FindJobsHeader";
 import JobsGrid from "@/components/find-jobs/JobsGrid";
-
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://kajob-final-year-project.onrender.com/api";
 
 type Job = {
   id: number;
@@ -107,7 +104,7 @@ const updateWorkerLocation = async (
   }
 
   const response = await fetch(
-    `${API_URL}/auth/profile/location/`,
+    `${API_BASE_URL}/auth/profile/location/`,
     {
       method: "PUT",
       headers: {
@@ -575,7 +572,7 @@ export default function FindJobs() {
 
         try {
           const response = await fetch(
-            `${API_URL}/matching/nearby/?radius=${selectedRadius}`,
+            `${API_BASE_URL}/matching/nearby/?radius=${selectedRadius}`,
             {
               method: "GET",
               headers: {

@@ -105,11 +105,7 @@ DEBUG = get_env(
     cast=bool
 )
 
-ALLOWED_HOSTS = get_env(
-    'ALLOWED_HOSTS',
-    default='localhost,127.0.0.1',
-    cast=list
-)
+ALLOWED_HOSTS = get_env('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=list)
 
 # Render automatically provides RENDER_EXTERNAL_HOSTNAME.
 # Add it to ALLOWED_HOSTS if present.
@@ -194,7 +190,12 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = get_env(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://127.0.0.1:5173',
+    default=(
+        'http://localhost:5173,http://127.0.0.1:5173,'
+        'https://kajob.org,https://www.kajob.org,'
+        'https://ka-job-final-year-project-git-main-smart17-uis-projects.vercel.app,'
+        'https://ka-job-final-year-project-1ynvxoflh-smart17-uis-projects.vercel.app'
+    ),
     cast=list
 )
 

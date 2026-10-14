@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   ArrowRightOnRectangleIcon,
   CalendarDaysIcon,
@@ -8,8 +8,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 
-import apiClient from "@/api/client";
+import { deactivateAccount, deleteAccount, logoutUser } from "@/api/auth/auth";
 import { getUserProfile, UserProfile } from "@/api/profile";
+import { clearAuth, getRefreshToken } from "@/shared/auth";
 
 const AccountSection = () => {
   const navigate = useNavigate();
@@ -18,6 +19,12 @@ const AccountSection = () => {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState("");
+  const [accountAction, setAccountAction] = useState<"deactivate" | "delete" | null>(null);
+  const [actionPassword, setActionPassword] = useState("");
+  const [deactivationReason, setDeactivationReason] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [submittingAction, setSubmittingAction] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -43,18 +50,68 @@ const AccountSection = () => {
       setLoggingOut(true);
       setError("");
 
-      await apiClient("/auth/logout/", {
-        method: "POST",
-      });
-
-      localStorage.removeItem("access_token");
-
+      const refreshToken = getRefreshToken();
+      if (refreshToken) await logoutUser(refreshToken);
+      clearAuth();
       navigate("/login", { replace: true });
     } catch (err) {
       console.error("Logout failed:", err);
       setError("Unable to log out. Please try again.");
     } finally {
       setLoggingOut(false);
+    }
+  };
+
+  const closeAccountDialog = () => {
+    if (submittingAction) return;
+    setAccountAction(null);
+    setActionPassword("");
+    setDeactivationReason("");
+    setDeleteConfirmation("");
+    setActionError("");
+  };
+
+  const finishAccountAction = async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await logoutUser(refreshToken);
+      } catch (logoutError) {
+        // The account action has already succeeded; still clear local credentials.
+        console.warn("Could not revoke the session after account action:", logoutError);
+      }
+    }
+    clearAuth();
+    navigate("/login", { replace: true });
+  };
+
+  const submitAccountAction = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accountAction) return;
+
+    setSubmittingAction(true);
+    setActionError("");
+    try {
+      if (accountAction === "deactivate") {
+        await deactivateAccount({
+          password: actionPassword,
+          reason: deactivationReason,
+        });
+      } else {
+        await deleteAccount({
+          password: actionPassword,
+          confirmation: "DELETE",
+        });
+      }
+      await finishAccountAction();
+    } catch (actionFailure) {
+      setActionError(
+        actionFailure instanceof Error
+          ? actionFailure.message
+          : "The account action could not be completed. Please try again."
+      );
+    } finally {
+      setSubmittingAction(false);
     }
   };
 
@@ -301,15 +358,117 @@ const AccountSection = () => {
         </div>
 
         <div className="px-6 py-5">
-          <div className="rounded-lg border border-dashed border-red-200 bg-red-50/30 p-4">
-            <p className="text-sm text-gray-600">
-              Account deactivation and deletion are currently unavailable.
-              These actions will be added once the corresponding backend
-              functionality is implemented.
-            </p>
+          <div className="space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Deactivate account</h3>
+                <p className="mt-1 max-w-xl text-sm text-gray-500">
+                  Temporarily close your account. You can reactivate it by signing in again.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setAccountAction("deactivate"); setActionError(""); }}
+                className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-50"
+              >
+                Deactivate account
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-red-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-red-700">Delete account</h3>
+                <p className="mt-1 max-w-xl text-sm text-gray-500">
+                  Permanently close your account and anonymize your personal details. This cannot be undone.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setAccountAction("delete"); setActionError(""); }}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Delete account
+              </button>
+            </div>
           </div>
         </div>
       </section>
+
+      {accountAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="account-action-title"
+            className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+          >
+            <h2 id="account-action-title" className="text-lg font-semibold text-gray-900">
+              {accountAction === "deactivate" ? "Deactivate your account?" : "Delete your account?"}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {accountAction === "deactivate"
+                ? "You will be signed out. Signing in again will reactivate your account."
+                : "Your account will be soft-deleted and personal details anonymized. This action cannot be undone."}
+            </p>
+
+            {actionError && (
+              <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</p>
+            )}
+
+            <form onSubmit={submitAccountAction} className="mt-5 space-y-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Confirm with your password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={actionPassword}
+                  onChange={(event) => setActionPassword(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                />
+              </label>
+
+              {accountAction === "deactivate" ? (
+                <label className="block text-sm font-medium text-gray-700">
+                  Reason for deactivation
+                  <textarea
+                    required
+                    minLength={3}
+                    maxLength={1000}
+                    value={deactivationReason}
+                    onChange={(event) => setDeactivationReason(event.target.value)}
+                    rows={3}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                  />
+                </label>
+              ) : (
+                <label className="block text-sm font-medium text-gray-700">
+                  Type DELETE to confirm
+                  <input
+                    required
+                    value={deleteConfirmation}
+                    onChange={(event) => setDeleteConfirmation(event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                  />
+                </label>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={closeAccountDialog} disabled={submittingAction} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingAction || (accountAction === "delete" && deleteConfirmation !== "DELETE")}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submittingAction ? "Please wait..." : accountAction === "deactivate" ? "Deactivate" : "Delete permanently"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 };
