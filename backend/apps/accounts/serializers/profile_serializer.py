@@ -1,4 +1,3 @@
-
 from rest_framework import serializers
 from apps.accounts.models import Profile, WorkerProfile, ClientProfile
 
@@ -6,13 +5,17 @@ from apps.accounts.models import Profile, WorkerProfile, ClientProfile
 class ProfileUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating user profile.
+
+    Note: profile_photo_path is intentionally NOT listed here.
+    Photos are uploaded via a dedicated endpoint
+    (POST /api/auth/profile/photo/) so they can be validated
+    and stored as real files.
     """
 
     class Meta:
         model = Profile
         fields = [
             "bio",
-            "profile_photo_path",
             "address",
             "province",
             "district",
@@ -21,13 +24,44 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             "bio": {"required": False},
-            "profile_photo_path": {"required": False},
             "address": {"required": False},
             "province": {"required": False},
             "district": {"required": False},
             "latitude": {"required": False},
             "longitude": {"required": False},
         }
+
+
+class ProfilePhotoUploadSerializer(serializers.Serializer):
+    """
+    Serializer for uploading a profile photo.
+
+    Accepts a single image file (JPEG/PNG/WebP) up to 5 MB.
+    """
+
+    photo = serializers.ImageField(required=True)
+
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+    ALLOWED_CONTENT_TYPES = {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+    }
+
+    def validate_photo(self, value):
+        if value.size > self.MAX_FILE_SIZE:
+            raise serializers.ValidationError(
+                "Image is too large. Maximum size is 5 MB."
+            )
+
+        content_type = getattr(value, "content_type", "")
+        if content_type and content_type not in self.ALLOWED_CONTENT_TYPES:
+            raise serializers.ValidationError(
+                "Unsupported image type. Please use JPEG, PNG, or WebP."
+            )
+
+        return value
 
 
 class WorkerProfileSerializer(serializers.ModelSerializer):

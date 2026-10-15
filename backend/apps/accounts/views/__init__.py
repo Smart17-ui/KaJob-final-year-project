@@ -27,6 +27,7 @@ from .profile_views import (
     UpdateLocationView,
     UpdatePhoneNumberView,
     UpdateEmailView,
+    ProfilePhotoUploadView,  # ← new
 )
 from .worker_views import (
     WorkerDetailView,
@@ -69,6 +70,7 @@ __all__ = [
     'UpdateLocationView',
     'UpdatePhoneNumberView',
     'UpdateEmailView',
+    'ProfilePhotoUploadView',  # ← new
     # Worker Views
     'WorkerDetailView',
     'WorkerSummaryView',

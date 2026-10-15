@@ -11,8 +11,8 @@ import logging
 
 from apps.jobs.models import JobApplication, JobAssignment, Job
 from apps.reviews.models import Review
-from apps.common.permissions import IsWorker, IsActiveUser, IsVerifiedUser
-from apps.common.constants import AssignmentStatus   # 🆕 needed for CHOICES
+from apps.common.permissions import IsWorker, IsActiveUser
+from apps.common.constants import AssignmentStatus   # needed for CHOICES
 from apps.analytics.serializers import WorkerAnalyticsSerializer
 
 logger = logging.getLogger(__name__)
@@ -22,9 +22,12 @@ class WorkerAnalyticsView(APIView):
     """
     GET /api/analytics/worker/
     Get comprehensive analytics for the authenticated worker.
-    Only verified workers can access this.
+
+    Read-only. Accessible to any authenticated active worker,
+    verified or not. Unverified users see zeros until they start
+    applying to jobs.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 
     def get(self, request):
         worker = request.user
@@ -123,7 +126,7 @@ class WorkerAnalyticsView(APIView):
                 'client_name': assignment.job.client.full_name,
                 'budget': assignment.job.budget,
                 'status': assignment.status,
-                'status_display': dict(AssignmentStatus.CHOICES).get(assignment.status),   # 🆕
+                'status_display': dict(AssignmentStatus.CHOICES).get(assignment.status),
                 'assigned_at': assignment.assigned_at.isoformat(),
                 'completed_at': (
                     assignment.completed_at.isoformat()
@@ -165,7 +168,7 @@ class WorkerJobHistoryView(APIView):
     GET /api/analytics/worker/jobs/
     Get detailed job history for the worker.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 
     def get(self, request):
         worker = request.user
@@ -195,7 +198,7 @@ class WorkerJobHistoryView(APIView):
                 'client_name': assignment.job.client.full_name,
                 'budget': assignment.job.budget,
                 'status': assignment.status,
-                'status_display': dict(AssignmentStatus.CHOICES).get(assignment.status),   # 🆕
+                'status_display': dict(AssignmentStatus.CHOICES).get(assignment.status),
                 'assigned_at': assignment.assigned_at,
                 'completed_at': assignment.completed_at,
                 'rating': review.rating if review else None,
@@ -216,7 +219,7 @@ class WorkerEarningsTrendView(APIView):
     Query Parameters:
         - period: 'week', 'month', 'quarter' (default: 'month')
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 
     def get(self, request):
         worker = request.user

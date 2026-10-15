@@ -7,7 +7,7 @@ from rest_framework import status
 
 from apps.matching.services.matching_service import MatchingService
 from apps.matching.serializers.matching_serializer import JobMatchSerializer
-from apps.common.permissions import IsWorker, IsClient, IsActiveUser, IsVerifiedUser
+from apps.common.permissions import IsWorker, IsClient, IsActiveUser
 
 
 # Service instance
@@ -54,7 +54,7 @@ class NearbyJobsView(APIView):
     Notifications for new jobs are sent at post time by
     JobService.create_job.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 
     def get(self, request):
         radius = _parse_radius(request)
@@ -87,7 +87,7 @@ class NearbyJobsCountView(APIView):
     Returns the number of nearby jobs for the authenticated worker.
     Same radius handling as NearbyJobsView.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 
     def get(self, request):
         radius = _parse_radius(request)
@@ -113,7 +113,7 @@ class NearbyApplicantsView(APIView):
     - Scoped to the requested radius (default 5.0 km)
     - Shows distance from the job to each applicant
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsClient, IsVerifiedUser]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
 
     def get(self, request, job_id):
         radius = _parse_radius(request)
@@ -177,7 +177,7 @@ class AllApplicantsView(APIView):
     - Shows every worker who has applied, regardless of distance
     - Optional status filter (e.g. ?status=PENDING)
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsClient, IsVerifiedUser]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
 
     def get(self, request, job_id):
         status_filter = request.query_params.get('status')

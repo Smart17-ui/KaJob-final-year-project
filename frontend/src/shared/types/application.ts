@@ -20,6 +20,7 @@ export type JobApplication = {
 
   worker: number;
   worker_name: string;
+  worker_photo_url?: string | null;
 
   worker_profile?: WorkerProfile | null;
 

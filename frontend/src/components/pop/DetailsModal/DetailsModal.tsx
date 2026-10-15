@@ -19,10 +19,10 @@ interface DetailsModalProps {
 }
 
 const widthClasses = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg",
-  xl: "max-w-2xl",
+  sm: "sm:max-w-sm",
+  md: "sm:max-w-md",
+  lg: "sm:max-w-lg",
+  xl: "sm:max-w-2xl",
 };
 
 export default function DetailsModal({
@@ -35,13 +35,10 @@ export default function DetailsModal({
 }: DetailsModalProps) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
     };
 
     document.addEventListener("keydown", handleKeyDown);
-
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
@@ -49,7 +46,6 @@ export default function DetailsModal({
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
-
     document.body.style.overflow = "hidden";
 
     return () => {
@@ -57,9 +53,7 @@ export default function DetailsModal({
     };
   }, []);
 
-  const handleOverlayClick = () => {
-    onClose();
-  };
+  const handleOverlayClick = () => onClose();
 
   const handleModalClick = (
     event: MouseEvent<HTMLDivElement>
@@ -74,12 +68,13 @@ export default function DetailsModal({
         inset-0
         z-[100]
         flex
-        items-center
+        items-end
         justify-center
         bg-slate-900/55
-        px-4
-        py-6
         backdrop-blur-sm
+        sm:items-center
+        sm:px-4
+        sm:py-6
       "
       onClick={handleOverlayClick}
       role="presentation"
@@ -87,23 +82,32 @@ export default function DetailsModal({
       <div
         className={`
           flex
-          max-h-[90vh]
+          max-h-[92vh]
           w-full
-          ${widthClasses[width]}
           flex-col
           overflow-hidden
-          rounded-2xl
+          rounded-t-3xl
           border
           border-slate-200/80
           bg-white
           shadow-[0_24px_70px_-20px_rgba(15,23,42,0.35)]
+          sm:rounded-2xl
+          sm:max-h-[90vh]
+          ${widthClasses[width]}
         `}
         onClick={handleModalClick}
         role="dialog"
         aria-modal="true"
         aria-labelledby="details-modal-title"
       >
-        {/* Header */}
+        {/* DRAG HANDLE (mobile only) */}
+
+        <div className="flex justify-center pt-2 sm:hidden">
+          <div className="h-1.5 w-10 rounded-full bg-slate-200" />
+        </div>
+
+        {/* HEADER */}
+
         <div
           className="
             flex
@@ -113,9 +117,10 @@ export default function DetailsModal({
             border-b
             border-slate-100
             bg-white
-            px-5
-            py-4
+            px-4
+            py-3
             sm:px-6
+            sm:py-4
           "
         >
           <div className="min-w-0 pr-4">
@@ -123,10 +128,11 @@ export default function DetailsModal({
               id="details-modal-title"
               className="
                 truncate
-                text-lg
+                text-base
                 font-bold
                 tracking-tight
                 text-slate-900
+                sm:text-lg
               "
             >
               {title}
@@ -139,8 +145,8 @@ export default function DetailsModal({
               onClick={onClose}
               className="
                 flex
-                h-9
-                w-9
+                h-10
+                w-10
                 shrink-0
                 items-center
                 justify-center
@@ -148,15 +154,12 @@ export default function DetailsModal({
                 border
                 border-transparent
                 text-slate-400
-                transition-all
-                duration-200
+                transition
                 hover:border-slate-200
                 hover:bg-slate-50
                 hover:text-slate-700
-                focus:outline-none
-                focus:ring-2
-                focus:ring-slate-300
-                focus:ring-offset-1
+                sm:h-9
+                sm:w-9
               "
               aria-label="Close"
             >
@@ -165,15 +168,16 @@ export default function DetailsModal({
           )}
         </div>
 
-        {/* Content */}
+        {/* CONTENT */}
+
         <div
           className="
             min-h-0
             flex-1
             overflow-y-auto
             bg-white
-            px-5
-            py-5
+            px-4
+            py-4
             sm:px-6
             sm:py-6
           "
@@ -181,7 +185,8 @@ export default function DetailsModal({
           {children}
         </div>
 
-        {/* Footer */}
+        {/* FOOTER */}
+
         {footer && (
           <div
             className="
@@ -189,9 +194,12 @@ export default function DetailsModal({
               border-t
               border-slate-100
               bg-slate-50/80
-              px-5
-              py-4
+              px-4
+              py-3
+              pb-[calc(env(safe-area-inset-bottom)+12px)]
               sm:px-6
+              sm:py-4
+              sm:pb-4
             "
           >
             {footer}

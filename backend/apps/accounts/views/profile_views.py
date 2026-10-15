@@ -1,12 +1,15 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 
+from apps.accounts.models import Profile
 from apps.accounts.services import ProfileService
 from apps.accounts.serializers import (
     ProfileSerializer,
     ProfileUpdateSerializer,
+    ProfilePhotoUploadSerializer,
     WorkerProfileSerializer,
     WorkerProfileUpdateSerializer,
     ClientProfileSerializer,
@@ -32,7 +35,10 @@ class UserProfileView(APIView):
     def get(self, request):
         profile = profile_service.get_profile(request.user)
         return Response({
-            'profile': ProfileSerializer(profile).data,
+            'profile': ProfileSerializer(
+                profile,
+                context={'request': request},
+            ).data,
         }, status=status.HTTP_200_OK)
 
 
@@ -54,7 +60,10 @@ class UserProfileUpdateView(APIView):
             )
             return Response({
                 'message': 'Profile updated successfully!',
-                'profile': ProfileSerializer(profile).data,
+                'profile': ProfileSerializer(
+                    profile,
+                    context={'request': request},
+                ).data,
             }, status=status.HTTP_200_OK)
         except BusinessRuleViolation as e:
             return Response(
@@ -212,7 +221,10 @@ class UpdateLocationView(APIView):
 
             return Response({
                 'message': 'Location updated successfully!',
-                'profile': ProfileSerializer(profile).data,
+                'profile': ProfileSerializer(
+                    profile,
+                    context={'request': request},
+                ).data,
                 'nearby_jobs_count': nearby_count,
             }, status=status.HTTP_200_OK)
 
@@ -312,3 +324,55 @@ class UpdateEmailView(APIView):
             )
 
         return Response(result, status=status.HTTP_200_OK)
+
+
+# ============================================
+# PROFILE PHOTO
+# ============================================
+
+class ProfilePhotoUploadView(APIView):
+    """
+    POST /api/auth/profile/photo/
+
+    multipart/form-data:
+        photo = <image file>
+
+    Saves the photo to the user's Profile.profile_photo_path,
+    replacing any existing photo. Returns the new URL.
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = ProfilePhotoUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            profile = request.user.profile
+        except Profile.DoesNotExist:
+            return Response(
+                {'error': 'Profile not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Delete the previous photo file (best-effort)
+        if profile.profile_photo_path:
+            try:
+                profile.profile_photo_path.delete(save=False)
+            except Exception:
+                pass
+
+        profile.profile_photo_path = serializer.validated_data['photo']
+        profile.save(update_fields=['profile_photo_path', 'updated_at'])
+
+        photo_url = request.build_absolute_uri(
+            profile.profile_photo_path.url
+        )
+
+        return Response(
+            {
+                'message': 'Profile photo updated successfully.',
+                'profile_photo_url': photo_url,
+            },
+            status=status.HTTP_200_OK,
+        )

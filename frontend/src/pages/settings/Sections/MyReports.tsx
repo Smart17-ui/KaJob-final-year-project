@@ -39,16 +39,13 @@ const formatSubmittedDate = (
     return dateString;
   }
 
-  return date.toLocaleString(
-    undefined,
-    {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }
-  );
+  return date.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 };
 
 /* =========================================================
@@ -64,15 +61,21 @@ function ReportDetailsModal({
   report,
   onClose,
 }: ReportDetailsModalProps) {
+  /*
+   * A "general complaint" has no job and no reported user,
+   * so both of those sections need to render gracefully.
+   */
+  const isGeneralComplaint =
+    report.job_id === null ||
+    report.job_id === undefined;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
+      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-xl sm:rounded-2xl">
 
-        {/* =================================================
-            MODAL HEADER
-            ================================================= */}
+        {/* MODAL HEADER */}
 
-        <div className="flex items-start justify-between border-b border-gray-100 p-6">
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-gray-100 bg-white p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100">
               <DocumentTextIcon className="h-6 w-6 text-gray-600" />
@@ -92,18 +95,16 @@ function ReportDetailsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
             aria-label="Close report details"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
-        {/* =================================================
-            MODAL CONTENT
-            ================================================= */}
+        {/* MODAL CONTENT */}
 
-        <div className="space-y-6 p-6">
+        <div className="space-y-5 p-5 sm:space-y-6 sm:p-6">
 
           {/* Status */}
 
@@ -124,23 +125,42 @@ function ReportDetailsModal({
             />
           </div>
 
-          {/* Job */}
+          {/* Job / General Complaint */}
 
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-              Job
-            </p>
-
-            <div className="mt-2 rounded-xl border border-gray-200 p-4">
-              <p className="text-sm font-semibold text-gray-900">
-                {report.job_title}
+          {isGeneralComplaint ? (
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                Complaint Type
               </p>
 
-              <p className="mt-1 text-xs text-gray-500">
-                Job #{report.job_id}
-              </p>
+              <div className="mt-2 rounded-xl border border-gray-200 p-4">
+                <p className="text-sm font-semibold text-gray-900">
+                  General Complaint
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Not related to a specific job
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                Job
+              </p>
+
+              <div className="mt-2 rounded-xl border border-gray-200 p-4">
+                <p className="text-sm font-semibold text-gray-900">
+                  {report.job_title ||
+                    "Job information unavailable"}
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Job #{report.job_id}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Reported User */}
 
@@ -154,15 +174,18 @@ function ReportDetailsModal({
                 <UserCircleIcon className="h-6 w-6 text-gray-500" />
               </div>
 
-              <div>
-                <p className="text-sm font-semibold text-gray-900">
-                  {report.reported_user.full_name}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900">
+                  {report.reported_user?.full_name ||
+                    "Not specified"}
                 </p>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  {report.reported_user.role === "WORKER"
+                  {report.reported_user?.role === "WORKER"
                     ? "Worker"
-                    : "Client"}
+                    : report.reported_user?.role === "CLIENT"
+                    ? "Client"
+                    : "General complaint"}
                 </p>
               </div>
             </div>
@@ -207,24 +230,20 @@ function ReportDetailsModal({
               </p>
 
               <p className="mt-1 text-sm text-gray-700">
-                {formatSubmittedDate(
-                  report.submitted_at
-                )}
+                {formatSubmittedDate(report.submitted_at)}
               </p>
             </div>
           </div>
 
         </div>
 
-        {/* =================================================
-            MODAL FOOTER
-            ================================================= */}
+        {/* MODAL FOOTER */}
 
-        <div className="border-t border-gray-100 p-6">
+        <div className="sticky bottom-0 border-t border-gray-100 bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+20px)] sm:p-6 sm:pb-6">
           <button
             type="button"
             onClick={onClose}
-            className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
+            className="w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 sm:py-2.5"
           >
             Close
           </button>
@@ -259,9 +278,7 @@ export default function MyReports() {
   const [detailsError, setDetailsError] =
     useState<string>("");
 
-  /* =======================================================
-     LOAD REPORTS
-     ======================================================= */
+  /* LOAD REPORTS */
 
   const loadReports = useCallback(
     async () => {
@@ -272,9 +289,7 @@ export default function MyReports() {
         const response =
           await getMyReports();
 
-        setReports(
-          response.results || []
-        );
+        setReports(response.results || []);
       } catch (err) {
         const message =
           err instanceof Error
@@ -289,17 +304,13 @@ export default function MyReports() {
     []
   );
 
-  /* =======================================================
-     INITIAL LOAD
-     ======================================================= */
+  /* INITIAL LOAD */
 
   useEffect(() => {
     loadReports();
   }, [loadReports]);
 
-  /* =======================================================
-     OPEN REPORT DETAILS
-     ======================================================= */
+  /* OPEN REPORT DETAILS */
 
   const handleReportClick = async (
     report: MyReport
@@ -309,13 +320,9 @@ export default function MyReports() {
       setDetailsError("");
 
       const response =
-        await getMyReportDetails(
-          report.id
-        );
+        await getMyReportDetails(report.id);
 
-      setSelectedReport(
-        response.report
-      );
+      setSelectedReport(response.report);
     } catch (err) {
       const message =
         err instanceof Error
@@ -328,25 +335,20 @@ export default function MyReports() {
     }
   };
 
-  /* =======================================================
-     CLOSE DETAILS
-     ======================================================= */
+  /* CLOSE DETAILS */
 
   const handleCloseDetails = () => {
     setSelectedReport(null);
     setDetailsError("");
   };
 
-  /* =======================================================
-     LOADING STATE
-     ======================================================= */
+  /* LOADING STATE */
 
   if (loading) {
     return (
       <div className="space-y-6">
-
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
             My Reports
           </h1>
 
@@ -365,21 +367,17 @@ export default function MyReports() {
             </p>
           </div>
         </div>
-
       </div>
     );
   }
 
-  /* =======================================================
-     ERROR STATE
-     ======================================================= */
+  /* ERROR STATE */
 
   if (error) {
     return (
       <div className="space-y-6">
-
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
             My Reports
           </h1>
 
@@ -414,21 +412,17 @@ export default function MyReports() {
             </div>
           </div>
         </div>
-
       </div>
     );
   }
 
-  /* =======================================================
-     EMPTY STATE
-     ======================================================= */
+  /* EMPTY STATE */
 
   if (reports.length === 0) {
     return (
       <div className="space-y-6">
-
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
             My Reports
           </h1>
 
@@ -439,7 +433,6 @@ export default function MyReports() {
         </div>
 
         <div className="flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-gray-200 bg-white px-6 text-center">
-
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
             <DocumentTextIcon className="h-7 w-7 text-gray-500" />
           </div>
@@ -452,29 +445,22 @@ export default function MyReports() {
             You haven't submitted any complaints yet.
             Reports you submit about jobs will appear here.
           </p>
-
         </div>
-
       </div>
     );
   }
 
-  /* =======================================================
-     MAIN PAGE
-     ======================================================= */
+  /* MAIN PAGE */
 
   return (
     <>
       <div className="space-y-6">
 
-        {/* =================================================
-            PAGE HEADER
-            ================================================= */}
+        {/* PAGE HEADER */}
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
               My Reports
             </h1>
 
@@ -493,12 +479,9 @@ export default function MyReports() {
 
             Refresh
           </button>
-
         </div>
 
-        {/* =================================================
-            REPORT COUNT
-            ================================================= */}
+        {/* REPORT COUNT */}
 
         <div className="rounded-xl border border-gray-200 bg-white px-5 py-4">
           <p className="text-sm text-gray-500">
@@ -512,9 +495,7 @@ export default function MyReports() {
           </p>
         </div>
 
-        {/* =================================================
-            DETAILS ERROR
-            ================================================= */}
+        {/* DETAILS ERROR */}
 
         {detailsError && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4">
@@ -534,12 +515,9 @@ export default function MyReports() {
           </div>
         )}
 
-        {/* =================================================
-            REPORT CARDS
-            ================================================= */}
+        {/* REPORT CARDS */}
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2">
           {reports.map((report) => (
             <MyReportCard
               key={report.id}
@@ -547,14 +525,11 @@ export default function MyReports() {
               onClick={handleReportClick}
             />
           ))}
-
         </div>
 
       </div>
 
-      {/* ===================================================
-          LOADING DETAILS
-          =================================================== */}
+      {/* LOADING DETAILS */}
 
       {loadingDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -568,9 +543,7 @@ export default function MyReports() {
         </div>
       )}
 
-      {/* ===================================================
-          REPORT DETAILS
-          =================================================== */}
+      {/* REPORT DETAILS */}
 
       {selectedReport && (
         <ReportDetailsModal

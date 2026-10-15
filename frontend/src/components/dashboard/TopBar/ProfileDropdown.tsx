@@ -5,15 +5,17 @@ import {
   UserCircleIcon,
   Cog6ToothIcon,
   ShieldCheckIcon,
-  ArrowsRightLeftIcon,
-  CheckIcon,
   ArrowRightOnRectangleIcon,
-  PlusIcon,
 } from "@heroicons/react/24/outline";
+
+import Avatar from "@/components/shared/Avatar";
+
+import type { User } from "@/shared/types";
 
 type UserRole = "CLIENT" | "WORKER";
 
 type ProfileDropdownProps = {
+  user?: User | null;
   userName?: string;
   userRole?: UserRole;
   availableRoles?: UserRole[];
@@ -22,19 +24,13 @@ type ProfileDropdownProps = {
   onVerifyClick?: () => void;
   onSettingsClick?: () => void;
 
-  /*
-   * Called when the user selects an existing role
-   * or wants to add a missing role.
-   *
-   * The parent component can decide whether this
-   * should call switch-role or add-role.
-   */
   onSwitchRole?: (role: UserRole) => void;
 
   onLogout?: () => void;
 };
 
 const ProfileDropdown = ({
+  user,
   userName = "User",
   userRole = "CLIENT",
   availableRoles = [userRole],
@@ -48,13 +44,20 @@ const ProfileDropdown = ({
   const navigate = useNavigate();
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
 
   /*
-   * Make sure we only work with valid unique roles.
+   * Resolve the display name from the user object if available,
+   * otherwise fall back to the userName prop.
    */
+  const displayName =
+    user?.full_name?.trim() ||
+    `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() ||
+    userName;
+
+  const photoUrl = user?.profile_photo_url ?? null;
+
   const roles = Array.from(
     new Set(
       availableRoles.filter(
@@ -64,58 +67,18 @@ const ProfileDropdown = ({
     )
   );
 
-  /*
-   * Always make sure the current role is represented.
-   */
   if (!roles.includes(userRole)) {
     roles.push(userRole);
   }
 
-  const hasMultipleRoles = roles.length > 1;
-
-  const otherRole: UserRole =
-    userRole === "CLIENT" ? "WORKER" : "CLIENT";
-
   const currentRole =
     userRole === "CLIENT" ? "Client" : "Worker";
 
-  const otherRoleLabel =
-    otherRole === "CLIENT" ? "Client" : "Worker";
-
-  /*
-   * If the user has only one role, the missing role
-   * becomes the role they can add to their account.
-   */
-  const missingRole: UserRole | null = hasMultipleRoles
-    ? null
-    : otherRole;
-
-  const missingRoleLabel =
-    missingRole === "CLIENT"
-      ? "Client"
-      : "Worker";
-
-  /*
-   * Settings route for the currently active role.
-   */
   const settingsBasePath =
     userRole === "CLIENT"
       ? "/client/dashboard/settings"
       : "/worker/dashboard/settings";
 
-  /*
-   * User initials.
-   */
-  const initials = userName
-    .split(" ")
-    .map((name) => name.charAt(0))
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
-  /*
-   * Close profile menu when clicking outside.
-   */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -128,93 +91,62 @@ const ProfileDropdown = ({
       }
 
       setShowProfileMenu(false);
-      setShowRoleSwitcher(false);
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
-  /*
-   * Go to Profile settings.
-   */
-  const handleProfileClick = () => {
+  const closeMenu = () => {
     setShowProfileMenu(false);
-    setShowRoleSwitcher(false);
+  };
+
+  const handleProfileClick = () => {
+    closeMenu();
+
+    if (onProfileClick) {
+      onProfileClick();
+      return;
+    }
 
     navigate(`${settingsBasePath}/profile`);
   };
 
-  /*
-   * Go to Verification settings.
-   */
   const handleVerifyClick = () => {
-    setShowProfileMenu(false);
-    setShowRoleSwitcher(false);
+    closeMenu();
+
+    if (onVerifyClick) {
+      onVerifyClick();
+      return;
+    }
 
     navigate(`${settingsBasePath}/verification`);
   };
 
-  /*
-   * Go to Settings.
-   */
   const handleSettingsClick = () => {
-    setShowProfileMenu(false);
-    setShowRoleSwitcher(false);
+    closeMenu();
 
-    navigate(`${settingsBasePath}/profile`);
-  };
+    if (onSettingsClick) {
+      onSettingsClick();
+      return;
+    }
 
-  /*
-   * Select an existing role.
-   */
-  const handleSelectRole = (role: UserRole) => {
-    setShowProfileMenu(false);
-    setShowRoleSwitcher(false);
-
-    onSwitchRole?.(role);
-  };
-
-  /*
-   * Add the missing role.
-   *
-   * We still use onSwitchRole here because the parent
-   * will decide whether this action means "add role"
-   * or "switch role".
-   */
-  const handleAddRole = (role: UserRole) => {
-    setShowProfileMenu(false);
-    setShowRoleSwitcher(false);
-
-    onSwitchRole?.(role);
+    navigate(`${settingsBasePath}/account`);
   };
 
   return (
-    <div
-      ref={profileRef}
-      className="relative"
-    >
-      {/* =====================================================
-          PROFILE TRIGGER BUTTON
-          ===================================================== */}
+    <div ref={profileRef} className="relative">
+      {/* TRIGGER */}
 
       <button
         type="button"
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-
           setShowProfileMenu((prev) => !prev);
-          setShowRoleSwitcher(false);
         }}
         className="
           flex items-center gap-2.5
@@ -230,19 +162,20 @@ const ProfileDropdown = ({
         aria-expanded={showProfileMenu}
         aria-haspopup="true"
       >
-        {/* Avatar */}
+        {/* AVATAR */}
 
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
-          <span className="text-xs font-bold text-white">
-            {initials}
-          </span>
-        </div>
+        <Avatar
+          photoUrl={photoUrl}
+          name={displayName}
+          size="md"
+          className="ring-2 ring-white/30"
+        />
 
-        {/* Name & Chevron */}
+        {/* NAME + CHEVRON */}
 
         <div className="hidden items-center gap-1.5 md:flex">
           <span className="max-w-32 truncate text-sm font-medium text-slate-700">
-            {userName}
+            {displayName}
           </span>
 
           <ChevronDownIcon
@@ -255,9 +188,7 @@ const ProfileDropdown = ({
         </div>
       </button>
 
-      {/* =====================================================
-          DROPDOWN MENU
-          ===================================================== */}
+      {/* DROPDOWN */}
 
       {showProfileMenu && (
         <div
@@ -272,27 +203,29 @@ const ProfileDropdown = ({
             backdrop-blur-sm
           "
         >
-          {/* =================================================
-              ACCOUNT HEADER
-              ================================================= */}
+          {/* HEADER */}
 
-          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent px-4 py-4">
-            <p className="truncate text-sm font-semibold text-slate-900">
-              {userName}
-            </p>
+          <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent px-4 py-4">
+            <Avatar
+              photoUrl={photoUrl}
+              name={displayName}
+              size="md"
+            />
 
-            <p className="mt-1 text-xs text-slate-500">
-              {currentRole} account
-            </p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">
+                {displayName}
+              </p>
+
+              <p className="mt-0.5 text-xs text-slate-500">
+                {currentRole} account
+              </p>
+            </div>
           </div>
 
-          {/* =================================================
-              MENU ITEMS
-              ================================================= */}
+          {/* MENU */}
 
           <div className="py-1">
-            {/* Profile */}
-
             <button
               type="button"
               onClick={handleProfileClick}
@@ -309,12 +242,8 @@ const ProfileDropdown = ({
             >
               <UserCircleIcon className="h-4 w-4 text-slate-400 transition-colors group-hover:text-emerald-600" />
 
-              <span className="font-medium">
-                Profile
-              </span>
+              <span className="font-medium">Profile</span>
             </button>
-
-            {/* Verify Details */}
 
             <button
               type="button"
@@ -332,12 +261,8 @@ const ProfileDropdown = ({
             >
               <ShieldCheckIcon className="h-4 w-4 text-slate-400 transition-colors group-hover:text-emerald-600" />
 
-              <span className="font-medium">
-                Verify Details
-              </span>
+              <span className="font-medium">Verify Details</span>
             </button>
-
-            {/* Settings */}
 
             <button
               type="button"
@@ -355,16 +280,10 @@ const ProfileDropdown = ({
             >
               <Cog6ToothIcon className="h-4 w-4 text-slate-400 transition-colors group-hover:text-emerald-600" />
 
-              <span className="font-medium">
-                Settings
-              </span>
+              <span className="font-medium">Settings</span>
             </button>
 
-            {/* Divider */}
-
             <div className="my-1 border-t border-slate-100" />
-
-            {/* Logout */}
 
             {onLogout && (
               <button
@@ -373,9 +292,7 @@ const ProfileDropdown = ({
                   event.preventDefault();
                   event.stopPropagation();
 
-                  setShowProfileMenu(false);
-                  setShowRoleSwitcher(false);
-
+                  closeMenu();
                   onLogout();
                 }}
                 className="
@@ -392,9 +309,7 @@ const ProfileDropdown = ({
               >
                 <ArrowRightOnRectangleIcon className="h-4 w-4 transition-colors group-hover:text-red-700" />
 
-                <span>
-                  Sign out
-                </span>
+                <span>Sign out</span>
               </button>
             )}
           </div>

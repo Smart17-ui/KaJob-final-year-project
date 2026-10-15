@@ -5,6 +5,8 @@ import {
   BriefcaseIcon,
 } from "@heroicons/react/24/outline";
 
+import Avatar from "@/components/shared/Avatar";
+
 import type {
   JobApplication,
 } from "../../shared/types/application";
@@ -34,76 +36,45 @@ const ApplicationCard = ({
   onReject,
   onViewWorker,
 }: ApplicationCardProps) => {
-  /*
-   * =========================
-   * WORKER INITIAL
-   * =========================
-   */
+  /* =========================
+     FORMAT DATE
+  ========================= */
 
-  const workerInitial =
-    application.worker_name
-      .charAt(0)
-      .toUpperCase();
+  const appliedDate = new Date(
+    application.applied_at
+  ).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 
-  /*
-   * =========================
-   * FORMAT DATE
-   * =========================
-   */
-
-  const appliedDate =
-    new Date(
-      application.applied_at
-    ).toLocaleDateString(
-      undefined,
-      {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }
-    );
-
-  /*
-   * =========================
-   * STATUS
-   * =========================
-   */
+  /* =========================
+     STATUS
+  ========================= */
 
   const renderStatus = () => {
-    if (
-      application.status ===
-      "PENDING"
-    ) {
+    if (application.status === "PENDING") {
       return (
         <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-
           Pending
         </span>
       );
     }
 
-    if (
-      application.status ===
-      "ACCEPTED"
-    ) {
+    if (application.status === "ACCEPTED") {
       return (
         <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-
           Accepted
         </span>
       );
     }
 
-    if (
-      application.status ===
-      "REJECTED"
-    ) {
+    if (application.status === "REJECTED") {
       return (
         <span className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-
           Rejected
         </span>
       );
@@ -117,26 +88,26 @@ const ApplicationCard = ({
   };
 
   return (
-    <article className="p-5 transition-colors hover:bg-slate-50">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+    <article className="p-4 transition-colors hover:bg-slate-50 sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
         {/* =========================
             WORKER INFORMATION
         ========================= */}
 
-        <div className="flex min-w-0 items-start gap-4">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
 
           {/* AVATAR */}
 
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-50">
-            <span className="text-base font-bold text-green-700">
-              {workerInitial}
-            </span>
-          </div>
+          <Avatar
+            photoUrl={application.worker_photo_url}
+            name={application.worker_name}
+            size="lg"
+          />
 
           {/* DETAILS */}
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
 
             <h3 className="truncate text-sm font-semibold text-slate-900">
               {application.worker_name}
@@ -145,13 +116,11 @@ const ApplicationCard = ({
             {/* JOB */}
 
             <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
-
               <BriefcaseIcon className="h-4 w-4 shrink-0 text-slate-400" />
 
-              <span className="truncate">
+              <span className="min-w-0 truncate">
                 {application.job_title}
               </span>
-
             </div>
 
             {/* DATE */}
@@ -172,18 +141,16 @@ const ApplicationCard = ({
 
           {/* STATUS */}
 
-          {renderStatus()}
+          <div className="flex justify-start sm:justify-center">
+            {renderStatus()}
+          </div>
 
           {/* VIEW WORKER */}
 
           {onViewWorker && (
             <button
               type="button"
-              onClick={() =>
-                onViewWorker(
-                  application
-                )
-              }
+              onClick={() => onViewWorker(application)}
               disabled={isUpdating}
               className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -193,52 +160,36 @@ const ApplicationCard = ({
 
           {/* ACCEPT / REJECT */}
 
-          {application.status ===
-            "PENDING" && (
-            <div className="flex gap-2">
+          {application.status === "PENDING" && (
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
 
               {/* ACCEPT */}
 
               <button
                 type="button"
-                onClick={() =>
-                  onAccept(
-                    application.id
-                  )
-                }
+                onClick={() => onAccept(application.id)}
                 disabled={isUpdating}
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-
                 {isUpdating ? (
                   <ArrowPathIcon className="h-4 w-4 animate-spin" />
                 ) : (
                   <CheckCircleIcon className="h-4 w-4" />
                 )}
 
-                {isUpdating
-                  ? "Updating..."
-                  : "Accept"}
-
+                {isUpdating ? "Updating..." : "Accept"}
               </button>
 
               {/* REJECT */}
 
               <button
                 type="button"
-                onClick={() =>
-                  onReject(
-                    application.id
-                  )
-                }
+                onClick={() => onReject(application.id)}
                 disabled={isUpdating}
-                className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
-
                 <XCircleIcon className="h-4 w-4" />
-
                 Reject
-
               </button>
 
             </div>

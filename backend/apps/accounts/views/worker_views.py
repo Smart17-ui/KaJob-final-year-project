@@ -5,7 +5,7 @@ from rest_framework import status
 from django.db.models import Avg, Count
 
 from apps.accounts.models import User, WorkerProfile
-from apps.common.permissions import IsClient, IsActiveUser, IsVerifiedUser
+from apps.common.permissions import IsClient, IsActiveUser
 from apps.common.exceptions import ResourceNotFound
 
 
@@ -14,8 +14,8 @@ class WorkerDetailView(APIView):
     GET /api/workers/{id}/
     Get worker profile details for a client.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsClient, IsVerifiedUser]
-    
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
+
     def get(self, request, worker_id):
         # FIXED: use account_status='ACTIVE' instead of is_active=True
         try:
@@ -28,13 +28,13 @@ class WorkerDetailView(APIView):
             return Response({
                 'error': 'Worker not found.'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Check if user has worker role
         if not user.is_worker:
             return Response({
                 'error': 'User is not a worker.'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Get worker profile
         try:
             worker_profile = WorkerProfile.objects.get(user=user)
@@ -42,13 +42,13 @@ class WorkerDetailView(APIView):
             return Response({
                 'error': 'Worker profile not found.'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Get worker's skills
         skills = [skill.name for skill in worker_profile.skills.all()]
-        
+
         # Get worker's reviews and ratings
         reviews_data = self._get_worker_reviews(user)
-        
+
         # Build response
         return Response({
             'id': user.id,
@@ -67,13 +67,13 @@ class WorkerDetailView(APIView):
             'verified': user.is_verified,
             'member_since': user.created_at.strftime('%Y-%m-%d') if user.created_at else None,
         }, status=status.HTTP_200_OK)
-    
+
     def _get_profile_photo(self, user):
         """Get user's profile photo path."""
         if hasattr(user, 'profile') and user.profile:
             return user.profile.profile_photo_path if user.profile.profile_photo_path else None
         return None
-    
+
     def _get_user_location(self, user):
         """Get user's location from profile."""
         if hasattr(user, 'profile') and user.profile:
@@ -84,22 +84,22 @@ class WorkerDetailView(APIView):
                     'longitude': float(profile.longitude),
                 }
         return None
-    
+
     def _get_worker_reviews(self, user):
         """Get reviews and ratings for a worker."""
         try:
             from apps.reviews.models import Review
-            
+
             reviews = Review.objects.filter(
                 reviewee=user,
                 job_completed=True
             ).select_related('reviewer')
-            
+
             total_reviews = reviews.count()
             average_rating = reviews.aggregate(Avg('rating'))['rating__avg'] or 0
-            
+
             recent_reviews = reviews.order_by('-created_at')[:5]
-            
+
             return {
                 'average_rating': round(float(average_rating), 1),
                 'total_reviews': total_reviews,
@@ -132,7 +132,7 @@ class WorkerSummaryView(APIView):
     GET /api/workers/{id}/summary/
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def get(self, request, worker_id):
         # FIXED: use account_status='ACTIVE'
         try:
@@ -145,21 +145,21 @@ class WorkerSummaryView(APIView):
             return Response({
                 'error': 'Worker not found.'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         if not user.is_worker:
             return Response({
                 'error': 'User is not a worker.'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             worker_profile = WorkerProfile.objects.get(user=user)
         except WorkerProfile.DoesNotExist:
             return Response({
                 'error': 'Worker profile not found.'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         skills = [skill.name for skill in worker_profile.skills.all()]
-        
+
         try:
             from apps.reviews.models import Review
             average_rating = Review.objects.filter(
@@ -168,7 +168,7 @@ class WorkerSummaryView(APIView):
             ).aggregate(Avg('rating'))['rating__avg'] or 0
         except:
             average_rating = 0
-        
+
         return Response({
             'id': user.id,
             'full_name': user.full_name,
@@ -183,12 +183,12 @@ class WorkerApplicationsView(APIView):
     """
     GET /api/workers/{id}/applications/
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsClient, IsVerifiedUser]
-    
+    permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
+
     def get(self, request, worker_id):
         from apps.jobs.models import JobApplication
         from apps.jobs.serializers import JobApplicationListSerializer
-        
+
         # FIXED: use account_status='ACTIVE'
         try:
             user = User.objects.get(
@@ -200,19 +200,19 @@ class WorkerApplicationsView(APIView):
             return Response({
                 'error': 'Worker not found.'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         if not user.is_worker:
             return Response({
                 'error': 'User is not a worker.'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         applications = JobApplication.objects.filter(
             worker_id=worker_id
         ).select_related('job', 'job__client')
-        
+
         applications = applications.filter(job__client_id=request.user.id)
         applications = applications.order_by('-applied_at')
-        
+
         return Response({
             'count': len(applications),
             'results': JobApplicationListSerializer(applications, many=True).data
@@ -224,11 +224,11 @@ class WorkerAvailabilityView(APIView):
     GET /api/workers/{id}/availability/
     """
     permission_classes = [IsAuthenticated, IsActiveUser, IsClient]
-    
+
     def get(self, request, worker_id):
         from apps.jobs.models import JobAssignment
         from apps.common.constants import AssignmentStatus
-        
+
         # FIXED: use account_status='ACTIVE'
         try:
             user = User.objects.get(
@@ -240,28 +240,28 @@ class WorkerAvailabilityView(APIView):
             return Response({
                 'error': 'Worker not found.'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         if not user.is_worker:
             return Response({
                 'error': 'User is not a worker.'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         active_jobs_count = JobAssignment.objects.filter(
             worker_id=worker_id,
             status=AssignmentStatus.ACTIVE
         ).count()
-        
+
         try:
             worker_profile = WorkerProfile.objects.get(user=user)
             availability_status = worker_profile.availability_status
         except WorkerProfile.DoesNotExist:
             availability_status = 'UNAVAILABLE'
-        
+
         is_available = (
             availability_status == 'AVAILABLE' and
             active_jobs_count == 0
         )
-        
+
         return Response({
             'id': user.id,
             'is_available': is_available,

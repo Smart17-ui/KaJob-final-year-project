@@ -14,12 +14,9 @@ import type {
   JobApplication,
 } from "@/shared/types/application";
 
+import Avatar from "@/components/shared/Avatar";
 import ApplicationStatusSidebar from "@/components/my-applications/ApplicationStatusSidebar";
 import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
-
-// ============================================
-// TYPES
-// ============================================
 
 type ApplicationStatus =
   | "ALL"
@@ -28,10 +25,7 @@ type ApplicationStatus =
   | "REJECTED"
   | "WITHDRAWN";
 
-type FeedbackType =
-  | "success"
-  | "error"
-  | "info";
+type FeedbackType = "success" | "error" | "info";
 
 interface Application {
   id: number;
@@ -40,6 +34,8 @@ interface Application {
   status: ApplicationStatus;
   appliedAt: string;
   jobAvailable: boolean;
+  clientName?: string | null;
+  clientPhotoUrl?: string | null;
 }
 
 interface FeedbackState {
@@ -49,53 +45,35 @@ interface FeedbackState {
   message: string;
 }
 
-// ============================================
-// HELPERS
-// ============================================
-
 const getApplicationStatus = (
   status: string
 ): ApplicationStatus => {
   const normalizedStatus = status.toUpperCase();
 
-  if (normalizedStatus === "ACCEPTED") {
-    return "ACCEPTED";
-  }
-
-  if (normalizedStatus === "REJECTED") {
-    return "REJECTED";
-  }
-
+  if (normalizedStatus === "ACCEPTED") return "ACCEPTED";
+  if (normalizedStatus === "REJECTED") return "REJECTED";
   if (
     normalizedStatus === "WITHDRAWN" ||
     normalizedStatus === "CANCELLED" ||
     normalizedStatus === "CANCELED"
-  ) {
+  )
     return "WITHDRAWN";
-  }
 
   return "PENDING";
 };
 
 const formatDate = (date?: string): string => {
-  if (!date) {
-    return "Date not available";
-  }
+  if (!date) return "Date not available";
 
   const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (Number.isNaN(parsedDate.getTime()))
     return "Date not available";
-  }
 
-  return parsedDate.toLocaleDateString(
-    "en-ZM",
-    {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }
-  );
+  return parsedDate.toLocaleDateString("en-ZM", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 };
 
 const getStatusClasses = (
@@ -104,16 +82,12 @@ const getStatusClasses = (
   switch (status) {
     case "ACCEPTED":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
-
     case "REJECTED":
       return "border-red-200 bg-red-50 text-red-700";
-
     case "PENDING":
       return "border-amber-200 bg-amber-50 text-amber-700";
-
     case "WITHDRAWN":
       return "border-gray-200 bg-gray-50 text-gray-600";
-
     default:
       return "border-gray-200 bg-gray-50 text-gray-700";
   }
@@ -125,57 +99,41 @@ const getStatusIndicator = (
   switch (status) {
     case "ACCEPTED":
       return "✓";
-
     case "REJECTED":
       return "×";
-
     case "PENDING":
       return "•";
-
     case "WITHDRAWN":
       return "↩";
-
     default:
       return "•";
   }
 };
 
-// ============================================
-// COMPONENT
-// ============================================
-
 const MyApplications = () => {
   const navigate = useNavigate();
 
-  const [applications, setApplications] =
-    useState<Application[]>([]);
+  const [applications, setApplications] = useState<
+    Application[]
+  >([]);
 
   const [filter, setFilter] =
     useState<ApplicationStatus>("ALL");
 
-  const [isLoading, setIsLoading] =
-    useState(true);
-
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [applicationToCancel, setApplicationToCancel] =
     useState<Application | null>(null);
 
-  const [isCancelling, setIsCancelling] =
-    useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
-  const [feedback, setFeedback] =
-    useState<FeedbackState>({
-      isOpen: false,
-      type: "info",
-      title: "",
-      message: "",
-    });
-
-  // ============================================
-  // LOAD APPLICATIONS
-  // ============================================
+  const [feedback, setFeedback] = useState<FeedbackState>({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
 
   const loadApplications = async () => {
     try {
@@ -183,44 +141,56 @@ const MyApplications = () => {
       setErrorMessage("");
 
       const response = await getMyApplications();
-
       const results = response?.results ?? [];
 
-      const mappedApplications =
-        await Promise.all(
-          results.map(
-            async (
-              application: JobApplication
-            ): Promise<Application> => {
-              const status =
-                getApplicationStatus(
-                  String(application.status ?? "")
-                );
+      const mappedApplications = await Promise.all(
+        results.map(
+          async (
+            application: JobApplication
+          ): Promise<Application> => {
+            const status = getApplicationStatus(
+              String(application.status ?? "")
+            );
 
-              let jobAvailable = true;
+            let jobAvailable = true;
+            let clientName: string | null = null;
+            let clientPhotoUrl: string | null = null;
 
-              try {
-                await getWorkerJobDetails(
-                  Number(application.job)
-                );
-              } catch {
-                jobAvailable = false;
-              }
+            try {
+              const jobDetails = await getWorkerJobDetails(
+                Number(application.job)
+              );
 
-              return {
-                id: Number(application.id),
-                jobId: Number(application.job),
-                jobTitle:
-                  application.job_title ||
-                  "Untitled Job",
-                status,
-                appliedAt:
-                  application.applied_at,
-                jobAvailable,
-              };
+              const job: any =
+                (jobDetails as any)?.job ?? jobDetails;
+
+              clientName =
+                job?.client_name ??
+                job?.client?.full_name ??
+                null;
+
+              clientPhotoUrl =
+                job?.client_photo_url ??
+                job?.client?.profile_photo_url ??
+                null;
+            } catch {
+              jobAvailable = false;
             }
-          )
-        );
+
+            return {
+              id: Number(application.id),
+              jobId: Number(application.job),
+              jobTitle:
+                application.job_title || "Untitled Job",
+              status,
+              appliedAt: application.applied_at,
+              jobAvailable,
+              clientName,
+              clientPhotoUrl,
+            };
+          }
+        )
+      );
 
       mappedApplications.sort(
         (a, b) =>
@@ -244,82 +214,46 @@ const MyApplications = () => {
     loadApplications();
   }, []);
 
-  // ============================================
-  // FILTERED APPLICATIONS
-  // ============================================
-
   const filteredApplications = useMemo(() => {
-    if (filter === "ALL") {
-      return applications;
-    }
-
+    if (filter === "ALL") return applications;
     return applications.filter(
-      (application) =>
-        application.status === filter
+      (application) => application.status === filter
     );
   }, [applications, filter]);
-
-  // ============================================
-  // APPLICATION COUNTS
-  // ============================================
 
   const counts = useMemo(
     () => ({
       ALL: applications.length,
-
       PENDING: applications.filter(
-        (application) =>
-          application.status === "PENDING"
+        (a) => a.status === "PENDING"
       ).length,
-
       ACCEPTED: applications.filter(
-        (application) =>
-          application.status === "ACCEPTED"
+        (a) => a.status === "ACCEPTED"
       ).length,
-
       REJECTED: applications.filter(
-        (application) =>
-          application.status === "REJECTED"
+        (a) => a.status === "REJECTED"
       ).length,
-
       WITHDRAWN: applications.filter(
-        (application) =>
-          application.status === "WITHDRAWN"
+        (a) => a.status === "WITHDRAWN"
       ).length,
     }),
     [applications]
   );
 
-  // ============================================
-  // VIEW APPLICATION
-  // ============================================
-
-  const handleViewApplication = (
-    applicationId: number
-  ) => {
+  const handleViewApplication = (applicationId: number) => {
     navigate(
       `/worker/dashboard/applications/${applicationId}`
     );
   };
 
-  // ============================================
-  // CANCEL / WITHDRAW APPLICATION
-  // ============================================
-
   const handleCancelApplication = async () => {
-    if (!applicationToCancel) {
-      return;
-    }
+    if (!applicationToCancel) return;
 
     try {
       setIsCancelling(true);
-
-      await withdrawApplication(
-        applicationToCancel.id
-      );
+      await withdrawApplication(applicationToCancel.id);
 
       setApplicationToCancel(null);
-
       await loadApplications();
 
       setFeedback({
@@ -351,10 +285,6 @@ const MyApplications = () => {
     }
   };
 
-  // ============================================
-  // CLOSE FEEDBACK
-  // ============================================
-
   const handleCloseFeedback = () => {
     setFeedback((current) => ({
       ...current,
@@ -362,28 +292,14 @@ const MyApplications = () => {
     }));
   };
 
-  // ============================================
-  // RENDER
-  // ============================================
-
   return (
     <>
-      <div
-        className="
-          flex
-          h-[calc(100vh-136px)]
-          min-h-0
-          min-w-0
-          flex-col
-          sm:h-[calc(100vh-144px)]
-          lg:h-[calc(100vh-152px)]
-        "
-      >
+      <div className="min-w-0 pb-8">
         {/* ========================================
             HEADER
         ======================================== */}
 
-        <section className="shrink-0 pb-6">
+        <section className="mb-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
               <span className="text-lg font-bold text-emerald-600">
@@ -391,12 +307,12 @@ const MyApplications = () => {
               </span>
             </div>
 
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
                 My Applications
               </h1>
 
-              <p className="mt-0.5 text-sm text-gray-500">
+              <p className="mt-0.5 text-xs text-gray-500 sm:text-sm">
                 Track the jobs you've applied for.
               </p>
             </div>
@@ -408,7 +324,7 @@ const MyApplications = () => {
         ======================================== */}
 
         {isLoading ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center">
+          <div className="flex min-h-[320px] items-center justify-center">
             <div className="text-center">
               <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-600" />
 
@@ -418,7 +334,7 @@ const MyApplications = () => {
             </div>
           </div>
         ) : errorMessage ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center">
+          <div className="flex min-h-[320px] items-center justify-center">
             <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
               <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-lg font-bold text-red-600">
                 !
@@ -435,56 +351,29 @@ const MyApplications = () => {
               <button
                 type="button"
                 onClick={loadApplications}
-                className="
-                  mt-5
-                  rounded-xl
-                  bg-gray-900
-                  px-4
-                  py-2.5
-                  text-sm
-                  font-semibold
-                  text-white
-                  transition
-                  hover:bg-gray-800
-                "
+                className="mt-5 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
               >
                 Try Again
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex min-h-0 min-w-0 flex-1 gap-6">
-            {/* ====================================
-                SIDEBAR
-            ==================================== */}
+          <div className="flex flex-col gap-6 sm:flex-row">
+            {/* FILTERS */}
 
-            <aside className="-mt-4 w-60 shrink-0">
+            <div className="sm:w-60 sm:shrink-0">
               <ApplicationStatusSidebar
                 status={filter}
                 setStatus={setFilter}
                 counts={counts}
               />
-            </aside>
+            </div>
 
-            {/* ====================================
-                APPLICATION LIST
-            ==================================== */}
+            {/* LIST */}
 
-            <main
-              className="
-                min-h-0
-                min-w-0
-                flex-1
-                overflow-y-auto
-                overflow-x-hidden
-                pr-2
-                [scrollbar-width:none]
-                [-ms-overflow-style:none]
-                [&::-webkit-scrollbar]:hidden
-              "
-            >
+            <main className="min-w-0 flex-1">
               {filteredApplications.length === 0 ? (
-                <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white">
+                <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white">
                   <div className="max-w-sm px-6 text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">
                       <span className="text-lg font-bold text-gray-400">
@@ -504,195 +393,191 @@ const MyApplications = () => {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {filteredApplications.map(
-                    (application) => (
-                      <article
-                        key={application.id}
-                        className="
-                          rounded-2xl
-                          border
-                          border-gray-200
-                          bg-white
-                          p-5
-                          shadow-sm
-                          transition
-                          hover:border-gray-300
-                          hover:shadow-md
-                        "
-                      >
-                        {/* TOP */}
+                <div className="space-y-3 sm:space-y-4">
+                  {filteredApplications.map((application) => (
+                    <article
+                      key={application.id}
+                      className="
+                        rounded-2xl
+                        border
+                        border-gray-200
+                        bg-white
+                        p-4
+                        shadow-sm
+                        transition
+                        hover:border-gray-300
+                        hover:shadow-md
+                        sm:p-5
+                      "
+                    >
+                      {/* HEADER */}
 
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h2 className="truncate text-base font-semibold text-gray-900">
-                                {application.jobTitle}
-                              </h2>
+                      <div className="flex items-start gap-3">
+                        <Avatar
+                          photoUrl={application.clientPhotoUrl}
+                          name={application.clientName}
+                          size="md"
+                        />
 
-                              <span
-                                className={`
-                                  inline-flex
-                                  shrink-0
-                                  items-center
-                                  gap-1.5
-                                  rounded-full
-                                  border
-                                  px-2.5
-                                  py-1
-                                  text-xs
-                                  font-semibold
-                                  ${getStatusClasses(
-                                    application.status
-                                  )}
-                                `}
-                              >
-                                <span className="text-sm leading-none">
-                                  {getStatusIndicator(
-                                    application.status
-                                  )}
-                                </span>
+                        <div className="min-w-0 flex-1">
+                          <h2 className="truncate text-base font-semibold text-gray-900">
+                            {application.jobTitle}
+                          </h2>
 
-                                {application.status}
-                              </span>
-                            </div>
-
-                            <p className="mt-1 text-xs text-gray-500">
-                              Applied{" "}
-                              {formatDate(
-                                application.appliedAt
-                              )}
-                            </p>
-                          </div>
-
-                          <span className="shrink-0 rounded-lg bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-500">
-                            #{application.id}
-                          </span>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {application.clientName
+                              ? `Posted by ${application.clientName} · `
+                              : ""}
+                            Applied{" "}
+                            {formatDate(application.appliedAt)}
+                          </p>
                         </div>
 
-                        {/* STATUS MESSAGE */}
+                        <span
+                          className={`
+                            inline-flex
+                            shrink-0
+                            items-center
+                            gap-1.5
+                            rounded-full
+                            border
+                            px-2.5
+                            py-1
+                            text-xs
+                            font-semibold
+                            ${getStatusClasses(application.status)}
+                          `}
+                        >
+                          <span className="text-sm leading-none">
+                            {getStatusIndicator(application.status)}
+                          </span>
+                          {application.status}
+                        </span>
+                      </div>
 
-                        {application.status ===
-                          "ACCEPTED" && (
-                          <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                            <p className="text-sm font-medium text-emerald-800">
-                              Your application was accepted.
-                            </p>
+                      {/* STATUS MESSAGE */}
 
-                            <p className="mt-0.5 text-xs text-emerald-700">
-                              Check My Work for
-                              the next steps.
-                            </p>
-                          </div>
-                        )}
+                      {application.status === "ACCEPTED" && (
+                        <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                          <p className="text-sm font-medium text-emerald-800">
+                            Your application was accepted.
+                          </p>
 
-                        {application.status ===
-                          "REJECTED" && (
-                          <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-                            <p className="text-sm font-medium text-red-800">
-                              This application was not accepted.
-                            </p>
-                          </div>
-                        )}
+                          <p className="mt-0.5 text-xs text-emerald-700">
+                            Check My Work for the next
+                            steps.
+                          </p>
+                        </div>
+                      )}
 
-                        {application.status ===
-                          "PENDING" && (
-                          <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
-                            <p className="text-sm font-medium text-amber-800">
-                              Your application is waiting for the client to respond.
-                            </p>
-                          </div>
-                        )}
+                      {application.status === "REJECTED" && (
+                        <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                          <p className="text-sm font-medium text-red-800">
+                            This application was not
+                            accepted.
+                          </p>
+                        </div>
+                      )}
 
-                        {application.status ===
-                          "WITHDRAWN" && (
-                          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                            <p className="text-sm font-medium text-gray-700">
-                              You withdrew this application.
-                            </p>
-                          </div>
-                        )}
+                      {application.status === "PENDING" && (
+                        <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                          <p className="text-sm font-medium text-amber-800">
+                            Your application is waiting
+                            for the client to respond.
+                          </p>
+                        </div>
+                      )}
 
-                        {/* FOOTER */}
+                      {application.status === "WITHDRAWN" && (
+                        <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                          <p className="text-sm font-medium text-gray-700">
+                            You withdrew this application.
+                          </p>
+                        </div>
+                      )}
 
-                        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <span
-                              className={
-                                application.jobAvailable
-                                  ? "font-semibold text-emerald-600"
-                                  : "font-semibold text-gray-400"
-                              }
-                            >
-                              {application.jobAvailable
-                                ? "Available"
-                                : "Unavailable"}
-                            </span>
+                      {/* FOOTER */}
 
-                            <span>
-                              Job details
-                            </span>
-                          </div>
+                      <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span
+                            className={
+                              application.jobAvailable
+                                ? "font-semibold text-emerald-600"
+                                : "font-semibold text-gray-400"
+                            }
+                          >
+                            {application.jobAvailable
+                              ? "Available"
+                              : "Unavailable"}
+                          </span>
 
-                          <div className="flex items-center gap-2">
-                            {application.status ===
-                              "PENDING" && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setApplicationToCancel(
-                                    application
-                                  )
-                                }
-                                className="
-                                  rounded-xl
-                                  border
-                                  border-gray-200
-                                  px-3.5
-                                  py-2
-                                  text-sm
-                                  font-medium
-                                  text-gray-600
-                                  transition
-                                  hover:border-red-200
-                                  hover:bg-red-50
-                                  hover:text-red-600
-                                "
-                              >
-                                Cancel
-                              </button>
-                            )}
+                          <span>Job details</span>
+                        </div>
 
+                        <div className="flex items-center gap-2">
+                          {application.status ===
+                            "PENDING" && (
                             <button
                               type="button"
                               onClick={() =>
-                                handleViewApplication(
-                                  application.id
+                                setApplicationToCancel(
+                                  application
                                 )
                               }
                               className="
-                                inline-flex
-                                items-center
-                                gap-2
+                                flex-1
                                 rounded-xl
-                                bg-gray-900
-                                px-4
-                                py-2
+                                border
+                                border-gray-200
+                                px-3.5
+                                py-2.5
                                 text-sm
-                                font-semibold
-                                text-white
+                                font-medium
+                                text-gray-600
                                 transition
-                                hover:bg-gray-800
+                                hover:border-red-200
+                                hover:bg-red-50
+                                hover:text-red-600
+                                sm:flex-none
                               "
                             >
-                              <span>→</span>
-                              View Application
+                              Cancel
                             </button>
-                          </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleViewApplication(
+                                application.id
+                              )
+                            }
+                            className="
+                              flex-1
+                              inline-flex
+                              items-center
+                              justify-center
+                              gap-2
+                              rounded-xl
+                              bg-gray-900
+                              px-4
+                              py-2.5
+                              text-sm
+                              font-semibold
+                              text-white
+                              transition
+                              hover:bg-gray-800
+                              sm:flex-none
+                            "
+                          >
+                            View Application
+                            <span>→</span>
+                          </button>
                         </div>
-                      </article>
-                    )
-                  )}
+                      </div>
+                    </article>
+                  ))}
                 </div>
               )}
             </main>
@@ -700,9 +585,7 @@ const MyApplications = () => {
         )}
       </div>
 
-      {/* ==========================================
-          CANCEL CONFIRMATION
-      ========================================== */}
+      {/* CANCEL CONFIRMATION */}
 
       {applicationToCancel && (
         <div
@@ -711,20 +594,24 @@ const MyApplications = () => {
             inset-0
             z-50
             flex
-            items-center
+            items-end
             justify-center
             bg-black/40
-            p-4
+            sm:items-center
+            sm:p-4
           "
         >
           <div
             className="
               w-full
               max-w-md
-              rounded-2xl
+              rounded-t-3xl
               bg-white
               p-6
+              pb-[calc(env(safe-area-inset-bottom)+24px)]
               shadow-xl
+              sm:rounded-2xl
+              sm:pb-6
             "
           >
             <div className="flex items-start gap-3">
@@ -748,13 +635,11 @@ const MyApplications = () => {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 disabled={isCancelling}
-                onClick={() =>
-                  setApplicationToCancel(null)
-                }
+                onClick={() => setApplicationToCancel(null)}
                 className="
                   rounded-xl
                   border
@@ -799,10 +684,6 @@ const MyApplications = () => {
           </div>
         </div>
       )}
-
-      {/* ==========================================
-          FEEDBACK MODAL
-      ========================================== */}
 
       <FeedbackModal
         isOpen={feedback.isOpen}

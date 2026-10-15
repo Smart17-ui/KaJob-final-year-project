@@ -1,3 +1,5 @@
+// frontend/src/components/dashboard/DashboardLayout/DashboardLayout.tsx
+
 import {
   Outlet,
   useNavigate,
@@ -27,6 +29,7 @@ import {
 import type { User } from "@/shared/types";
 
 import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
+import VerificationBanner from "@/components/verification/VerificationBanner";
 
 type UserRole = "CLIENT" | "WORKER";
 
@@ -99,6 +102,21 @@ const DashboardLayout = () => {
    */
   const isSettingsPage =
     location.pathname.includes("/settings");
+
+  /*
+   * =========================================================
+   * SHOW VERIFICATION BANNER
+   * =========================================================
+   */
+  const showVerificationBanner =
+    role !== null &&
+    !user?.is_verified &&
+    !location.pathname.startsWith(
+      `/${role.toLowerCase()}/dashboard/settings`
+    ) &&
+    !location.pathname.startsWith(
+      `/${role.toLowerCase()}/dashboard/notifications`
+    );
 
   /*
    * =========================================================
@@ -220,9 +238,6 @@ const DashboardLayout = () => {
       return;
     }
 
-    /*
-     * Prevent trying to add a role the user already has.
-     */
     if (
       (newRole === "CLIENT" && user.is_client) ||
       (newRole === "WORKER" && user.is_worker)
@@ -264,16 +279,10 @@ const DashboardLayout = () => {
       return;
     }
 
-    /*
-     * Already on this role.
-     */
     if (newRole === role) {
       return;
     }
 
-    /*
-     * Make sure the user actually has the requested role.
-     */
     const hasRequestedRole =
       newRole === "CLIENT"
         ? user.is_client
@@ -311,12 +320,6 @@ const DashboardLayout = () => {
    * =========================================================
    * SIDEBAR ROLE ACTION
    * =========================================================
-   *
-   * The Sidebar passes the selected role.
-   *
-   * If the user already has that role, switch to it.
-   *
-   * If the user does not have that role yet, add it.
    */
   function handleSidebarSwitchRole(
     selectedRoleToUse: UserRole
@@ -339,51 +342,6 @@ const DashboardLayout = () => {
 
   /*
    * =========================================================
-   * PROFILE
-   * =========================================================
-   */
-  function handleProfile() {
-    if (!role) {
-      return;
-    }
-
-    navigate(
-      `/${role.toLowerCase()}/dashboard/profile`
-    );
-  }
-
-  /*
-   * =========================================================
-   * VERIFY
-   * =========================================================
-   */
-  function handleVerify() {
-    if (!role) {
-      return;
-    }
-
-    navigate(
-      `/${role.toLowerCase()}/dashboard/verify`
-    );
-  }
-
-  /*
-   * =========================================================
-   * SETTINGS
-   * =========================================================
-   */
-  function handleSettings() {
-    if (!role) {
-      return;
-    }
-
-    navigate(
-      `/${role.toLowerCase()}/dashboard/settings`
-    );
-  }
-
-  /*
-   * =========================================================
    * NOTIFICATIONS
    * =========================================================
    */
@@ -394,6 +352,21 @@ const DashboardLayout = () => {
 
     navigate(
       `/${role.toLowerCase()}/dashboard/notifications`
+    );
+  }
+
+  /*
+   * =========================================================
+   * SETTINGS (gear icon in top bar)
+   * =========================================================
+   */
+  function handleSettings() {
+    if (!role) {
+      return;
+    }
+
+    navigate(
+      `/${role.toLowerCase()}/dashboard/settings/account`
     );
   }
 
@@ -469,6 +442,7 @@ const DashboardLayout = () => {
           }
         >
           <TopBar
+            user={user}
             userName={`${user.first_name ?? ""} ${
               user.last_name ?? ""
             }`.trim()}
@@ -479,12 +453,6 @@ const DashboardLayout = () => {
             }
             onNotificationsClick={
               handleNotifications
-            }
-            onProfileClick={
-              handleProfile
-            }
-            onVerifyClick={
-              handleVerify
             }
             onSettingsClick={
               handleSettings
@@ -542,6 +510,10 @@ const DashboardLayout = () => {
               `
           }
         >
+          {showVerificationBanner && (
+            <VerificationBanner role={role} />
+          )}
+
           <Outlet />
         </main>
       </div>

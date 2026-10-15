@@ -18,15 +18,7 @@ import {
   getReportableJobs,
 } from "@/components/services/reportService";
 
-/* =========================================================
-   COMPLAINT TYPE
-========================================================= */
-
 type ComplaintType = "JOB" | "GENERAL";
-
-/* =========================================================
-   CATEGORY OPTIONS
-========================================================= */
 
 const categoryOptions: ReportCategory[] = [
   "THEFT",
@@ -38,10 +30,6 @@ const categoryOptions: ReportCategory[] = [
   "POOR_CONDUCT",
   "OTHER",
 ];
-
-/* =========================================================
-   CLIENT COMPLAINTS
-========================================================= */
 
 export default function ClientComplaints() {
   const [complaintType, setComplaintType] =
@@ -56,8 +44,7 @@ export default function ClientComplaints() {
   const [category, setCategory] =
     useState<ReportCategory | "">("");
 
-  const [description, setDescription] =
-    useState("");
+  const [description, setDescription] = useState("");
 
   const [isLoadingJobs, setIsLoadingJobs] =
     useState(true);
@@ -65,12 +52,8 @@ export default function ClientComplaints() {
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
-  const [error, setError] =
-    useState("");
-
-  const [success, setSuccess] =
-    useState(false);
-
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
   const [referenceNumber, setReferenceNumber] =
     useState("");
 
@@ -83,10 +66,22 @@ export default function ClientComplaints() {
       setIsLoadingJobs(true);
       setError("");
 
-      const response =
-        await getReportableJobs();
+      const response = await getReportableJobs();
+      const reportable = response.results || [];
 
-      setJobs(response.results || []);
+      setJobs(reportable);
+
+      /*
+       * If there are no reportable jobs, default to the
+       * "General issue" tab so the user isn't stuck on a
+       * dead-end form. We only do this on first load — if
+       * the user has already chosen a type, we respect it.
+       */
+      if (reportable.length === 0) {
+        setComplaintType((current) =>
+          current === "JOB" ? "GENERAL" : current
+        );
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -124,9 +119,10 @@ export default function ClientComplaints() {
 
   const selectedJob =
     jobs.find(
-      (job) =>
-        String(job.id) === selectedJobId
+      (job) => String(job.id) === selectedJobId
     ) || null;
+
+  const hasReportableJobs = jobs.length > 0;
 
   /* =========================================================
      SUBMIT REPORT
@@ -140,24 +136,12 @@ export default function ClientComplaints() {
     setError("");
     setSuccess(false);
 
-    /* -------------------------------------------------------
-       JOB VALIDATION
-    ------------------------------------------------------- */
-
-    if (
-      complaintType === "JOB" &&
-      !selectedJob
-    ) {
+    if (complaintType === "JOB" && !selectedJob) {
       setError(
         "Please select a job before submitting a job-related complaint."
       );
-
       return;
     }
-
-    /* -------------------------------------------------------
-       EXISTING REPORT VALIDATION
-    ------------------------------------------------------- */
 
     if (
       complaintType === "JOB" &&
@@ -166,34 +150,18 @@ export default function ClientComplaints() {
       setError(
         "You have already submitted a complaint for this job."
       );
-
       return;
     }
-
-    /* -------------------------------------------------------
-       CATEGORY VALIDATION
-    ------------------------------------------------------- */
 
     if (!category) {
-      setError(
-        "Please select a complaint category."
-      );
-
+      setError("Please select a complaint category.");
       return;
     }
 
-    /* -------------------------------------------------------
-       DESCRIPTION VALIDATION
-    ------------------------------------------------------- */
-
-    const trimmedDescription =
-      description.trim();
+    const trimmedDescription = description.trim();
 
     if (!trimmedDescription) {
-      setError(
-        "Please describe the issue."
-      );
-
+      setError("Please describe the issue.");
       return;
     }
 
@@ -201,7 +169,6 @@ export default function ClientComplaints() {
       setError(
         "Please provide at least 20 characters describing the issue."
       );
-
       return;
     }
 
@@ -209,36 +176,27 @@ export default function ClientComplaints() {
       setError(
         "The description cannot exceed 2000 characters."
       );
-
       return;
     }
-
-    /* -------------------------------------------------------
-       SUBMIT
-    ------------------------------------------------------- */
 
     try {
       setIsSubmitting(true);
 
       const response =
-        complaintType === "JOB" &&
-        selectedJob
+        complaintType === "JOB" && selectedJob
           ? await createReport({
               job_id: selectedJob.id,
               category,
-              description:
-                trimmedDescription,
+              description: trimmedDescription,
             })
           : await createReport({
               category,
-              description:
-                trimmedDescription,
+              description: trimmedDescription,
             });
 
       setReferenceNumber(
         response.report.reference_number
       );
-
       setSuccess(true);
     } catch (err) {
       setError(
@@ -272,12 +230,10 @@ export default function ClientComplaints() {
 
   return (
     <div>
-      {/* ===================================================
-          PAGE HEADER
-      =================================================== */}
+      {/* PAGE HEADER */}
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">
+        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
           Complaints
         </h1>
 
@@ -286,24 +242,22 @@ export default function ClientComplaints() {
         </p>
       </div>
 
-      {/* ===================================================
-          SUCCESS STATE
-      =================================================== */}
+      {/* SUCCESS STATE */}
 
       {success ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mx-auto max-w-md text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
               <CheckCircleIcon className="h-9 w-9 text-green-600" />
             </div>
 
-            <h2 className="mt-5 text-xl font-bold text-slate-900">
+            <h2 className="mt-5 text-lg font-bold text-slate-900 sm:text-xl">
               Report submitted successfully
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Your complaint has been received and
-              will be reviewed by the KaJob support team.
+              Your complaint has been received and will be
+              reviewed by the KaJob support team.
             </p>
 
             {referenceNumber && (
@@ -337,22 +291,20 @@ export default function ClientComplaints() {
           onSubmit={handleSubmit}
           className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
         >
-          {/* =================================================
-              FORM HEADER
-          ================================================= */}
+          {/* FORM HEADER */}
 
-          <div className="border-b border-slate-200 px-6 py-5">
+          <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-50">
                 <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
               </div>
 
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
                   Report an Issue
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                   Provide the details below so we can
                   understand and investigate your complaint.
                 </p>
@@ -360,14 +312,11 @@ export default function ClientComplaints() {
             </div>
           </div>
 
-          {/* =================================================
-              FORM CONTENT
-          ================================================= */}
+          {/* FORM CONTENT */}
 
-          <div className="px-6 py-6">
-            {/* ===============================================
-                COMPLAINT TYPE
-            =============================================== */}
+          <div className="px-5 py-6 sm:px-6">
+
+            {/* COMPLAINT TYPE */}
 
             <div>
               <label className="block text-sm font-semibold text-slate-900">
@@ -375,30 +324,37 @@ export default function ClientComplaints() {
               </label>
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {/* JOB */}
+                {/* JOB-RELATED */}
 
                 <button
                   type="button"
-                  onClick={() =>
-                    handleComplaintTypeChange("JOB")
+                  onClick={() => {
+                    if (!hasReportableJobs) return;
+                    handleComplaintTypeChange("JOB");
+                  }}
+                  disabled={
+                    !hasReportableJobs || isLoadingJobs
                   }
                   className={`rounded-xl border p-4 text-left transition ${
-                    complaintType === "JOB"
+                    !hasReportableJobs
+                      ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+                      : complaintType === "JOB"
                       ? "border-slate-900 bg-slate-50 ring-2 ring-slate-200"
                       : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <DocumentTextIcon className="mt-0.5 h-5 w-5 text-slate-600" />
+                    <DocumentTextIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-600" />
 
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-900">
                         Job-related issue
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Report an issue involving a specific
-                        job or worker.
+                        {hasReportableJobs
+                          ? "Report an issue involving a specific job or worker."
+                          : "You don't have any jobs to report yet."}
                       </p>
                     </div>
                   </div>
@@ -409,9 +365,7 @@ export default function ClientComplaints() {
                 <button
                   type="button"
                   onClick={() =>
-                    handleComplaintTypeChange(
-                      "GENERAL"
-                    )
+                    handleComplaintTypeChange("GENERAL")
                   }
                   className={`rounded-xl border p-4 text-left transition ${
                     complaintType === "GENERAL"
@@ -420,16 +374,16 @@ export default function ClientComplaints() {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 text-slate-600" />
+                    <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-600" />
 
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-900">
                         General issue
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Report an issue that is not related
-                        to a specific job.
+                        Report an issue that is not related to
+                        a specific job.
                       </p>
                     </div>
                   </div>
@@ -437,9 +391,7 @@ export default function ClientComplaints() {
               </div>
             </div>
 
-            {/* ===============================================
-                JOB SELECTION
-            =============================================== */}
+            {/* JOB SELECTION */}
 
             {complaintType === "JOB" && (
               <div className="mt-6">
@@ -457,12 +409,14 @@ export default function ClientComplaints() {
                 ) : jobs.length === 0 ? (
                   <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm font-medium text-slate-700">
-                      No reportable jobs found.
+                      You have no reportable jobs right now.
                     </p>
 
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      You can still submit a general complaint
-                      by selecting "General issue" above.
+                      Job-related reports are available once you
+                      have posted a job and a worker has been
+                      assigned. You can still submit a general
+                      complaint above.
                     </p>
                   </div>
                 ) : (
@@ -470,25 +424,19 @@ export default function ClientComplaints() {
                     id="report-job"
                     value={selectedJobId}
                     onChange={(event) => {
-                      setSelectedJobId(
-                        event.target.value
-                      );
+                      setSelectedJobId(event.target.value);
                       setError("");
                     }}
                     disabled={isSubmitting}
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                   >
-                    <option value="">
-                      Select a job...
-                    </option>
+                    <option value="">Select a job...</option>
 
                     {jobs.map((job) => (
                       <option
                         key={job.id}
                         value={job.id}
-                        disabled={
-                          job.has_existing_report
-                        }
+                        disabled={job.has_existing_report}
                       >
                         {job.title} — Job #{job.id}
                         {job.has_existing_report
@@ -499,9 +447,7 @@ export default function ClientComplaints() {
                   </select>
                 )}
 
-                {/* =============================================
-                    SELECTED JOB DETAILS
-                ============================================= */}
+                {/* SELECTED JOB DETAILS */}
 
                 {selectedJob && (
                   <div className="mt-4 rounded-xl bg-slate-50 p-4">
@@ -531,12 +477,12 @@ export default function ClientComplaints() {
                           <UserCircleIcon className="h-5 w-5 text-slate-500" />
                         </div>
 
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                             Worker
                           </p>
 
-                          <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                          <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">
                             {selectedJob.other_party?.full_name ||
                               "Worker information unavailable"}
                           </p>
@@ -548,9 +494,7 @@ export default function ClientComplaints() {
               </div>
             )}
 
-            {/* ===============================================
-                GENERAL NOTICE
-            =============================================== */}
+            {/* GENERAL NOTICE */}
 
             {complaintType === "GENERAL" && (
               <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -567,9 +511,7 @@ export default function ClientComplaints() {
               </div>
             )}
 
-            {/* ===============================================
-                CATEGORY
-            =============================================== */}
+            {/* CATEGORY */}
 
             <div className="mt-6">
               <label
@@ -584,38 +526,23 @@ export default function ClientComplaints() {
                 value={category}
                 onChange={(event) =>
                   setCategory(
-                    event.target.value as
-                      | ReportCategory
-                      | ""
+                    event.target.value as ReportCategory | ""
                   )
                 }
                 disabled={isSubmitting}
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
               >
-                <option value="">
-                  Select a category...
-                </option>
+                <option value="">Select a category...</option>
 
-                {categoryOptions.map(
-                  (option) => (
-                    <option
-                      key={option}
-                      value={option}
-                    >
-                      {
-                        REPORT_CATEGORY_LABELS[
-                          option
-                        ]
-                      }
-                    </option>
-                  )
-                )}
+                {categoryOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {REPORT_CATEGORY_LABELS[option]}
+                  </option>
+                ))}
               </select>
             </div>
 
-            {/* ===============================================
-                DESCRIPTION
-            =============================================== */}
+            {/* DESCRIPTION */}
 
             <div className="mt-6">
               <div className="flex items-center justify-between">
@@ -635,9 +562,7 @@ export default function ClientComplaints() {
                 id="complaint-description"
                 value={description}
                 onChange={(event) =>
-                  setDescription(
-                    event.target.value
-                  )
+                  setDescription(event.target.value)
                 }
                 disabled={isSubmitting}
                 rows={7}
@@ -651,9 +576,7 @@ export default function ClientComplaints() {
               </p>
             </div>
 
-            {/* ===============================================
-                ERROR
-            =============================================== */}
+            {/* ERROR */}
 
             {error && (
               <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -668,22 +591,15 @@ export default function ClientComplaints() {
             )}
           </div>
 
-          {/* =================================================
-              FOOTER
-          ================================================= */}
+          {/* FOOTER */}
 
-          <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50 px-6 py-4">
+          <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
             <button
               type="submit"
-              disabled={
-                isSubmitting ||
-                isLoadingJobs
-              }
-              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              disabled={isSubmitting || isLoadingJobs}
+              className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
             >
-              {isSubmitting
-                ? "Submitting..."
-                : "Submit Report"}
+              {isSubmitting ? "Submitting..." : "Submit Report"}
             </button>
           </div>
         </form>

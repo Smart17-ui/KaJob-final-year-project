@@ -146,7 +146,7 @@ class MyJobsView(APIView):
         user = request.user
         role = _current_role(request)
 
-        # ── CLIENT: only jobs I posted (excludes hidden ones) ─────
+        # —— CLIENT: only jobs I posted (excludes hidden ones) ——
         if role == 'CLIENT':
             jobs = Job.objects.filter(
                 client=user,
@@ -154,7 +154,7 @@ class MyJobsView(APIView):
                 client_hidden_at__isnull=True,
             ).order_by('-posted_at')
 
-        # ── WORKER: only jobs I was actually assigned to ───
+        # —— WORKER: only jobs I was actually assigned to ——
         elif role == 'WORKER':
             assigned_job_ids = JobAssignment.objects.filter(
                 worker=user,
@@ -166,7 +166,7 @@ class MyJobsView(APIView):
                 deleted_at__isnull=True,
             ).order_by('-posted_at')
 
-        # ── No role selected (or ADMIN) → empty ────────────
+        # —— No role selected (or ADMIN) → empty ——
         else:
             jobs = Job.objects.none()
 
@@ -362,7 +362,7 @@ class JobDetailForWorkerView(APIView):
     GET /api/jobs/{job_id}/worker/
     Get job details for a worker with CONDITIONAL DISCLOSURE.
     """
-    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker, IsVerifiedUser]
+    permission_classes = [IsAuthenticated, IsActiveUser, IsWorker]
 
     def get(self, request, job_id):
         try:

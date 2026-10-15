@@ -7,6 +7,7 @@ import {
 import PostJobLayout from "./PostJobLayout";
 
 import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
+import VerifyFirstModal from "@/components/verification/VerifyFirstModal";
 
 import { createJob } from "@/components/services/jobService.js";
 
@@ -88,6 +89,9 @@ const PostJob = () => {
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
+  const [showVerifyModal, setShowVerifyModal] =
+    useState(false);
+
   /* =========================================================
      CATEGORIES + SKILLS STATE
   ========================================================= */
@@ -124,8 +128,6 @@ const PostJob = () => {
 
         if (cancelled) return;
 
-        // Categories endpoint may return a plain array
-        // or a paginated object { count, results: [...] }.
         const rawCategories: any[] = Array.isArray(
           categoriesResponse
         )
@@ -150,7 +152,6 @@ const PostJob = () => {
               name: String(s.name),
             }));
 
-        // "Other" goes last for both lists.
         setCategories(sortWithOtherLast(mappedCategories));
         setSkills(sortWithOtherLast(mappedSkills));
       } catch (err) {
@@ -384,12 +385,13 @@ const PostJob = () => {
       return;
     }
 
+    /*
+     * Soft gate: don't block the form. Instead, open the
+     * verification modal so the user knows why they can't
+     * submit and can act on it.
+     */
     if (!isVerified) {
-      showFeedback(
-        "warning",
-        "Verification required",
-        "Verify your account before posting a job."
-      );
+      setShowVerifyModal(true);
       return;
     }
 
@@ -478,15 +480,11 @@ const PostJob = () => {
     );
   }
 
-  if (!isVerified) {
-    return (
-      <div className="p-6">
-        <p className="text-sm text-slate-500">
-          Verify your account before posting a job.
-        </p>
-      </div>
-    );
-  }
+  /*
+   * NOTE: we intentionally do NOT return the StartVerificationCard
+   * here. Unverified clients can still fill out the form — the gate
+   * fires on submit via VerifyFirstModal.
+   */
 
   /* =========================================================
      PAGE
@@ -525,6 +523,13 @@ const PostJob = () => {
         title={feedback.title}
         message={feedback.message}
         onClose={closeFeedback}
+      />
+
+      <VerifyFirstModal
+        open={showVerifyModal}
+        role="CLIENT"
+        actionLabel="post a job"
+        onClose={() => setShowVerifyModal(false)}
       />
     </>
   );

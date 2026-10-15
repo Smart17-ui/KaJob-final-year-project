@@ -1,6 +1,7 @@
 // frontend/src/api/profile.ts
 
 import apiClient from "@/api/client";
+import API_BASE_URL from "@/api/config";
 
 /* =========================
    GENERAL PROFILE
@@ -11,6 +12,7 @@ export interface UserProfile {
   full_name: string | null;
   bio: string;
   profile_photo_path: string | null;
+  profile_photo_url: string | null;
   address: string | null;
   province: string | null;
   district: string | null;
@@ -102,7 +104,6 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
 
 export async function updateUserProfile(payload: {
   bio?: string;
-  profile_photo_path?: string;
   address?: string;
   province?: string;
   district?: string;
@@ -163,6 +164,62 @@ export async function updateClientProfile(payload: {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
+
+/* =========================
+   UPLOAD PROFILE PHOTO
+========================= */
+
+/**
+ * Upload a new profile photo.
+ *
+ * Backend: POST /api/auth/profile/photo/
+ * Content-Type: multipart/form-data
+ */
+export async function uploadProfilePhoto(
+  file: File
+): Promise<{
+  message: string;
+  profile_photo_url: string;
+}> {
+  const token = localStorage.getItem("access_token");
+
+  if (!token) {
+    throw new Error("You are not authenticated. Please log in.");
+  }
+
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/auth/profile/photo/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
+  } catch {
+    throw new Error(
+      "Unable to connect to the server. Please make sure the backend is running."
+    );
+  }
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      (data && (data.error || data.photo?.[0] || data.detail)) ||
+        `Upload failed with status ${response.status}.`
+    );
+  }
+
+  return data;
 }
 
 /* =========================

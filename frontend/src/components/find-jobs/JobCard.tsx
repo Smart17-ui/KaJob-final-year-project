@@ -6,6 +6,8 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
+import Avatar from "@/components/shared/Avatar";
+
 type Job = {
   id: number;
   title: string;
@@ -25,6 +27,8 @@ type Job = {
   longitude?: number | string | null;
   is_urgent?: boolean;
   required_skills?: string[];
+  client_name?: string | null;
+  client_photo_url?: string | null;
 };
 
 type NearbyJob = {
@@ -44,27 +48,16 @@ type JobCardProps = {
 };
 
 const formatBudget = (budget: string): string => {
-  if (!budget) {
-    return "K0";
-  }
-
-  if (budget.startsWith("K")) {
-    return budget;
-  }
-
+  if (!budget) return "K0";
+  if (budget.startsWith("K")) return budget;
   return `K${budget}`;
 };
 
 const formatDate = (date: string | null): string => {
-  if (!date) {
-    return "Flexible";
-  }
+  if (!date) return "Flexible";
 
   const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
-  }
+  if (Number.isNaN(parsedDate.getTime())) return date;
 
   return parsedDate.toLocaleDateString("en-ZM", {
     day: "numeric",
@@ -77,16 +70,12 @@ const getUrgencyClasses = (urgency: string): string => {
   switch (urgency.toUpperCase()) {
     case "IMMEDIATE":
       return "bg-red-50 text-red-700";
-
     case "URGENT":
       return "bg-orange-50 text-orange-700";
-
     case "NORMAL":
       return "bg-blue-50 text-blue-700";
-
     case "FLEXIBLE":
       return "bg-gray-100 text-gray-600";
-
     default:
       return "bg-gray-100 text-gray-600";
   }
@@ -113,10 +102,7 @@ const JobCard = ({
       tabIndex={0}
       onClick={handleCardClick}
       onKeyDown={(event) => {
-        if (
-          event.key === "Enter" ||
-          event.key === " "
-        ) {
+        if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           handleCardClick();
         }
@@ -126,7 +112,7 @@ const JobCard = ({
         min-w-0
         cursor-pointer
         flex-col
-        rounded-xl
+        rounded-2xl
         border
         border-gray-200
         bg-white
@@ -139,69 +125,71 @@ const JobCard = ({
         focus:ring-gray-200
       "
     >
-      <div className="flex flex-1 flex-col p-3.5">
-        <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-1 flex-col p-4 sm:p-4">
+        {/* HEADER — category + title + budget */}
+
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             {job.category_name && (
-              <span className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+              <span className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                 {job.category_name}
               </span>
             )}
 
-            <h3 className="mt-1.5 line-clamp-2 text-sm font-semibold leading-5 text-gray-900">
+            <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-5 text-gray-900">
               {job.title}
             </h3>
           </div>
 
-          <p className="shrink-0 text-sm font-bold text-gray-900">
+          <p className="shrink-0 text-base font-bold text-gray-900">
             {formatBudget(job.budget)}
           </p>
         </div>
 
-        <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-gray-500">
+        {/* DESCRIPTION */}
+
+        <p className="mt-2 line-clamp-2 text-xs leading-5 text-gray-500 sm:text-sm">
           {job.description}
         </p>
 
-        <div className="mt-3 flex items-center gap-2">
-          <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+        {/* LOCATION */}
+
+        <div className="mt-3 flex items-start gap-2">
+          <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-medium text-gray-800">
+            <p className="truncate text-sm font-medium text-gray-800">
               {job.general_location || "Location available"}
             </p>
 
-            <p className="text-[10px] text-gray-500">
+            <p className="text-xs text-gray-500">
               {item.distance_display ||
                 `${item.distance_km} km away`}
             </p>
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3">
+        {/* DATE + DURATION */}
+
+        <div className="mt-3 grid grid-cols-2 gap-3 border-t border-gray-100 pt-3">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <CalendarDaysIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-
-              <span className="text-[10px] text-gray-500">
-                Date
-              </span>
+              <CalendarDaysIcon className="h-4 w-4 shrink-0 text-gray-400" />
+              <span className="text-xs text-gray-500">Date</span>
             </div>
 
-            <p className="mt-1 truncate text-[10px] font-medium text-gray-800">
+            <p className="mt-1 truncate text-xs font-medium text-gray-800">
               {formatDate(job.job_date)}
             </p>
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <ClockIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-
-              <span className="text-[10px] text-gray-500">
-                Duration
-              </span>
+              <ClockIcon className="h-4 w-4 shrink-0 text-gray-400" />
+              <span className="text-xs text-gray-500">Duration</span>
             </div>
 
-            <p className="mt-1 truncate text-[10px] font-medium text-gray-800">
+            <p className="mt-1 truncate text-xs font-medium text-gray-800">
               {job.duration_hours
                 ? `${job.duration_hours} hrs`
                 : "Not specified"}
@@ -209,10 +197,12 @@ const JobCard = ({
           </div>
         </div>
 
-        <div className="mt-2.5 flex min-h-[22px] items-center gap-1.5 overflow-hidden">
+        {/* BADGES */}
+
+        <div className="mt-3 flex min-h-[24px] flex-wrap items-center gap-1.5">
           {job.urgency_display && (
             <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium ${getUrgencyClasses(
+              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getUrgencyClasses(
                 job.urgency
               )}`}
             >
@@ -221,31 +211,45 @@ const JobCard = ({
           )}
 
           {job.required_skills &&
-            job.required_skills
-              .slice(0, 1)
-              .map((skill) => (
-                <span
-                  key={skill}
-                  className="max-w-[100px] truncate rounded border border-gray-200 px-1.5 py-0.5 text-[9px] text-gray-500"
-                >
-                  {skill}
-                </span>
-              ))}
+            job.required_skills.slice(0, 1).map((skill) => (
+              <span
+                key={skill}
+                className="max-w-[120px] truncate rounded border border-gray-200 px-2 py-0.5 text-xs text-gray-500"
+              >
+                {skill}
+              </span>
+            ))}
 
           {job.required_skills &&
             job.required_skills.length > 1 && (
-              <span className="shrink-0 text-[9px] text-gray-400">
+              <span className="shrink-0 text-xs text-gray-400">
                 +{job.required_skills.length - 1}
               </span>
             )}
         </div>
 
-        {/* ACTION BUTTONS */}
+        {/* POSTED BY */}
+
+        <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+          <Avatar
+            photoUrl={job.client_photo_url}
+            name={job.client_name}
+            size="xs"
+          />
+
+          <span className="min-w-0 flex-1 truncate text-xs text-gray-500">
+            Posted by{" "}
+            <span className="font-medium text-gray-700">
+              {job.client_name || "Client"}
+            </span>
+          </span>
+        </div>
+
+        {/* ACTIONS */}
 
         <div className="mt-3 flex gap-2">
           {isApplied ? (
             <>
-              {/* CANCEL */}
               <button
                 type="button"
                 onClick={(event) => {
@@ -255,13 +259,14 @@ const JobCard = ({
                 disabled={cancelling}
                 className="
                   flex-1
-                  rounded-lg
+                  min-h-[40px]
+                  rounded-xl
                   border
                   border-red-200
                   bg-red-50
-                  px-2
-                  py-1.5
-                  text-[11px]
+                  px-3
+                  py-2
+                  text-sm
                   font-semibold
                   text-red-700
                   transition
@@ -270,45 +275,39 @@ const JobCard = ({
                   disabled:opacity-50
                 "
               >
-                <span className="inline-flex items-center justify-center gap-1">
-                  <XMarkIcon className="h-3.5 w-3.5" />
-
-                  {cancelling
-                    ? "Cancelling..."
-                    : "Cancel"}
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <XMarkIcon className="h-4 w-4" />
+                  {cancelling ? "Cancelling..." : "Cancel"}
                 </span>
               </button>
 
-              {/* APPLIED */}
               <button
                 type="button"
                 disabled
-                onClick={(event) => {
-                  event.stopPropagation();
-                }}
+                onClick={(event) => event.stopPropagation()}
                 className="
                   flex-1
+                  min-h-[40px]
                   cursor-not-allowed
-                  rounded-lg
+                  rounded-xl
                   border
                   border-green-200
                   bg-green-50
-                  px-2
-                  py-1.5
-                  text-[11px]
+                  px-3
+                  py-2
+                  text-sm
                   font-semibold
                   text-green-700
                 "
               >
-                <span className="inline-flex items-center justify-center gap-1">
-                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <CheckCircleIcon className="h-4 w-4" />
                   Applied
                 </span>
               </button>
             </>
           ) : (
             <>
-              {/* VIEW DETAILS */}
               <button
                 type="button"
                 onClick={(event) => {
@@ -317,12 +316,13 @@ const JobCard = ({
                 }}
                 className="
                   flex-1
-                  rounded-lg
+                  min-h-[40px]
+                  rounded-xl
                   border
                   border-gray-200
-                  px-2
-                  py-1.5
-                  text-[11px]
+                  px-3
+                  py-2
+                  text-sm
                   font-semibold
                   text-gray-700
                   transition
@@ -332,7 +332,6 @@ const JobCard = ({
                 View Details
               </button>
 
-              {/* APPLY */}
               <button
                 type="button"
                 onClick={(event) => {
@@ -342,11 +341,12 @@ const JobCard = ({
                 disabled={applying}
                 className="
                   flex-1
-                  rounded-lg
+                  min-h-[40px]
+                  rounded-xl
                   bg-gray-900
-                  px-2
-                  py-1.5
-                  text-[11px]
+                  px-3
+                  py-2
+                  text-sm
                   font-semibold
                   text-white
                   transition
@@ -355,9 +355,7 @@ const JobCard = ({
                   disabled:opacity-50
                 "
               >
-                {applying
-                  ? "Applying..."
-                  : "Apply"}
+                {applying ? "Applying..." : "Apply"}
               </button>
             </>
           )}

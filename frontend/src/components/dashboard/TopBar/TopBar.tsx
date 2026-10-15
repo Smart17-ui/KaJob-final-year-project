@@ -6,9 +6,14 @@ import {
 import NotificationBell from "./NotificationBell";
 import ProfileDropdown from "./ProfileDropdown";
 
+import Logo from "@/assets/Logo.png";
+
+import type { User } from "@/shared/types";
+
 type UserRole = "CLIENT" | "WORKER";
 
 type TopBarProps = {
+  user?: User | null;
   userName?: string;
   userRole?: UserRole;
   availableRoles?: UserRole[];
@@ -26,6 +31,7 @@ type TopBarProps = {
 };
 
 const TopBar = ({
+  user,
   userName = "User",
   userRole = "CLIENT",
   availableRoles = [userRole],
@@ -63,9 +69,9 @@ const TopBar = ({
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+        {/* LEFT — hamburger + logo */}
 
-        {/* LEFT */}
-        <div className="flex items-center">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={onMenuOpen}
@@ -86,9 +92,17 @@ const TopBar = ({
           >
             <Bars3Icon className="h-5 w-5" />
           </button>
+
+          <img
+            src={Logo}
+            alt="KaJob"
+            className="h-6 w-auto select-none sm:h-7 lg:h-8"
+            draggable={false}
+          />
         </div>
 
-        {/* CENTER */}
+        {/* CENTER — role label (desktop only) */}
+
         <div className="hidden flex-1 items-center justify-center lg:flex">
           <span className="text-sm font-semibold text-slate-600">
             {userRole === "CLIENT"
@@ -97,13 +111,11 @@ const TopBar = ({
           </span>
         </div>
 
-        {/* RIGHT */}
-        <div className="flex items-center gap-1">
+        {/* RIGHT — notifications + settings + profile */}
 
-          {/* NOTIFICATIONS */}
+        <div className="flex items-center gap-1">
           <NotificationBell userRole={userRole} />
 
-          {/* SETTINGS */}
           <button
             type="button"
             onClick={onSettingsClick}
@@ -125,11 +137,10 @@ const TopBar = ({
             <Cog6ToothIcon className="h-5 w-5" />
           </button>
 
-          {/* DIVIDER */}
           <div className="mx-2 hidden h-6 w-px bg-slate-200 sm:block" />
 
-          {/* PROFILE */}
           <ProfileDropdown
+            user={user}
             userName={userName}
             userRole={userRole}
             availableRoles={roles}

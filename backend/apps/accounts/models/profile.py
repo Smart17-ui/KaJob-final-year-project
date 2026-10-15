@@ -2,6 +2,14 @@ from django.db import models
 from apps.common.models.mixins import BaseModel
 
 
+def profile_photo_upload_path(instance, filename):
+    """
+    Store profile photos as:
+      media/profile_photos/<user_id>/<filename>
+    """
+    return f"profile_photos/{instance.user_id}/{filename}"
+
+
 class Profile(BaseModel):
     user = models.OneToOneField(
         'User',
@@ -10,15 +18,25 @@ class Profile(BaseModel):
     )
 
     bio = models.TextField(blank=True)
-    profile_photo_path = models.CharField(max_length=500, blank=True)
+
+    profile_photo_path = models.ImageField(
+        upload_to=profile_photo_upload_path,
+        max_length=500,
+        blank=True,
+        null=True,
+    )
 
     address = models.TextField(blank=True)
     province = models.CharField(max_length=100, blank=True)
     district = models.CharField(max_length=100, blank=True)
 
     # Location
-    latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
+    latitude = models.DecimalField(
+        max_digits=10, decimal_places=8, null=True, blank=True
+    )
+    longitude = models.DecimalField(
+        max_digits=11, decimal_places=8, null=True, blank=True
+    )
     location_updated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

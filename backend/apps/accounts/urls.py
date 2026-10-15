@@ -34,6 +34,8 @@ from apps.accounts.views import (
     UpdateNameView,
     DeactivateAccountView,
     DeleteAccountView,
+    # Profile Photo
+    ProfilePhotoUploadView,
 )
 
 app_name = 'accounts'
@@ -70,6 +72,13 @@ urlpatterns = [
     path('auth/profile/client/', ClientProfileView.as_view(), name='client-profile'),
     path('auth/profile/client/update/', ClientProfileUpdateView.as_view(), name='client-profile-update'),
     path('auth/profile/email/', UpdateEmailView.as_view(), name='update-email'),
+
+    # PROFILE PHOTO
+    path(
+        'auth/profile/photo/',
+        ProfilePhotoUploadView.as_view(),
+        name='update-profile-photo',
+    ),
 
     # ============================================
     # ACCOUNT MANAGEMENT (NEW)

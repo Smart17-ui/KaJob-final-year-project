@@ -29,12 +29,13 @@ export interface User {
   phone_number: string;
   account_status: string;
   is_verified: boolean;
-  roles: UserRole[];              // ✅ array of objects, not strings
+  roles: UserRole[];
   available_roles?: string[];
   role_display?: string;
   is_admin: boolean;
   is_worker: boolean;
   is_client: boolean;
+  profile_photo_url?: string | null;   // ← new
   last_login: string | null;
   created_at: string;
   updated_at: string;
@@ -93,7 +94,6 @@ export interface RegisterResponse {
 export interface LoginPayload {
   email: string;
   password: string;
-  // ⚠️ NO role field — backend auto-detects
 }
 
 export interface LoginResponse {
@@ -103,9 +103,9 @@ export interface LoginResponse {
     access: string;
     refresh: string;
   };
-  detected_role: string;        // 🆕 auto-detected by backend
-  redirect_to: string;          // 🆕 where frontend should navigate
-  available_roles: string[];    // 🆕 all roles user has
+  detected_role: string;
+  redirect_to: string;
+  available_roles: string[];
 }
 
 /* =========================

@@ -10,6 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()
     available_roles = serializers.SerializerMethodField()
     role_display = serializers.SerializerMethodField()
+    profile_photo_url = serializers.SerializerMethodField()
     is_admin = serializers.BooleanField(read_only=True)
     is_worker = serializers.BooleanField(read_only=True)
     is_client = serializers.BooleanField(read_only=True)
@@ -28,6 +29,7 @@ class UserSerializer(serializers.ModelSerializer):
             'roles',
             'available_roles',
             'role_display',
+            'profile_photo_url',
             'is_admin',
             'is_worker',
             'is_client',
@@ -59,13 +61,31 @@ class UserSerializer(serializers.ModelSerializer):
             return "No Role"
         return ", ".join(roles)
 
+    def get_profile_photo_url(self, obj):
+        """
+        Absolute URL to the user's profile photo, or None.
 
+        Uses the request when available, otherwise falls back to
+        BACKEND_URL from settings so the URL is always absolute.
+        """
+        from apps.common.utils.media import build_absolute_media_url
+
+        profile = getattr(obj, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
 class ProfileSerializer(serializers.ModelSerializer):
     """
     Serializer for user profile.
     """
+
     user = UserSerializer(read_only=True)
     full_name = serializers.SerializerMethodField()
+    profile_photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
@@ -75,6 +95,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             'full_name',
             'bio',
             'profile_photo_path',
+            'profile_photo_url',
             'address',
             'province',
             'district',
@@ -84,11 +105,30 @@ class ProfileSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'location_updated_at']
+        read_only_fields = [
+            'created_at',
+            'updated_at',
+            'location_updated_at',
+        ]
 
     def get_full_name(self, obj):
         return obj.user.full_name if obj.user else None
 
+    def get_profile_photo_url(self, obj):
+        """
+        Return an absolute URL to the profile photo,
+        or None if the user has no photo.
+        """
+        if not obj.profile_photo_path:
+            return None
+
+        try:
+            url = obj.profile_photo_path.url
+        except (ValueError, AttributeError):
+            return None
+
+        request = self.context.get("request")
+        return request.build_absolute_uri(url) if request else url
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """

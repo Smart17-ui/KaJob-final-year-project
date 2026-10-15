@@ -21,8 +21,6 @@ import ContactUs from "@/components/ContactUs";
    AUTHENTICATION
 ========================= */
 
-// Single login page.
-// The backend/login page determines the user's role.
 import Login from "@/pages/logIn";
 
 import RegisterRole from "@/pages/register/RegisterRole";
@@ -418,8 +416,13 @@ function ProtectedDashboard({
   }
 
   /*
-   * DashboardLayout contains the navigation
-   * and renders the nested page through Outlet.
+   * DashboardLayout is the shell (sidebar, topbar, tabs)
+   * and renders the current page through <Outlet />.
+   *
+   * Verification prompt for unverified users is handled
+   * INSIDE DashboardLayout via <VerificationBanner />,
+   * so the dashboard renders normally and only shows a
+   * soft nudge at the top.
    */
 
   return <DashboardLayout />;
@@ -631,10 +634,6 @@ function App() {
             <SettingsLayout />
           }
         >
-          {/* /client/dashboard/settings
-              → /client/dashboard/settings/profile
-          */}
-
           <Route
             index
             element={
@@ -679,8 +678,6 @@ function App() {
               <VerificationSection />
             }
           />
-
-          {/* My Reports */}
 
           <Route
             path="my-reports"
@@ -824,10 +821,6 @@ function App() {
             <SettingsLayout />
           }
         >
-          {/* /worker/dashboard/settings
-              → /worker/dashboard/settings/profile
-          */}
-
           <Route
             index
             element={
@@ -872,8 +865,6 @@ function App() {
               <VerificationSection />
             }
           />
-
-          {/* My Reports */}
 
           <Route
             path="my-reports"

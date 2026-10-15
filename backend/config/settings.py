@@ -362,6 +362,8 @@ USE_I18N = True
 USE_TZ = True
 
 
+BACKEND_URL = os.environ.get('BACKEND_URL', 'http://localhost:8000')
+
 # ============================================
 # STATIC FILES
 # ============================================

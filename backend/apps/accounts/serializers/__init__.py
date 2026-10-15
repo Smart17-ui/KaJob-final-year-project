@@ -1,4 +1,4 @@
-#User Serializers
+# User Serializers
 from .user_serializer import (
     UserSerializer,
     ProfileSerializer,
@@ -34,6 +34,7 @@ from .auth_serializer import (
 # Profile Serializers
 from .profile_serializer import (
     ProfileUpdateSerializer,
+    ProfilePhotoUploadSerializer,   # ← new
     WorkerProfileSerializer,
     WorkerProfileUpdateSerializer,
     ClientProfileSerializer,
@@ -83,6 +84,7 @@ __all__ = [
 
     # Profile Serializers
     'ProfileUpdateSerializer',
+    'ProfilePhotoUploadSerializer',   # ← new
     'WorkerProfileSerializer',
     'WorkerProfileUpdateSerializer',
     'ClientProfileSerializer',

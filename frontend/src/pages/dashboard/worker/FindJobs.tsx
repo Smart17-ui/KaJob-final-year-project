@@ -23,8 +23,11 @@ import {
 import { getMyActiveJobs } from "@/api/jobs";
 import { getVerificationStatus } from "@/api/verification";
 
+import { getCurrentUser } from "@/shared/auth";
+
 import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
 import DetailsModal from "@/components/pop/DetailsModal/DetailsModal";
+import VerifyFirstModal from "@/components/verification/VerifyFirstModal";
 
 import FindJobsHeader from "@/components/find-jobs/FindJobsHeader";
 import JobsGrid from "@/components/find-jobs/JobsGrid";
@@ -413,6 +416,12 @@ export default function FindJobs() {
 
   const checkWorkerVerification =
     useCallback(async (): Promise<boolean> => {
+      // Fast path: user object already carries is_verified
+      const user = getCurrentUser();
+      if (user?.is_verified === true) {
+        return true;
+      }
+
       try {
         setCheckingVerification(true);
 
@@ -1807,17 +1816,11 @@ export default function FindJobs() {
 
         {/* VERIFICATION POPUP */}
 
-        <FeedbackModal
-          isOpen={
-            showVerificationPopup
-          }
-          type="warning"
-          title="Verification Required"
-          message="You need to complete your account verification before you can find and apply for jobs."
-          onClose={() => {
-            setShowVerificationPopup(false);
-            navigate(-1);
-          }}
+        <VerifyFirstModal
+          open={showVerificationPopup}
+          role="WORKER"
+          actionLabel="find and apply for jobs"
+          onClose={() => setShowVerificationPopup(false)}
         />
 
         {/* ACTIVE JOB POPUP */}

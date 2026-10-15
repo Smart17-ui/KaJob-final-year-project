@@ -3,6 +3,7 @@
 from rest_framework import serializers
 from apps.jobs.models import JobApplication
 from apps.common.constants import ApplicationStatus
+from apps.common.utils.media import build_absolute_media_url
 
 
 class JobApplicationSerializer(serializers.ModelSerializer):
@@ -10,27 +11,29 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     Serializer for job application data.
     """
     worker_name = serializers.SerializerMethodField()
-    worker_email = serializers.SerializerMethodField()  # 🆕 Added
-    worker_phone = serializers.SerializerMethodField()  # 🆕 Added
+    worker_email = serializers.SerializerMethodField()
+    worker_phone = serializers.SerializerMethodField()
+    worker_photo_url = serializers.SerializerMethodField()
     job_title = serializers.SerializerMethodField()
-    job_status = serializers.SerializerMethodField()    # 🆕 Added
+    job_status = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
-    can_accept = serializers.SerializerMethodField()    # 🆕 Added
-    
+    can_accept = serializers.SerializerMethodField()
+
     class Meta:
         model = JobApplication
         fields = [
             'id',
             'job',
             'job_title',
-            'job_status',           # 🆕 Job status
+            'job_status',
             'worker',
             'worker_name',
-            'worker_email',         # 🆕 Worker email
-            'worker_phone',         # 🆕 Worker phone
+            'worker_email',
+            'worker_phone',
+            'worker_photo_url',
             'status',
             'status_display',
-            'can_accept',           # 🆕 Frontend can use this to show/hide accept button
+            'can_accept',
             'applied_at',
             'updated_at',
         ]
@@ -39,21 +42,34 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'applied_at',
             'updated_at',
         ]
-    
+
     def get_worker_name(self, obj):
         return obj.worker.full_name if obj.worker else None
-    
+
     def get_worker_email(self, obj):
         """Get worker email (useful for contacting the worker)."""
         return obj.worker.email if obj.worker else None
-    
+
     def get_worker_phone(self, obj):
         """Get worker phone number."""
         return obj.worker.phone_number if obj.worker else None
-    
+
+    def get_worker_photo_url(self, obj):
+        if not obj.worker:
+            return None
+
+        profile = getattr(obj.worker, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
+
     def get_job_title(self, obj):
         return obj.job.title if obj.job else None
-    
+
     def get_job_status(self, obj):
         """Get the current job status."""
         from apps.common.constants import JobStatus
@@ -61,10 +77,10 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'status': obj.job.status,
             'display': dict(JobStatus.CHOICES).get(obj.job.status),
         }
-    
+
     def get_status_display(self, obj):
         return dict(ApplicationStatus.CHOICES).get(obj.status)
-    
+
     def get_can_accept(self, obj):
         """
         Check if the application can be accepted.
@@ -72,26 +88,21 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         """
         from apps.common.constants import JobStatus, AssignmentStatus
         from apps.jobs.models import JobAssignment
-        
-        # Can only accept if:
-        # 1. Application is PENDING
-        # 2. Job is OPEN
-        # 3. Worker is not already assigned to another job
+
         if obj.status != ApplicationStatus.PENDING:
             return False
-        
+
         if obj.job.status != JobStatus.OPEN:
             return False
-        
-        # Check if worker is already assigned to another job
+
         has_active_assignment = JobAssignment.objects.filter(
             worker_id=obj.worker_id,
             status=AssignmentStatus.ACTIVE
         ).exists()
-        
+
         if has_active_assignment:
             return False
-        
+
         return True
 
 
@@ -107,9 +118,10 @@ class JobApplicationListSerializer(serializers.ModelSerializer):
     Simplified serializer for listing job applications.
     """
     worker_name = serializers.SerializerMethodField()
+    worker_photo_url = serializers.SerializerMethodField()
     job_title = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = JobApplication
         fields = [
@@ -118,17 +130,32 @@ class JobApplicationListSerializer(serializers.ModelSerializer):
             'job_title',
             'worker',
             'worker_name',
+            'worker_photo_url',
             'status',
             'status_display',
             'applied_at',
         ]
-    
+
     def get_worker_name(self, obj):
         return obj.worker.full_name if obj.worker else None
-    
+
+    def get_worker_photo_url(self, obj):
+        """Absolute URL to the worker's profile photo, or None."""
+        if not obj.worker:
+            return None
+
+        profile = getattr(obj.worker, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
+
     def get_job_title(self, obj):
         return obj.job.title if obj.job else None
-    
+
     def get_status_display(self, obj):
         return dict(ApplicationStatus.CHOICES).get(obj.status)
 
@@ -139,12 +166,13 @@ class ClientApplicationSerializer(serializers.ModelSerializer):
     Includes job details and worker details.
     """
     worker_name = serializers.SerializerMethodField()
+    worker_photo_url = serializers.SerializerMethodField()
     worker_profile = serializers.SerializerMethodField()
     job_title = serializers.SerializerMethodField()
     job_location = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
     can_accept = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = JobApplication
         fields = [
@@ -154,6 +182,7 @@ class ClientApplicationSerializer(serializers.ModelSerializer):
             'job_location',
             'worker',
             'worker_name',
+            'worker_photo_url',
             'worker_profile',
             'status',
             'status_display',
@@ -166,10 +195,23 @@ class ClientApplicationSerializer(serializers.ModelSerializer):
             'applied_at',
             'updated_at',
         ]
-    
+
     def get_worker_name(self, obj):
         return obj.worker.full_name if obj.worker else None
-    
+
+    def get_worker_photo_url(self, obj):
+        if not obj.worker:
+            return None
+
+        profile = getattr(obj.worker, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
+
     def get_worker_profile(self, obj):
         """Get worker profile details for the client."""
         try:
@@ -184,30 +226,30 @@ class ClientApplicationSerializer(serializers.ModelSerializer):
             }
         except:
             return None
-    
+
     def get_job_title(self, obj):
         return obj.job.title if obj.job else None
-    
+
     def get_job_location(self, obj):
         return obj.job.general_location if obj.job else None
-    
+
     def get_status_display(self, obj):
         return dict(ApplicationStatus.CHOICES).get(obj.status)
-    
+
     def get_can_accept(self, obj):
         """Check if application can be accepted."""
         from apps.common.constants import JobStatus, AssignmentStatus
         from apps.jobs.models import JobAssignment
-        
+
         if obj.status != ApplicationStatus.PENDING:
             return False
-        
+
         if obj.job.status != JobStatus.OPEN:
             return False
-        
+
         has_active_assignment = JobAssignment.objects.filter(
             worker_id=obj.worker_id,
             status=AssignmentStatus.ACTIVE
         ).exists()
-        
+
         return not has_active_assignment

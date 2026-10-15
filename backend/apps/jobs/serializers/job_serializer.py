@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 
 from apps.jobs.models import Job
 from apps.common.constants import JobStatus, AssignmentStatus
+from apps.common.utils.media import build_absolute_media_url
 
 User = get_user_model()
 
@@ -25,6 +26,7 @@ class JobClientDetailSerializer(serializers.ModelSerializer):
     reviews_count = serializers.SerializerMethodField()
     jobs_posted = serializers.SerializerMethodField()
     member_since = serializers.SerializerMethodField()
+    profile_photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -34,11 +36,21 @@ class JobClientDetailSerializer(serializers.ModelSerializer):
             'email',
             'phone_number',
             'is_verified',
+            'profile_photo_url',
             'rating',
             'reviews_count',
             'jobs_posted',
             'member_since',
         ]
+
+    def get_profile_photo_url(self, obj):
+        profile = getattr(obj, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
 
     def get_rating(self, obj):
         profile = getattr(obj, 'client_profile', None)
@@ -79,6 +91,7 @@ class JobWorkerDetailSerializer(serializers.ModelSerializer):
     skills = serializers.SerializerMethodField()
     bio = serializers.SerializerMethodField()
     availability_status = serializers.SerializerMethodField()
+    profile_photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -88,6 +101,7 @@ class JobWorkerDetailSerializer(serializers.ModelSerializer):
             'email',
             'phone_number',
             'is_verified',
+            'profile_photo_url',
             'rating',
             'reviews_count',
             'jobs_completed',
@@ -96,6 +110,15 @@ class JobWorkerDetailSerializer(serializers.ModelSerializer):
             'bio',
             'availability_status',
         ]
+
+    def get_profile_photo_url(self, obj):
+        profile = getattr(obj, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
 
     def get_rating(self, obj):
         profile = getattr(obj, 'worker_profile', None)
@@ -196,13 +219,17 @@ def build_client_payload(job, request_user):
     is_client_owner = (job.client_id == request_user.id)
 
     if is_admin:
-        return JobClientDetailSerializer(job.client).data
+        return JobClientDetailSerializer(
+            job.client, context={'request': getattr(request_user, '_request', None)}
+        ).data
 
     if is_client_owner:
         return None
 
     if _assignment_for(job, request_user):
-        return JobClientDetailSerializer(job.client).data
+        return JobClientDetailSerializer(
+            job.client, context={'request': getattr(request_user, '_request', None)}
+        ).data
 
     return {
         'id': job.client.id,
@@ -255,6 +282,7 @@ class JobSerializer(serializers.ModelSerializer):
     Keeps a flat shape for lightweight payloads.
     """
     client_name = serializers.SerializerMethodField()
+    client_photo_url = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
     assigned_worker_name = serializers.SerializerMethodField()
@@ -265,7 +293,7 @@ class JobSerializer(serializers.ModelSerializer):
     is_urgent = serializers.BooleanField(read_only=True)
     search_radius_km = serializers.FloatField(read_only=True)
 
-    # ── Hide / Unhide (NEW) ──
+    # ── Hide / Unhide ──
     is_hidden_by_client = serializers.SerializerMethodField()
     can_hide = serializers.SerializerMethodField()
     can_unhide = serializers.SerializerMethodField()
@@ -280,6 +308,7 @@ class JobSerializer(serializers.ModelSerializer):
             'budget',
             'client',
             'client_name',
+            'client_photo_url',
             'category',
             'category_name',
             'assigned_worker_name',
@@ -309,7 +338,7 @@ class JobSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
 
-            # Hide / Unhide (NEW)
+            # Hide / Unhide
             'is_hidden_by_client',
             'can_hide',
             'can_unhide',
@@ -326,6 +355,19 @@ class JobSerializer(serializers.ModelSerializer):
 
     def get_client_name(self, obj):
         return obj.client.full_name if obj.client else None
+
+    def get_client_photo_url(self, obj):
+        if not obj.client:
+            return None
+
+        profile = getattr(obj.client, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
 
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
@@ -355,7 +397,7 @@ class JobSerializer(serializers.ModelSerializer):
     def get_job_display_time(self, obj):
         return obj.job_display_time
 
-    # ── Hide / Unhide (NEW) ──
+    # ── Hide / Unhide ──
 
     def get_is_hidden_by_client(self, obj):
         return obj.client_hidden_at is not None
@@ -389,6 +431,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
     client_phone = serializers.SerializerMethodField()
     client_email = serializers.SerializerMethodField()
+    client_photo_url = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     assigned_worker_name = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
@@ -399,7 +442,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
     job_display_time = serializers.SerializerMethodField()
     search_radius_km = serializers.FloatField(read_only=True)
 
-    # ── Hide / Unhide (NEW) ──
+    # ── Hide / Unhide ──
     is_hidden_by_client = serializers.SerializerMethodField()
     can_hide = serializers.SerializerMethodField()
     can_unhide = serializers.SerializerMethodField()
@@ -423,6 +466,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
             'client_name',
             'client_phone',
             'client_email',
+            'client_photo_url',
             'client',
             'worker_has_reviewed_client',
             'client_has_reviewed_worker',
@@ -466,7 +510,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
 
-            # Hide / Unhide (NEW)
+            # Hide / Unhide
             'is_hidden_by_client',
             'can_hide',
             'can_unhide',
@@ -507,7 +551,6 @@ class JobDetailSerializer(serializers.ModelSerializer):
             reviewee_id=obj.client_id,
         ).exists()
 
-
     def get_client_has_reviewed_worker(self, obj):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
@@ -538,6 +581,19 @@ class JobDetailSerializer(serializers.ModelSerializer):
 
     def get_client_email(self, obj):
         return obj.client.email if obj.client else None
+
+    def get_client_photo_url(self, obj):
+        if not obj.client:
+            return None
+
+        profile = getattr(obj.client, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
 
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
@@ -574,7 +630,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
     def get_job_display_time(self, obj):
         return obj.job_display_time
 
-    # ── Hide / Unhide (NEW) ──
+    # ── Hide / Unhide ──
 
     def get_is_hidden_by_client(self, obj):
         return obj.client_hidden_at is not None
@@ -722,6 +778,7 @@ class JobUpdateSerializer(serializers.Serializer):
 
 class JobListSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
+    client_photo_url = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
     worker_id = serializers.SerializerMethodField()
@@ -731,7 +788,7 @@ class JobListSerializer(serializers.ModelSerializer):
     urgency_display = serializers.SerializerMethodField()
     search_radius_km = serializers.FloatField(read_only=True)
 
-    # ── Hide / Unhide (NEW) ──
+    # ── Hide / Unhide ──
     is_hidden_by_client = serializers.SerializerMethodField()
     can_hide = serializers.SerializerMethodField()
     can_unhide = serializers.SerializerMethodField()
@@ -744,6 +801,7 @@ class JobListSerializer(serializers.ModelSerializer):
             'title',
             'budget',
             'client_name',
+            'client_photo_url',
             'category_name',
             'general_location',
             'status',
@@ -757,7 +815,7 @@ class JobListSerializer(serializers.ModelSerializer):
             'worker_id',
             'worker_name',
 
-            # Hide / Unhide (NEW)
+            # Hide / Unhide
             'is_hidden_by_client',
             'can_hide',
             'can_unhide',
@@ -766,6 +824,19 @@ class JobListSerializer(serializers.ModelSerializer):
 
     def get_client_name(self, obj):
         return obj.client.full_name if obj.client else None
+
+    def get_client_photo_url(self, obj):
+        if not obj.client:
+            return None
+
+        profile = getattr(obj.client, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
 
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
@@ -792,7 +863,7 @@ class JobListSerializer(serializers.ModelSerializer):
         assignment = self._get_assigned_worker(obj)
         return assignment.worker.full_name if assignment and assignment.worker else None
 
-    # ── Hide / Unhide (NEW) ──
+    # ── Hide / Unhide ──
 
     def get_is_hidden_by_client(self, obj):
         return obj.client_hidden_at is not None
@@ -824,6 +895,7 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     """
     client_name = serializers.SerializerMethodField()
     client_phone = serializers.SerializerMethodField()
+    client_photo_url = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
     timeframe_display = serializers.SerializerMethodField()
@@ -843,7 +915,7 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     application_status = serializers.SerializerMethodField()
     assigned_at = serializers.SerializerMethodField()
 
-    # ── Hide / Unhide (NEW, worker side) ──
+    # ── Hide / Unhide (worker side) ──
     assignment_id = serializers.SerializerMethodField()
     is_hidden_by_worker = serializers.SerializerMethodField()
     can_hide_assignment = serializers.SerializerMethodField()
@@ -866,6 +938,7 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
             # Client — flat + nested
             'client_name',
             'client_phone',
+            'client_photo_url',
             'client',
             'worker_has_reviewed_client',
 
@@ -912,7 +985,7 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
             'assigned_at',
             'can_view_full_details',
 
-            # Hide / Unhide (worker side) (NEW)
+            # Hide / Unhide (worker side)
             'assignment_id',
             'is_hidden_by_worker',
             'can_hide_assignment',
@@ -980,6 +1053,21 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
         if self._can_view_full_details(obj):
             return obj.client.phone_number if obj.client else None
         return None
+
+    def get_client_photo_url(self, obj):
+        """Return the client's photo regardless of disclosure policy.
+        The photo is safe to show — it's just an avatar."""
+        if not obj.client:
+            return None
+
+        profile = getattr(obj.client, 'profile', None)
+        if not profile or not profile.profile_photo_path:
+            return None
+
+        return build_absolute_media_url(
+            profile.profile_photo_path,
+            self.context.get('request'),
+        )
 
     def get_exact_location(self, obj):
         return (
@@ -1063,7 +1151,7 @@ class WorkerJobDetailSerializer(serializers.ModelSerializer):
     def get_job_display_time(self, obj):
         return obj.job_display_time
 
-    # ---------- Hide / Unhide (worker side) (NEW) ----------
+    # ---------- Hide / Unhide (worker side) ----------
 
     def _worker_assignment(self, obj):
         if not self.worker_id:
