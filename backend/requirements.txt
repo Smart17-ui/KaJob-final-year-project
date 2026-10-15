@@ -17,6 +17,7 @@ djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.30.0
 hyperlink==21.0.0
 idna==3.19
+Pillow>=10.0.0
 Incremental==24.11.0
 inflection==0.5.1
 jsonschema==4.26.0
