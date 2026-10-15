@@ -1,17 +1,15 @@
 // src/pages/verifyEmail/VerifyEmailPage.tsx
 
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import apiClient from "@/api/client";
-
-type Status = "verifying" | "success" | "error";
+import { saveAuth } from "@/shared/auth";
 
 export const VerifyEmailPage = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const [status, setStatus] = useState<Status>("verifying");
   const [message, setMessage] = useState("Verifying your email…");
+  const [failed, setFailed] = useState(false);
   const ranOnce = useRef(false);
 
   useEffect(() => {
@@ -21,7 +19,7 @@ export const VerifyEmailPage = () => {
 
     const token = searchParams.get("token");
     if (!token) {
-      setStatus("error");
+      setFailed(true);
       setMessage("Verification token is missing from the URL.");
       return;
     }
@@ -31,14 +29,34 @@ export const VerifyEmailPage = () => {
       body: JSON.stringify({ token }),
     })
       .then((res: any) => {
-        setStatus("success");
+        // Auto-login: persist tokens + user from the verify response.
+        if (res?.tokens?.access && res?.tokens?.refresh && res?.user) {
+          saveAuth(
+            res.tokens.access,
+            res.tokens.refresh,
+            res.user,
+            res.detected_role || "CLIENT"
+          );
+
+          const target =
+            res.redirect_to || "/client/dashboard/settings/verification";
+
+          // Full reload → AuthProvider remounts → reads the
+          // freshly-saved user + tokens → ProtectedDashboard
+          // sees the client and renders the settings page.
+          window.location.replace(target);
+          return;
+        }
+
+        // No tokens in the response → fall back to error state.
+        setFailed(true);
         setMessage(
-          res?.message || "Your email has been verified successfully!"
+          res?.message ||
+            "Email verified, but we couldn't sign you in. Please log in."
         );
-        setTimeout(() => navigate("/login", { replace: true }), 2500);
       })
       .catch((err: any) => {
-        setStatus("error");
+        setFailed(true);
         setMessage(
           err?.response?.data?.error ||
             err?.response?.data?.detail ||
@@ -46,12 +64,12 @@ export const VerifyEmailPage = () => {
             "Verification failed. The link may be expired or already used."
         );
       });
-  }, [searchParams, navigate]);
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full text-center">
-        {status === "verifying" && (
+        {!failed && (
           <>
             <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -61,20 +79,7 @@ export const VerifyEmailPage = () => {
           </>
         )}
 
-        {status === "success" && (
-          <>
-            <div className="text-6xl mb-4">✅</div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Email verified
-            </h2>
-            <p className="text-gray-500">{message}</p>
-            <p className="text-xs text-gray-400 mt-4">
-              Redirecting to login…
-            </p>
-          </>
-        )}
-
-        {status === "error" && (
+        {failed && (
           <>
             <div className="text-6xl mb-4">❌</div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">

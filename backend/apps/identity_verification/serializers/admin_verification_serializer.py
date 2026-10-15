@@ -1,4 +1,4 @@
-# apps/identity_verification/serializers/admin_serializer.py
+# apps/identity_verification/serializers/admin_verification_serializer.py
 
 from rest_framework import serializers
 from apps.common.constants import VerificationStatus
@@ -32,7 +32,6 @@ class AdminDocumentSerializer(serializers.Serializer):
         `obj` may be a dict or a VerificationDocument.
         Handle both.
         """
-        # Dict case (annotation-style usage)
         if isinstance(obj, dict):
             doc = obj.get('document')
             request = self.context.get('request')
@@ -41,7 +40,6 @@ class AdminDocumentSerializer(serializers.Serializer):
                 return request.build_absolute_uri(url) if request else url
             return obj.get('file_url')
 
-        # Model instance case
         request = self.context.get('request')
         if obj.file:
             url = obj.file.url
@@ -58,6 +56,8 @@ class AdminVerificationListSerializer(serializers.Serializer):
     status_display = serializers.SerializerMethodField()
     submitted_at = serializers.DateTimeField()
     document_count = serializers.IntegerField()
+    has_conflict = serializers.BooleanField(default=False)
+    conflict_note = serializers.CharField(allow_blank=True, required=False)
 
     def get_status_display(self, obj):
         status = obj.get('status')
@@ -79,6 +79,8 @@ class AdminVerificationDetailSerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(allow_blank=True)
     documents = AdminDocumentSerializer(many=True)
     verification_notes = serializers.CharField(allow_blank=True)
+    has_conflict = serializers.BooleanField(default=False)
+    conflict_note = serializers.CharField(allow_blank=True, required=False)
 
     def get_status_display(self, obj):
         status = obj.get('status')

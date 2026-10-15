@@ -1,7 +1,5 @@
-// frontend/src/pages/logIn/index.tsx
-
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeftIcon,
   EnvelopeIcon,
@@ -43,6 +41,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   const [form, setForm] = useState<FormState>(initialState);
@@ -107,14 +106,25 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      // 🆕 Login with only email + password
+      // 🆗 Login with only email + password
       const { redirectTo } = await login(
         form.email.trim(),
         form.password
       );
 
-      // 🆕 Auto-redirect to the correct dashboard
-      navigate(redirectTo || "/dashboard", { replace: true });
+      // 🆗 Read ?next= from the URL (set by ProtectedDashboard when
+      //    an unauthenticated user tried to reach a protected route).
+      //    Prefer it over the role-based default so the user lands
+      //    back where they were headed.
+      const params = new URLSearchParams(location.search);
+      const next = params.get("next");
+
+      const destination =
+        next && next.startsWith("/")
+          ? next
+          : redirectTo || "/dashboard";
+
+      navigate(destination, { replace: true });
     } catch (error) {
       console.error("LOGIN ERROR:", error);
 

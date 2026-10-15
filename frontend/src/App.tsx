@@ -1,9 +1,9 @@
-
 import { useEffect, useState } from "react";
 import {
   Navigate,
   Route,
   Routes,
+  useLocation,
 } from "react-router-dom";
 
 /* =========================
@@ -123,6 +123,15 @@ function getUserDashboard(): string | null {
   }
 
   /*
+   * Admin users always go to the admin panel.
+   * Admin takes priority over CLIENT/WORKER.
+   */
+
+  if (user.is_admin) {
+    return "/admin/dashboard";
+  }
+
+  /*
    * If the user has selected a valid CLIENT role,
    * respect that selection.
    */
@@ -182,11 +191,6 @@ function getUserDashboard(): string | null {
     return "/client/dashboard";
   }
 
-  /*
-   * Admin-only users are handled by the
-   * AdminRoutes section.
-   */
-
   return null;
 }
 
@@ -229,7 +233,7 @@ function PublicLandingPage() {
     getUserDashboard();
 
   /*
-   * Logged-in client/worker users should
+   * Logged-in client/worker/admin users should
    * never see the public landing page.
    */
 
@@ -294,7 +298,7 @@ function PublicAuthRoute({
   /*
    * Already logged in?
    *
-   * Send client/worker users directly
+   * Send client/worker/admin users directly
    * to their dashboard.
    */
 
@@ -319,19 +323,25 @@ function ProtectedDashboard({
 }: {
   role: "CLIENT" | "WORKER";
 }) {
+  const location = useLocation();
   const user = getCurrentUser();
 
   /*
    * No authenticated user.
    *
-   * Send the user to the public home page
-   * instead of the login page.
+   * Send the user to the login page and remember where
+   * they were heading, so that after login they land
+   * on the intended page (e.g. the verification page
+   * from a rejection email).
    */
 
   if (!user) {
+    const next = encodeURIComponent(
+      location.pathname + location.search
+    );
     return (
       <Navigate
-        to="/"
+        to={`/login?next=${next}`}
         replace
       />
     );

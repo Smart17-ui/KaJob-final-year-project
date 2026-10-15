@@ -367,9 +367,23 @@ class EmailService:
     @staticmethod
     def send_verification_approved_email(user):
         """Send verification approved notification email."""
+        # Role-aware destination: workers land on worker dashboard,
+        # clients on client dashboard, fallback to root.
+        if getattr(user, 'is_worker', False):
+            dashboard_url = (
+                f"{EmailService._frontend_url()}/worker/dashboard"
+            )
+        elif getattr(user, 'is_client', False):
+            dashboard_url = (
+                f"{EmailService._frontend_url()}/client/dashboard"
+            )
+        else:
+            dashboard_url = EmailService._frontend_url()
+
         context = {
             'user': user,
             'full_name': user.full_name,
+            'dashboard_url': dashboard_url,
             'frontend_url': EmailService._frontend_url(),
         }
         return EmailService.send_email(

@@ -46,6 +46,8 @@ class AdminVerificationService:
             'status_display': verification.get_verification_status_display(),
             'submitted_at': verification.submitted_at.isoformat() if verification.submitted_at else None,
             'document_count': verification.documents.count(),
+            'has_conflict': verification.has_conflict,
+            'conflict_note': verification.conflict_note,
         }
 
     # ============================================
@@ -132,6 +134,8 @@ class AdminVerificationService:
             'reviewed_at': verification.reviewed_at.isoformat() if verification.reviewed_at else None,
             'rejection_reason': verification.rejection_reason,
             'documents': documents,
+            'has_conflict': verification.has_conflict,
+            'conflict_note': verification.conflict_note,
             'verification_notes': verification.verification_notes,
         }
 
@@ -144,17 +148,37 @@ class AdminVerificationService:
         """
         Approve a verification request.
 
+        Enforces final uniqueness: no other VERIFIED row may share
+        this document_number. Uses select_for_update to lock the row.
+
         Sends BOTH an in-app notification (bell) and an email via the
-        notification service, so the user sees the update on both
-        channels and user preferences are respected.
+        notification service.
         """
-        verification = self.verification_repo.get_by_id(verification_id)
-        if not verification:
+        try:
+            verification = IdentityVerification.objects.select_for_update().get(
+                id=verification_id
+            )
+        except IdentityVerification.DoesNotExist:
             raise ResourceNotFound("Verification not found.")
 
-        if verification.verification_status not in [VerificationStatus.PENDING, VerificationStatus.UNDER_REVIEW]:
+        if verification.verification_status not in [
+            VerificationStatus.PENDING,
+            VerificationStatus.UNDER_REVIEW,
+        ]:
             raise BusinessRuleViolation(
                 f"Cannot approve verification with status '{verification.verification_status}'."
+            )
+
+        # Duplicate gate — no other user may already be VERIFIED with this NRC
+        duplicate_exists = IdentityVerification.objects.filter(
+            document_number=verification.document_number,
+            verification_status=VerificationStatus.VERIFIED,
+        ).exclude(id=verification.id).exists()
+
+        if duplicate_exists:
+            raise BusinessRuleViolation(
+                "Another verified user already owns this document number. "
+                "Reject this submission instead."
             )
 
         verification = self.verification_repo.approve_verification(verification, admin, notes)
@@ -200,6 +224,9 @@ class AdminVerificationService:
         """
         Reject a verification request.
 
+        IMPORTANT: The document_number stays on the row. The user can
+        resubmit with clearer documents without re-entering the NRC.
+
         Sends BOTH an in-app notification (bell) and an email via the
         notification service.
         """
@@ -210,7 +237,10 @@ class AdminVerificationService:
         if not verification:
             raise ResourceNotFound("Verification not found.")
 
-        if verification.verification_status not in [VerificationStatus.PENDING, VerificationStatus.UNDER_REVIEW]:
+        if verification.verification_status not in [
+            VerificationStatus.PENDING,
+            VerificationStatus.UNDER_REVIEW,
+        ]:
             raise BusinessRuleViolation(
                 f"Cannot reject verification with status '{verification.verification_status}'."
             )

@@ -444,25 +444,49 @@ class NotificationService:
         )
 
     def notify_verification_approved(self, user):
-        """Role-agnostic -- user sees this on both dashboards."""
+        """
+        Role-aware: clients land on the client dashboard, workers on
+        the worker dashboard, both at the verification tab.
+        """
+        if getattr(user, 'is_worker', False):
+            redirect = '/worker/dashboard'
+        elif getattr(user, 'is_client', False):
+            redirect = '/client/dashboard'
+        else:
+            # User has no worker/client role yet -- fall back to the
+            # public root. The router will send a logged-in user to
+            # their dashboard anyway.
+            redirect = '/'
+
         return self.create_notification(
             recipient_id=user.id,
             notification_type='VERIFICATION_APPROVED',
             title='Verification Approved!',
             message='Your identity has been verified. Welcome to KaJob!',
-            redirect_url="/dashboard",
+            redirect_url=redirect,
             data={'reason': 'approved'},
             role=None,
         )
 
     def notify_verification_rejected(self, user, reason):
-        """Role-agnostic."""
+        """
+        Role-aware: clients land on the client verification settings,
+        workers on the worker verification settings. This is where the
+        rejection reason is displayed and the user can resubmit.
+        """
+        if getattr(user, 'is_worker', False):
+            redirect = '/worker/dashboard/settings/verification'
+        elif getattr(user, 'is_client', False):
+            redirect = '/client/dashboard/settings/verification'
+        else:
+            redirect = '/'
+
         return self.create_notification(
             recipient_id=user.id,
             notification_type='VERIFICATION_REJECTED',
             title='Verification Rejected',
             message=f'Your verification was rejected. Reason: {reason}',
-            redirect_url="/dashboard/settings/verification",
+            redirect_url=redirect,
             data={'reason': reason},
             role=None,
         )

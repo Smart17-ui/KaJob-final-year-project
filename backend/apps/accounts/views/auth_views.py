@@ -209,17 +209,85 @@ class ResetPasswordView(APIView):
 
 
 class VerifyEmailView(APIView):
+    """
+    POST /api/auth/verify-email/
+
+    Verifies the user's email, then issues fresh JWT tokens so the
+    frontend can auto-login and send them straight to the dashboard
+    instead of the login page.
+
+    Request:  { "token": "..." }
+    Response: {
+        "message": "...",
+        "user": {...},
+        "tokens": { "access": "...", "refresh": "..." },
+        "detected_role": "CLIENT" | "WORKER" | "ADMIN" | null,
+        "redirect_to": "/client/dashboard/settings/verification",
+        "available_roles": ["CLIENT", ...]
+    }
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        token = serializer.validated_data['token']
+
         try:
-            auth_service.verify_email(serializer.validated_data['token'])
+            # Call the identity_verification service directly so we
+            # can also receive the user object.
+            from apps.identity_verification.services import (
+                VerificationService,
+            )
+            from apps.accounts.services.token_service import TokenService
+
+            verification_service = VerificationService()
+            result = verification_service.verify_email_token(token)
+
+            status_str = result.get('status')
+            user = result.get('user')
+
+            if (
+                status_str not in ('verified', 'already_verified')
+                or user is None
+            ):
+                return Response({
+                    'error': result.get(
+                        'message',
+                        'Invalid or expired verification token.',
+                    )
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Fresh JWT pair, exactly like LoginView issues.
+            tokens = TokenService.generate_tokens(user)
+
+            # Detect role + build a redirect target.
+            roles = list(
+                user.user_roles.values_list('role__name', flat=True)
+            ) if hasattr(user, 'user_roles') else []
+
+            detected_role = roles[0] if roles else None
+
+            redirect_map = {
+                'WORKER': '/worker/dashboard/settings/verification',
+                'CLIENT': '/client/dashboard/settings/verification',
+                'ADMIN': '/admin/dashboard',
+            }
+            redirect_to = redirect_map.get(
+                detected_role,
+                '/client/dashboard/settings/verification',
+            )
 
             return Response({
-                'message': 'Email verified successfully'
+                'message': result.get(
+                    'message', 'Email verified successfully'
+                ),
+                'user': UserSerializer(user).data,
+                'tokens': tokens,
+                'detected_role': detected_role,
+                'redirect_to': redirect_to,
+                'available_roles': roles,
             }, status=status.HTTP_200_OK)
 
         except BusinessRuleViolation as e:

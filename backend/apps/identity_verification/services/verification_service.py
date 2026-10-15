@@ -345,12 +345,14 @@ class VerificationService:
             return {
                 'status': 'invalid_token',
                 'message': 'Invalid or expired verification token.',
+                'user': None,
             }
 
         if getattr(user, 'email_verified', False):
             return {
                 'status': 'already_verified',
                 'message': 'Email is already verified.',
+                'user': user,
             }
 
         if user.email_verification_sent_at:
@@ -362,6 +364,7 @@ class VerificationService:
                         'Verification link has expired. '
                         'Please request a new one.'
                     ),
+                    'user': user,
                 }
 
         user.email_verified = True
@@ -386,6 +389,7 @@ class VerificationService:
             'status': 'verified',
             'message': 'Email verified successfully!',
             'next_step': 'document_upload',
+            'user': user,
         }
 
     # ============================================
@@ -394,7 +398,18 @@ class VerificationService:
 
     @transaction.atomic
     def submit_verification(self, user, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Submit identity verification documents for admin review."""
+        """
+        Submit identity verification metadata for admin review.
+
+        IMPORTANT: Files are uploaded separately via
+        VerificationDocumentUploadView. This method only:
+          - updates document_number / document_type
+          - flips status to UNDER_REVIEW
+          - handles conflict detection
+          - returns the existing documents as-is
+
+        Do NOT delete documents here — that's the upload view's job.
+        """
         if not getattr(user, 'email_verified', False):
             raise BusinessRuleViolation(
                 "Please verify your email before submitting documents."
@@ -402,39 +417,66 @@ class VerificationService:
 
         verification = self.get_or_create_verification(user)
 
-        if verification.verification_status == VerificationStatus.UNDER_REVIEW:
-            raise BusinessRuleViolation(
-                "You already have a pending verification request. "
-                "Please wait for admin review."
-            )
-
         if verification.verification_status == VerificationStatus.VERIFIED:
             raise BusinessRuleViolation("Your identity is already verified.")
 
-        if self.verification_repo.document_number_exists(data['document_number']):
+        new_doc_number = data['document_number']
+
+        # Detect conflicts against OTHER users
+        conflicts = self.verification_repo.find_conflicts(
+            document_number=new_doc_number,
+            exclude_user_id=user.id,
+        )
+
+        # Case C — someone else already VERIFIED this NRC. Hard block.
+        if conflicts['has_verified_conflict']:
             raise BusinessRuleViolation(
-                "This document number is already registered. "
-                "Please use a different one or contact support."
+                "This document number is already verified for another "
+                "account. If you believe this is an error, please "
+                "contact support."
             )
 
+        # Case B — someone else has it PENDING. Allow, but flag.
+        has_pending_conflict = conflicts['has_pending_conflict']
+        if has_pending_conflict:
+            other_user = conflicts['pending_user']
+            conflict_note = (
+                f"Another user (id={other_user.id if other_user else '?'}) "
+                f"has already submitted this document number and it is "
+                f"awaiting review."
+            )
+        else:
+            conflict_note = ''
+
+        # Require at least one uploaded document before allowing submit
+        if not verification.documents.exists():
+            raise BusinessRuleViolation(
+                "Please upload your documents before submitting. "
+                "No files were found for this verification."
+            )
+
+        # Update metadata only (files were handled by the upload view)
         verification.document_type = data['document_type']
-        verification.document_number = data['document_number']
+        verification.document_number = new_doc_number
         verification.verification_status = VerificationStatus.UNDER_REVIEW
+        verification.rejection_reason = ''
+        verification.has_conflict = has_pending_conflict
+        verification.conflict_note = conflict_note
+        verification.reviewed_by = None
+        verification.reviewed_at = None
         verification.save(update_fields=[
-            'document_type', 'document_number', 'verification_status'
+            'document_type',
+            'document_number',
+            'verification_status',
+            'rejection_reason',
+            'has_conflict',
+            'conflict_note',
+            'reviewed_by',
+            'reviewed_at',
         ])
 
-        documents = []
-        for doc_data in data.get('documents', []):
-            document = self.document_repo.create(
-                verification=verification,
-                document_type=doc_data['document_type'],
-                file_path=doc_data['file_path'],
-                file_name=doc_data['file_name'],
-                file_size=doc_data.get('file_size'),
-                mime_type=doc_data.get('mime_type'),
-            )
-            documents.append(document)
+        # Return existing documents (do NOT delete or recreate them)
+        documents = list(verification.documents.all())
 
         AuditLog.objects.create(
             user=user,
@@ -444,11 +486,14 @@ class VerificationService:
             details={
                 'document_type': data['document_type'],
                 'document_count': len(documents),
+                'has_conflict': has_pending_conflict,
             }
         )
 
         logger.info(
-            f"Verification submitted for user {user.email} (ID: {verification.id})"
+            f"Verification submitted for user {user.email} "
+            f"(ID: {verification.id}, docs={len(documents)}, "
+            f"conflict={has_pending_conflict})"
         )
 
         # Notify admins of the new verification (best-effort)
@@ -463,6 +508,8 @@ class VerificationService:
         return {
             'verification': verification,
             'documents': documents,
+            'has_conflict': has_pending_conflict,
+            'conflict_note': conflict_note,
             'message': (
                 'Verification submitted successfully. '
                 'Please wait for admin review.'
@@ -477,9 +524,18 @@ class VerificationService:
     def approve_verification(
         self, admin, verification_id: int, notes: str = ''
     ) -> Dict[str, Any]:
-        """Admin approves verification."""
-        verification = self.verification_repo.get_by_id(verification_id)
-        if not verification:
+        """
+        Admin approves verification.
+
+        Uses select_for_update to lock the row, then re-checks that
+        no OTHER user has a VERIFIED row for the same document number.
+        """
+        # Lock the row so concurrent approvals can't race
+        try:
+            verification = IdentityVerification.objects.select_for_update().get(
+                id=verification_id
+            )
+        except IdentityVerification.DoesNotExist:
             raise ResourceNotFound("Verification not found.")
 
         if verification.verification_status in [
@@ -488,6 +544,18 @@ class VerificationService:
         ]:
             raise BusinessRuleViolation(
                 f"Verification is already {verification.verification_status}."
+            )
+
+        # Final uniqueness gate — no other verified user may own this NRC
+        duplicate_exists = IdentityVerification.objects.filter(
+            document_number=verification.document_number,
+            verification_status=VerificationStatus.VERIFIED,
+        ).exclude(id=verification.id).exists()
+
+        if duplicate_exists:
+            raise BusinessRuleViolation(
+                "Another verified user already owns this document number. "
+                "Reject this submission instead."
             )
 
         verification.approve(admin)
@@ -529,7 +597,12 @@ class VerificationService:
     def reject_verification(
         self, admin, verification_id: int, reason: str, notes: str = ''
     ) -> Dict[str, Any]:
-        """Admin rejects verification."""
+        """
+        Admin rejects verification.
+
+        IMPORTANT: The document_number stays on the row. The user can
+        resubmit with clearer documents without re-entering the NRC.
+        """
         verification = self.verification_repo.get_by_id(verification_id)
         if not verification:
             raise ResourceNotFound("Verification not found.")
@@ -751,6 +824,8 @@ class VerificationService:
                 'fully_verified': False,
                 'message': 'You have not started verification.',
                 'next_step': 'phone_verification',
+                'has_conflict': False,
+                'conflict_note': '',
             }
 
         return {
@@ -770,6 +845,8 @@ class VerificationService:
             'submitted_at': verification.submitted_at,
             'reviewed_at': verification.reviewed_at,
             'rejection_reason': verification.rejection_reason,
+            'has_conflict': verification.has_conflict,
+            'conflict_note': verification.conflict_note,
             'message': self._get_status_message(verification),
             'next_step': self._get_next_step(verification),
         }

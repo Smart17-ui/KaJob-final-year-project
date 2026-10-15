@@ -132,15 +132,18 @@ class DocumentSerializer(serializers.ModelSerializer):
 
 # ============================================
 # SUBMIT VERIFICATION
-# (kept for compatibility — but see the view
-#  for the multipart version)
 # ============================================
 
 class SubmitVerificationSerializer(serializers.Serializer):
     """
     Serializer for submitting identity verification with validation.
-    Note: With the new upload flow, this is mostly used for
-    validation of document_number. Files are uploaded separately.
+
+    NOTE: The uniqueness check is intentionally NOT performed here.
+    Conflict resolution happens at submit time inside the
+    VerificationService, where we can distinguish between:
+      - the same user resubmitting
+      - another user with the same NRC still PENDING
+      - another user with the same NRC already VERIFIED
     """
     document_type = serializers.ChoiceField(
         choices=DocumentType.CHOICES, required=True
@@ -167,11 +170,6 @@ class SubmitVerificationSerializer(serializers.Serializer):
         elif document_type == 'SELFIE':
             pass
 
-        if self._document_number_exists(value):
-            raise serializers.ValidationError(
-                "This document number is already registered."
-            )
-
         return value
 
     def _is_valid_nrc(self, value):
@@ -179,12 +177,6 @@ class SubmitVerificationSerializer(serializers.Serializer):
 
     def _is_valid_passport(self, value):
         return bool(re.match(r'^[A-Z]{2}\d{6}$', value))
-
-    def _document_number_exists(self, document_number):
-        return IdentityVerification.objects.filter(
-            document_number=document_number,
-            deleted_at__isnull=True,
-        ).exists()
 
 
 # ============================================
@@ -206,6 +198,8 @@ class VerificationStatusSerializer(serializers.Serializer):
     submitted_at = serializers.DateTimeField(required=False, allow_null=True)
     reviewed_at = serializers.DateTimeField(required=False, allow_null=True)
     rejection_reason = serializers.CharField(allow_blank=True)
+    has_conflict = serializers.BooleanField(default=False)
+    conflict_note = serializers.CharField(allow_blank=True, required=False)
     message = serializers.CharField()
     next_step = serializers.CharField()
 

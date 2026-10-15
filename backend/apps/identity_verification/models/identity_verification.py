@@ -15,21 +15,21 @@ class IdentityVerification(BaseModel):
         on_delete=models.CASCADE,
         related_name='identity_verifications'
     )
-    
+
     # Document Information
     document_type = models.CharField(
         max_length=20,
         choices=DocumentType.CHOICES
     )
     document_number = models.CharField(max_length=100)
-    
+
     # Status
     verification_status = models.CharField(
         max_length=20,
         choices=VerificationStatus.CHOICES,
         default=VerificationStatus.NOT_SUBMITTED
     )
-    
+
     # Review Information
     reviewed_by = models.ForeignKey(
         'accounts.User',
@@ -41,10 +41,26 @@ class IdentityVerification(BaseModel):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True)
     verification_notes = models.TextField(blank=True)
-    
+
+    # Conflict tracking ΓÇö used when another user already claims
+    # (pending or verified) the same document_number.
+    has_conflict = models.BooleanField(
+        default=False,
+        help_text=(
+            "True when another user already has the same document "
+            "number pending or verified. Set at submit time so admins "
+            "see the warning during review."
+        ),
+    )
+    conflict_note = models.TextField(
+        blank=True,
+        default='',
+        help_text="Human-readable summary of the conflict.",
+    )
+
     # Timestamps
     submitted_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'identity_verifications'
         ordering = ['-submitted_at']
@@ -53,33 +69,37 @@ class IdentityVerification(BaseModel):
         indexes = [
             models.Index(fields=['user', 'verification_status']),
             models.Index(fields=['verification_status', 'submitted_at']),
+            models.Index(fields=['document_number']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.full_name} - {self.get_verification_status_display()}"
-    
+
     @property
     def is_pending(self):
         return self.verification_status in [
             VerificationStatus.PENDING,
             VerificationStatus.UNDER_REVIEW
         ]
-    
+
     @property
     def is_verified(self):
         return self.verification_status == VerificationStatus.VERIFIED
-    
+
     def approve(self, admin):
         """Approve verification"""
         self.verification_status = VerificationStatus.VERIFIED
         self.reviewed_by = admin
         self.reviewed_at = timezone.now()
+        # Clear conflict markers on approval ΓÇö the conflict is resolved
+        self.has_conflict = False
+        self.conflict_note = ''
         self.save()
-        
+
         # Update user verification status
         self.user.is_verified = True
         self.user.save(update_fields=['is_verified'])
-    
+
     def reject(self, admin, reason):
         """Reject verification"""
         self.verification_status = VerificationStatus.REJECTED
@@ -87,7 +107,7 @@ class IdentityVerification(BaseModel):
         self.reviewed_at = timezone.now()
         self.rejection_reason = reason
         self.save()
-        
+
         # Update user verification status
         self.user.is_verified = False
         self.user.save(update_fields=['is_verified'])
