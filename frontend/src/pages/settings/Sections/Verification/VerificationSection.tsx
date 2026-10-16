@@ -147,9 +147,6 @@ const VerificationSection = () => {
 
       <PhoneVerificationCard
         verification={verification}
-        onVerificationUpdated={
-          loadVerificationStatus
-        }
       />
 
       <IdentityVerificationCard

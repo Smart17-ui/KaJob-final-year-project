@@ -140,10 +140,10 @@ class AdminUserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'full_name', 'email', 'phone_number',
+            'id', 'first_name', 'last_name', 'full_name', 'email', 'phone_number',
             'roles', 'role_display',
-            'is_worker', 'is_client',
-            'is_verified', 'is_active', 'account_status', 'created_at',
+            'is_worker', 'is_client', 'is_admin',
+            'is_verified', 'is_active', 'account_status', 'created_at', 'last_login',
         ]
 
     def get_full_name(self, obj):

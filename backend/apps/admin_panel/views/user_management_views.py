@@ -9,6 +9,7 @@ from apps.admin_panel.services import AdminService
 from apps.admin_panel.serializers import AdminUserSerializer, AdminUserListSerializer
 from apps.common.permissions import IsAdmin, IsActiveUser
 from apps.common.exceptions import BusinessRuleViolation, ResourceNotFound
+from apps.common.utilities import paginate_request
 
 
 admin_service = AdminService()
@@ -34,10 +35,16 @@ class AdminUserListView(APIView):
         filters = {k: v for k, v in filters.items() if v is not None and v != ''}
 
         users = admin_service.get_all_users(filters)
+        page, page_size = paginate_request(request)
+        total = users.count()
+        start = (page - 1) * page_size
+        users_page = users[start:start + page_size]
 
         return Response({
-            'count': len(users),
-            'results': AdminUserListSerializer(users, many=True).data,
+            'count': total,
+            'page': page,
+            'page_size': page_size,
+            'results': AdminUserListSerializer(users_page, many=True).data,
         }, status=status.HTTP_200_OK)
 
 

@@ -79,9 +79,16 @@ export const UsersTable = ({
                         </span>
                     </div>
                     <div className="min-w-0">
-                        <p className="text-sm font-medium text-admin-text-primary truncate">
+                        <button
+                            type="button"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onView(user);
+                            }}
+                            className="block max-w-full truncate text-left text-sm font-medium text-admin-text-primary hover:text-admin-primary-600 focus:outline-none focus:underline"
+                        >
                             {user.full_name}
-                        </p>
+                        </button>
                         <p className="text-xs text-admin-text-secondary truncate">
                             {user.email}
                         </p>

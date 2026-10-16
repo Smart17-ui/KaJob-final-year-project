@@ -239,10 +239,10 @@ export interface ReportInvestigation {
 export interface AdminReport {
     id: number;
     reference_number: string;
-    job_id: number;
-    job_title: string;
+    job_id: number | null;
+    job_title: string | null;
     reporter: ReportUser;
-    reported_user: ReportUser;
+    reported_user: ReportUser | null;
     category: ReportCategory;
     category_display: string;
     status: ReportStatus;
@@ -253,9 +253,9 @@ export interface AdminReport {
 export interface AdminReportDetail {
     id: number;
     reference_number: string;
-    job: ReportJob;
+    job: ReportJob | null;
     reporter: ReportUser;
-    reported_user: ReportUser;
+    reported_user: ReportUser | null;
     category: ReportCategory;
     category_display: string;
     description: string;

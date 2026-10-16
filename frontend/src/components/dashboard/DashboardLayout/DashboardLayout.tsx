@@ -407,16 +407,14 @@ const DashboardLayout = () => {
       )}
 
       {isSettingsPage && (
-        <div className="lg:hidden">
-          <Sidebar
-            role={role}
-            availableRoles={availableRoles}
-            isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-            onLogout={handleLogout}
-            onSwitchRole={handleSidebarSwitchRole}
-          />
-        </div>
+        <Sidebar
+          role={role}
+          availableRoles={availableRoles}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onLogout={handleLogout}
+          onSwitchRole={handleSidebarSwitchRole}
+        />
       )}
 
       {/* =====================================================
@@ -427,7 +425,7 @@ const DashboardLayout = () => {
         className={
           isSettingsPage
             ? ""
-            : "lg:pl-64"
+          : ""
         }
       >
         {/* ===================================================
@@ -438,7 +436,7 @@ const DashboardLayout = () => {
           className={
             isSettingsPage
               ? "fixed left-0 right-0 top-0 z-40"
-              : "fixed left-0 right-0 top-0 z-40 lg:left-64"
+              : "fixed left-0 right-0 top-0 z-40"
           }
         >
           <TopBar

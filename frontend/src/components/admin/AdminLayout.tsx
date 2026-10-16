@@ -80,7 +80,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setMobileMenuOpen(true)}
-                            className="-ml-2 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 lg:hidden"
+                            className="-ml-2 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             aria-label="Open menu"
                         >
                             <Menu size={24} />
@@ -176,7 +176,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                 {/* ============================================ */}
                 {/* DESKTOP NAVIGATION */}
                 {/* ============================================ */}
-                <nav className="border-t border-slate-100">
+                <nav className="hidden border-t border-slate-100">
                     <div className="mx-auto flex max-w-7xl items-center overflow-x-auto px-2 sm:px-6 lg:px-8">
                         {navigation.map((item) => {
                             const Icon = item.icon;
@@ -209,7 +209,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
             {/* MOBILE DRAWER */}
             {/* ============================================ */}
             {mobileMenuOpen && (
-                <div className="fixed inset-0 z-50 lg:hidden">
+                <div className="fixed inset-0 z-50">
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm"

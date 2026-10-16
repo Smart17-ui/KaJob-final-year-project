@@ -86,7 +86,6 @@ const TopBar = ({
               focus:ring-2
               focus:ring-emerald-500
               focus:ring-offset-2
-              lg:hidden
             "
             aria-label="Open menu"
           >

@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from django.db import transaction
 
 from apps.common.permissions import IsAdmin, IsActiveUser
 from apps.reports.models import Report, Investigation
@@ -127,6 +128,7 @@ class AdminReportResolveView(APIView):
     """POST /api/reports/admin/{id}/resolve/"""
     permission_classes = [IsAuthenticated, IsActiveUser, IsAdmin]
 
+    @transaction.atomic
     def post(self, request, report_id):
         decision = request.data.get('decision')
         decision_notes = request.data.get('decision_notes', '')
@@ -138,12 +140,26 @@ class AdminReportResolveView(APIView):
             )
 
         try:
-            report = Report.objects.get(id=report_id)
+            report = Report.objects.select_for_update().get(id=report_id)
         except Report.DoesNotExist:
             return Response(
                 {'error': 'Report not found.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        if report.status == 'RESOLVED' and hasattr(report, 'investigation'):
+            investigation = report.investigation
+            if investigation.completed_at:
+                if investigation.decision == decision:
+                    from apps.reports.serializers import ReportDetailSerializer
+                    return Response({
+                        'message': f'Report {report.reference_number} has already been resolved.',
+                        'report': ReportDetailSerializer(report).data,
+                    }, status=status.HTTP_200_OK)
+                return Response(
+                    {'error': 'This report has already been resolved with a different decision.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         if report.status != 'UNDER_INVESTIGATION':
             return Response(

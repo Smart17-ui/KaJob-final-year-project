@@ -21,21 +21,17 @@ const VerificationStatusCard = ({
   const emailVerified =
     verification.email_verified;
 
-  const phoneVerified =
-    verification.phone_verified;
-
   const identityVerified =
     verification.verification_status ===
     "VERIFIED";
 
   const completedSteps = [
     emailVerified,
-    phoneVerified,
     identityVerified,
   ].filter(Boolean).length;
 
   const progress = Math.round(
-    (completedSteps / 3) * 100
+    (completedSteps / 2) * 100
   );
 
   const identityStatus =
@@ -52,7 +48,7 @@ const VerificationStatusCard = ({
             </h3>
 
             <p className="mt-1 text-sm text-slate-500">
-              Track your email, phone, and identity verification progress.
+              Track your email and identity verification progress.
             </p>
           </div>
 
@@ -68,7 +64,7 @@ const VerificationStatusCard = ({
             </span>
 
             <span className="text-xs font-semibold text-slate-700">
-              {completedSteps}/3
+              {completedSteps}/2
             </span>
           </div>
 
@@ -93,15 +89,17 @@ const VerificationStatusCard = ({
             }
           />
 
-          <VerificationStep
-            label="Phone"
-            verified={phoneVerified}
-            status={
-              phoneVerified
-                ? "Verified"
-                : "Not verified"
-            }
-          />
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 opacity-70">
+            <div className="flex items-center gap-3">
+              <ExclamationCircleIcon className="h-5 w-5 shrink-0 text-slate-400" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-700">Phone</p>
+                <span className="mt-1 inline-block rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
+                  Planned
+                </span>
+              </div>
+            </div>
+          </div>
 
           <IdentityStatusStep
             status={identityStatus}

@@ -129,20 +129,22 @@ export const ReportDetailPage = () => {
                     </Card>
 
                     {/* Parties */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={`grid grid-cols-1 gap-4 ${report.reported_user ? 'md:grid-cols-2' : ''}`}>
                         <PartyCard
                             label="Reporter"
                             user={report.reporter}
                         />
-                        <PartyCard
-                            label="Reported User"
-                            user={report.reported_user}
-                            tone="red"
-                        />
+                        {report.reported_user && (
+                            <PartyCard
+                                label="Reported User"
+                                user={report.reported_user}
+                                tone="red"
+                            />
+                        )}
                     </div>
 
                     {/* Job */}
-                    <Card padding="md">
+                    {report.job && <Card padding="md">
                         <p className="text-xs font-semibold text-admin-text-secondary uppercase mb-2">
                             Job
                         </p>
@@ -155,7 +157,7 @@ export const ReportDetailPage = () => {
                                 ? ` · K${report.job.budget}`
                                 : ''}
                         </p>
-                    </Card>
+                    </Card>}
 
                     {/* Description */}
                     <Card padding="md">

@@ -218,7 +218,6 @@ const Sidebar = ({
             z-40
             bg-slate-950/20
             backdrop-blur-sm
-            lg:hidden
           "
           aria-hidden="true"
         />
@@ -249,7 +248,6 @@ const Sidebar = ({
               ? "translate-x-0"
               : "-translate-x-full"
           }
-          lg:translate-x-0
         `}
       >
         {/* ===================================================
@@ -293,7 +291,6 @@ const Sidebar = ({
               focus:outline-none
               focus:ring-2
               focus:ring-emerald-500
-              lg:hidden
             "
             aria-label="Close navigation menu"
           >
@@ -431,27 +428,6 @@ const Sidebar = ({
                         {item.name}
                       </span>
 
-                      {item.path.includes(
-                        "applications"
-                      ) && (
-                        <span
-                          className="
-                            flex
-                            h-5
-                            min-w-5
-                            items-center
-                            justify-center
-                            rounded-full
-                            bg-amber-100
-                            px-1
-                            text-[10px]
-                            font-bold
-                            text-amber-700
-                          "
-                        >
-                          3
-                        </span>
-                      )}
                     </>
                   )}
                 </NavLink>
