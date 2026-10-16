@@ -16,18 +16,7 @@ export default function ResetPassword() {
    */
   const rawToken = searchParams.get("token");
 
-  /*
-   * Workaround for quoted-printable encoding.
-   *
-   * If the token somehow arrives with "=3D" instead of "=",
-   * convert it back to "=" before sending it to Django.
-   *
-   * NOTE:
-   * We only replace "=3D", which is the MIME encoding for "=".
-   */
-  const token = rawToken
-    ? rawToken.replace(/=3D/g, "=")
-    : null;
+  const token = rawToken;
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -75,8 +64,6 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      console.log("Reset token being sent:", token);
-
       const response = await resetPassword({
         token: token,
         new_password: password,

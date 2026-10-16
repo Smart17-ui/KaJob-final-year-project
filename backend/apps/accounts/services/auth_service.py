@@ -14,7 +14,7 @@ from apps.accounts.services.token_service import TokenService
 from apps.audit.models import AuditLog
 from apps.common.constants import RoleType, UserAccountStatus
 from apps.common.exceptions import BusinessRuleViolation
-from apps.common.services import EmailService
+from apps.notifications.services.email_service import EmailService as NotificationEmailService
 from apps.accounts.models import User, Role
 from apps.identity_verification.services import VerificationService
 
@@ -36,7 +36,6 @@ class AuthService:
         self.client_repo = ClientProfileRepository()
 
         # Services
-        self.email_service = EmailService()
         self.token_service = TokenService()
         self.verification_service = VerificationService()
 
@@ -519,7 +518,7 @@ class AuthService:
             return True
 
         reset_token = self.token_service.generate_reset_token(user)
-        self.email_service.send_password_reset_email(user, reset_token)
+        NotificationEmailService.send_password_reset_email(user, reset_token)
 
         return True
 

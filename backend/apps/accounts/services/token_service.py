@@ -3,6 +3,7 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from typing import Optional, Dict, Any, List
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from datetime import timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -358,6 +359,9 @@ class TokenService:
         """
         token = AccessToken.for_user(user)
         token['purpose'] = 'password_reset'
+        # Reset links have their own documented one-hour lifetime. Do not
+        # inherit the application's general access-token lifetime here.
+        token.set_exp(lifetime=timedelta(hours=1))
         return str(token)
     
     @staticmethod
