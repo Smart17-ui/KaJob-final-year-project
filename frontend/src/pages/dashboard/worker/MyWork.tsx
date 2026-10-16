@@ -1006,11 +1006,9 @@ const MyWork = () => {
       <div
         className="
           flex
-          h-[calc(100vh-136px)]
           min-h-0
           min-w-0
           flex-col
-          sm:h-[calc(100vh-144px)]
           lg:h-[calc(100vh-152px)]
         "
       >
@@ -1018,19 +1016,19 @@ const MyWork = () => {
             HEADER
         =================================================== */}
 
-        <div className="shrink-0 pb-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+        <div className="shrink-0 pb-5 sm:pb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3 sm:items-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
                 <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
               </div>
 
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
                   My Work
                 </h1>
 
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 max-w-2xl text-sm leading-5 text-gray-500 sm:leading-normal">
                   Manage your assigned work and track each job through completion.
                 </p>
               </div>
@@ -1045,7 +1043,7 @@ const MyWork = () => {
               onClick={
                 handleOpenRecycleBin
               }
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
+              className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-gray-900 sm:w-auto"
             >
               <TrashIcon className="h-5 w-5" />
               Recycle Bin
@@ -1154,12 +1152,12 @@ const MyWork = () => {
             </p>
           </section>
         ) : (
-          <div className="flex min-h-0 min-w-0 flex-1 gap-6">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:gap-6">
             {/* =================================================
                 STATUS SIDEBAR
             ================================================= */}
 
-            <aside className="-mt-4 w-60 shrink-0">
+            <aside className="w-full shrink-0 lg:-mt-4 lg:w-60">
               <WorkStatusSidebar
                 filter={filter}
                 setFilter={setFilter}
@@ -1171,7 +1169,7 @@ const MyWork = () => {
                 WORK LIST
             ================================================= */}
 
-            <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <main className="min-h-0 min-w-0 flex-1 overflow-visible pr-0 lg:overflow-x-hidden lg:overflow-y-auto lg:pr-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">
                   {filter === "All"
@@ -1425,18 +1423,18 @@ const WorkStatusSidebar = ({
   ];
 
   return (
-    <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-3 shadow-sm lg:sticky lg:top-6">
-      <div className="px-3 pb-3 pt-2">
-        <h2 className="text-sm font-semibold text-gray-900">
+    <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm lg:sticky lg:top-6 lg:p-3">
+      <div className="px-2 pb-2 pt-1 lg:px-3 lg:pb-3 lg:pt-2">
+        <h2 className="text-xs font-semibold text-gray-900 lg:text-sm">
           My Work
         </h2>
 
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 hidden text-xs text-gray-500 sm:block">
           Filter by work status
         </p>
       </div>
 
-      <nav className="space-y-1">
+      <nav className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-col lg:overflow-visible lg:pb-0">
         {items.map(
           (item) => {
             const Icon =
@@ -1454,7 +1452,7 @@ const WorkStatusSidebar = ({
                     item.value
                   )
                 }
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                className={`flex w-auto shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition lg:w-full lg:gap-3 lg:py-3 ${
                   isActive
                     ? "bg-gray-900 text-white"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -1468,7 +1466,7 @@ const WorkStatusSidebar = ({
                   }`}
                 />
 
-                <span className="flex-1">
+                <span className="whitespace-nowrap lg:flex-1">
                   {item.label}
                 </span>
 
@@ -1576,7 +1574,7 @@ const WorkCard = ({
           ? 0
           : undefined
       }
-      className={`rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition ${
+      className={`rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition sm:p-5 ${
         canViewJobDetails
           ? "cursor-pointer hover:shadow-md"
           : ""
@@ -1743,7 +1741,7 @@ const WorkCard = ({
           }
         />
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           {/* =================================================
               ASSIGNED
           ================================================= */}

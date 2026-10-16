@@ -7,6 +7,7 @@ import {
   ShieldCheckIcon,
   ArrowRightOnRectangleIcon,
 } from "@heroicons/react/24/outline";
+import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 
 import Avatar from "@/components/shared/Avatar";
 
@@ -149,8 +150,8 @@ const ProfileDropdown = ({
           setShowProfileMenu((prev) => !prev);
         }}
         className="
-          flex items-center gap-2.5
-          rounded-lg p-1
+          flex shrink-0 items-center gap-1.5
+          rounded-lg p-1 sm:gap-2.5
           transition-all duration-200
           hover:bg-slate-50
           active:scale-95
@@ -158,7 +159,7 @@ const ProfileDropdown = ({
           focus:ring-2 focus:ring-emerald-500
           focus:ring-offset-2
         "
-        aria-label="Open profile menu"
+        aria-label={`Open ${displayName}'s profile menu${user?.is_verified ? ", verified account" : ""}`}
         aria-expanded={showProfileMenu}
         aria-haspopup="true"
       >
@@ -173,10 +174,18 @@ const ProfileDropdown = ({
 
         {/* NAME + CHEVRON */}
 
-        <div className="hidden items-center gap-1.5 md:flex">
-          <span className="max-w-32 truncate text-sm font-medium text-slate-700">
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          <span className="hidden max-w-32 truncate text-sm font-medium text-slate-700 md:inline">
             {displayName}
           </span>
+
+          {user?.is_verified === true && (
+            <CheckBadgeIcon
+              className="h-4 w-4 shrink-0 text-emerald-600"
+              title="Verified account"
+              aria-label="Verified account"
+            />
+          )}
 
           <ChevronDownIcon
             className={`
@@ -213,8 +222,15 @@ const ProfileDropdown = ({
             />
 
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">
-                {displayName}
+              <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-slate-900">
+                <span className="truncate">{displayName}</span>
+                {user?.is_verified === true && (
+                  <CheckBadgeIcon
+                    className="h-4 w-4 shrink-0 text-emerald-600"
+                    title="Verified account"
+                    aria-label="Verified account"
+                  />
+                )}
               </p>
 
               <p className="mt-0.5 text-xs text-slate-500">

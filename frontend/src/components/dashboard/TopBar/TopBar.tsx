@@ -68,10 +68,10 @@ const TopBar = ({
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
-      <div className="flex h-[72px] items-center justify-between px-4 sm:px-6">
+      <div className="flex h-[72px] items-center justify-between gap-2 px-2.5 sm:px-6">
         {/* LEFT — hamburger + logo */}
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           <button
             type="button"
             onClick={onMenuOpen}
@@ -96,7 +96,7 @@ const TopBar = ({
           <img
             src={Logo}
             alt="KaJob"
-            className="h-7 w-auto select-none sm:h-8 lg:h-9"
+            className="h-6 w-auto select-none sm:h-8 lg:h-9"
             draggable={false}
           />
         </div>
@@ -113,14 +113,14 @@ const TopBar = ({
 
         {/* RIGHT — notifications + settings + profile */}
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <NotificationBell userRole={userRole} />
 
           <button
             type="button"
             onClick={onSettingsClick}
             className="
-              hidden h-10 w-10 items-center justify-center
+              flex h-9 w-9 shrink-0 items-center justify-center sm:h-10 sm:w-10
               rounded-lg text-slate-500
               transition-all duration-200
               hover:bg-slate-100
@@ -130,7 +130,6 @@ const TopBar = ({
               focus:ring-2
               focus:ring-emerald-500
               focus:ring-offset-2
-              sm:flex
             "
             aria-label="Open settings"
           >
