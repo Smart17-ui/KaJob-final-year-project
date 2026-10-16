@@ -264,7 +264,7 @@ const Analytics = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-slate-50 py-6">
         <div className="mx-auto max-w-7xl space-y-8">
           <div className="h-64 animate-pulse rounded-3xl bg-slate-200" />
 
@@ -288,7 +288,7 @@ const Analytics = () => {
 
   if (errorMessage && !analytics) {
     return (
-      <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-slate-50 py-6">
         <div className="mx-auto max-w-7xl">
           <div className="mb-8">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -333,7 +333,7 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <div className="mx-auto max-w-7xl py-6 lg:py-8">
         {/* PAGE HEADER */}
         <div className="mb-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -374,7 +374,7 @@ const Analytics = () => {
         )}
 
         {/* HERO */}
-        <section className="relative mb-8 overflow-hidden rounded-3xl bg-slate-900 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10">
+        <section className="relative mb-6 overflow-hidden rounded-3xl bg-slate-900 px-4 py-6 text-white shadow-sm sm:mb-8 sm:px-8 sm:py-10">
           <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
 
           <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
@@ -420,7 +420,7 @@ const Analytics = () => {
               </div>
 
               <div className="grid w-full grid-cols-3 gap-2 sm:min-w-[360px] sm:gap-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
                   <p className="text-xl font-bold text-white">
                     {analytics.jobs.completed}
                   </p>
@@ -430,7 +430,7 @@ const Analytics = () => {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
                   <p className="text-xl font-bold text-white">
                     {analytics.jobs.open}
                   </p>
@@ -440,7 +440,7 @@ const Analytics = () => {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
                   <p className="text-xl font-bold text-emerald-300">
                     {formatPercentage(
                       completionRate
@@ -468,9 +468,9 @@ const Analytics = () => {
             </h2>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 min-[390px]:grid-cols-2 sm:gap-4 xl:grid-cols-4">
             {/* APPLICATIONS */}
-            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
               <div className="flex items-center justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
                   <UserGroupIcon className="h-5 w-5 text-emerald-600" />
@@ -485,7 +485,7 @@ const Analytics = () => {
                 Applications
               </p>
 
-              <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+              <p className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 {analytics.applications.total}
               </p>
 
@@ -496,7 +496,7 @@ const Analytics = () => {
             </div>
 
             {/* COMPLETION */}
-            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
               <div className="flex items-center justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
                   <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
@@ -511,7 +511,7 @@ const Analytics = () => {
                 Completion
               </p>
 
-              <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+              <p className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 {formatPercentage(
                   completionRate
                 )}
@@ -523,7 +523,7 @@ const Analytics = () => {
             </div>
 
             {/* WORKERS */}
-            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
               <div className="flex items-center justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
                   <UserGroupIcon className="h-5 w-5 text-blue-600" />
@@ -538,7 +538,7 @@ const Analytics = () => {
                 Workers hired
               </p>
 
-              <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+              <p className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 {analytics.workers.total_hired}
               </p>
 
@@ -549,7 +549,7 @@ const Analytics = () => {
             </div>
 
             {/* AVG PER JOB */}
-            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
               <div className="flex items-center justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
                   <CurrencyDollarIcon className="h-5 w-5 text-amber-600" />
@@ -564,7 +564,7 @@ const Analytics = () => {
                 Avg per job
               </p>
 
-              <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+              <p className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 {formatCurrency(averagePerJob)}
               </p>
 
@@ -578,7 +578,7 @@ const Analytics = () => {
         {/* JOB ACTIVITY + HIRING OVERVIEW */}
         <section className="mb-8 grid gap-6 lg:grid-cols-3">
           {/* JOB ACTIVITY */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 sm:p-7">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2 sm:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -605,6 +605,7 @@ const Analytics = () => {
                   )
                 }
                 className="
+                  w-full shrink-0 sm:w-auto
                   rounded-xl border border-slate-200
                   bg-white px-3.5 py-2.5
                   text-sm font-medium text-slate-700
