@@ -38,7 +38,7 @@ export const ActivityChart = ({ data, loading }: Props) => {
     }));
 
     return (
-        <Card padding="md">
+        <Card padding="md" className="min-w-0">
             <div className="mb-4">
                 <h3 className="text-sm font-semibold text-admin-text-primary">
                     Activity Over Time

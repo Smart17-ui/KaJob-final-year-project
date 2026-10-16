@@ -39,7 +39,7 @@ export const JobsStatusChart = ({ stats, loading }: Props) => {
     const total = segments.reduce((sum, s) => sum + s.value, 0);
 
     return (
-        <Card padding="md">
+        <Card padding="md" className="min-w-0">
             <div className="mb-4">
                 <h3 className="text-sm font-semibold text-admin-text-primary">
                     Jobs by Status
