@@ -11,11 +11,11 @@ import { useToast } from '@/components/ui/Toast';
 import { adminAnalyticsApi } from '@/api/admin/analytics';
 import type { PlatformStats, AnalyticsPeriod } from '@/types/admin';
 
-import { AnalyticsPeriodSelector } from './components/AnalyticsPeriodSelector';
-import { AnalyticsStats } from './components/AnalyticsStats';
-import { ActivityChart } from './components/ActivityChart';
-import { JobsStatusChart } from './components/JobsStatusChart';
-import { RatingChart } from './components/RatingChart';
+import { AnalyticsPeriodSelector } from './AnalyticsPeriodSelector';
+import { AnalyticsStats } from './AnalyticsStats';
+import { ActivityChart } from './ActivityChart';
+import { JobsStatusChart } from './JobsStatusChart';
+import { RatingChart } from './RatingChart';
 
 // ============================================
 // COMPONENT

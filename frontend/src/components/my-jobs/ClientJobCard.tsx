@@ -17,7 +17,7 @@ type ClientJobCardProps = {
   job: MyJob;
   onView: (jobId: number) => void;
   onCancel?: (jobId: number) => void;
-  onDelete: (jobId: number) => void;
+  onDelete?: (jobId: number) => void;
   onConfirmCompletion: (jobId: number) => void;
   onRate?: (jobId: number) => void;
 };

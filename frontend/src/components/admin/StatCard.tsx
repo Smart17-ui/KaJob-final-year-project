@@ -27,7 +27,7 @@ export const StatCard = ({
     // Loading state
     if (loading) {
         return (
-            <div className="bg-white border border-admin-border-light rounded-admin-card shadow-admin-card p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <div className="flex items-start justify-between mb-4">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 animate-pulse" />
                     <div className="w-16 h-4 bg-gray-100 rounded animate-pulse" />
@@ -43,10 +43,10 @@ export const StatCard = ({
     const isNegative = hasTrend && (invertTrend ? trend > 0 : trend < 0);
 
     return (
-        <div className="bg-white border border-admin-border-light rounded-admin-card shadow-admin-card p-6 hover:shadow-admin-card-hover transition-shadow">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md sm:p-6">
             {/* Top row: Icon + Trend */}
             <div className="flex items-start justify-between mb-4">
-                <div className="p-2.5 rounded-lg bg-admin-primary-50 text-admin-primary-600">
+                <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
                     {icon}
                 </div>
                 {hasTrend && (
@@ -69,18 +69,18 @@ export const StatCard = ({
             </div>
 
             {/* Title */}
-            <p className="text-sm font-medium text-admin-text-secondary mb-1">
+            <p className="mb-1 text-sm font-medium text-slate-600">
                 {title}
             </p>
 
             {/* Value */}
-            <p className="text-2xl font-bold text-admin-text-primary">
+            <p className="text-2xl font-bold text-slate-900">
                 {value}
             </p>
 
             {/* Subtitle / Trend period */}
             {(subtitle || hasTrend) && (
-                <p className="mt-1 text-xs text-admin-text-muted">
+                <p className="mt-1 text-xs text-slate-500">
                     {subtitle || trendPeriod}
                 </p>
             )}

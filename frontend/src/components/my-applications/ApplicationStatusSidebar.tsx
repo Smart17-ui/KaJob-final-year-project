@@ -9,7 +9,8 @@ type ApplicationStatus =
   | "ALL"
   | "PENDING"
   | "ACCEPTED"
-  | "REJECTED";
+  | "REJECTED"
+  | "WITHDRAWN";
 
 type ApplicationStatusSidebarProps = {
   status: ApplicationStatus;
@@ -20,6 +21,7 @@ type ApplicationStatusSidebarProps = {
     PENDING: number;
     ACCEPTED: number;
     REJECTED: number;
+    WITHDRAWN: number;
   };
 };
 
@@ -51,6 +53,12 @@ const ApplicationStatusSidebar = ({
       value: "REJECTED" as const,
       label: "Rejected",
       fullLabel: "Rejected",
+      icon: XCircleIcon,
+    },
+    {
+      value: "WITHDRAWN" as const,
+      label: "Withdrawn",
+      fullLabel: "Withdrawn",
       icon: XCircleIcon,
     },
   ];

@@ -379,8 +379,8 @@ export default function FindJobs() {
     useState<number | null>(null);
 
   const [
-    withdrawingApplicationId,
-    setWithdrawingApplicationId,
+    withdrawingJobId,
+    setWithdrawingJobId,
   ] = useState<number | null>(null);
 
   const [
@@ -945,8 +945,8 @@ export default function FindJobs() {
       }
 
       try {
-        setWithdrawingApplicationId(
-          applicationToCancel.id
+        setWithdrawingJobId(
+          applicationToCancel.jobId
         );
 
         await withdrawApplication(
@@ -1001,7 +1001,7 @@ export default function FindJobs() {
               : "Failed to cancel your application. Please try again.",
         });
       } finally {
-        setWithdrawingApplicationId(
+        setWithdrawingJobId(
           null
         );
       }
@@ -1010,7 +1010,7 @@ export default function FindJobs() {
   const handleCloseJob = () => {
     if (
       applyingJobId !== null ||
-      withdrawingApplicationId !== null
+      withdrawingJobId !== null
     ) {
       return;
     }
@@ -1369,8 +1369,8 @@ export default function FindJobs() {
               applyingJobId={
                 applyingJobId
               }
-              withdrawingApplicationId={
-                withdrawingApplicationId
+              cancellingJobId={
+                withdrawingJobId
               }
               appliedJobIds={
                 new Set(
@@ -1435,7 +1435,7 @@ export default function FindJobs() {
                   disabled={
                     applyingJobId !==
                       null ||
-                    withdrawingApplicationId !==
+                    withdrawingJobId !==
                       null
                   }
                   className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1452,7 +1452,7 @@ export default function FindJobs() {
                     disabled={
                       applyingJobId !==
                         null ||
-                      withdrawingApplicationId !==
+                      withdrawingJobId !==
                         null
                     }
                     className="flex-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1468,7 +1468,7 @@ export default function FindJobs() {
                     disabled={
                       applyingJobId !==
                         null ||
-                      withdrawingApplicationId !==
+                      withdrawingJobId !==
                         null
                     }
                     className="flex-1 rounded-lg bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1755,7 +1755,7 @@ export default function FindJobs() {
                 <button
                   type="button"
                   disabled={
-                    withdrawingApplicationId !==
+                    withdrawingJobId !==
                     null
                   }
                   onClick={() =>
@@ -1784,7 +1784,7 @@ export default function FindJobs() {
                 <button
                   type="button"
                   disabled={
-                    withdrawingApplicationId !==
+                    withdrawingJobId !==
                     null
                   }
                   onClick={
@@ -1804,7 +1804,7 @@ export default function FindJobs() {
                     disabled:opacity-60
                   "
                 >
-                  {withdrawingApplicationId !==
+                  {withdrawingJobId !==
                   null
                     ? "Cancelling..."
                     : "Cancel Application"}

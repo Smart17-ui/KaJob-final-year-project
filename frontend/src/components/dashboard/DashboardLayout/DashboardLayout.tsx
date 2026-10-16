@@ -492,21 +492,15 @@ const DashboardLayout = () => {
             isSettingsPage
               ? `
                 min-w-0
-                p-4
-                pt-[80px]
-                sm:p-6
-                sm:pt-[80px]
-                lg:p-8
-                lg:pt-[80px]
+                p-4 pt-[88px]
+                sm:p-6 sm:pt-[88px]
+                lg:p-8 lg:pt-[88px]
               `
               : `
                 min-w-0
-                p-4
-                pt-[120px]
-                sm:p-6
-                sm:pt-[120px]
-                lg:p-8
-                lg:pt-[120px]
+                p-4 pt-[128px]
+                sm:p-6 sm:pt-[128px]
+                lg:p-8 lg:pt-[128px]
               `
           }
         >

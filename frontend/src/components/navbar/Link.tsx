@@ -6,12 +6,16 @@ type Props = {
   page: SelectedPage;
   selectedPage: SelectedPage;
   setSelectedPage: (value: SelectedPage) => void;
+  onNavigate?: () => void;
+  className?: string;
 };
 
 const Link = ({
   page,
   selectedPage,
   setSelectedPage,
+  onNavigate,
+  className = "",
 }: Props) => {
   /*
     Map the SelectedPage enum values
@@ -27,12 +31,15 @@ const Link = ({
   return (
     <AnchorLink
       href={`#${linkId}`}
-      onClick={() => setSelectedPage(page)}
+      onClick={() => {
+        setSelectedPage(page);
+        onNavigate?.();
+      }}
       className={`${
         selectedPage === page
           ? "text-secondary-600 font-bold"
           : "text-black font-bold"
-      } cursor-pointer transition duration-500 hover:text-green-900`}
+      } cursor-pointer transition duration-300 hover:text-green-900 ${className}`}
     >
       {page === SelectedPage.HowItWorks
         ? "How It Works"

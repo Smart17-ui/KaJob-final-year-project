@@ -419,7 +419,7 @@ const Analytics = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 sm:min-w-[360px]">
+              <div className="grid w-full grid-cols-3 gap-2 sm:min-w-[360px] sm:gap-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xl font-bold text-white">
                     {analytics.jobs.completed}

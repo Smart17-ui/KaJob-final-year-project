@@ -266,7 +266,7 @@ const Performance = () => {
 
   return (
     <div className="min-h-full bg-slate-50">
-      <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto min-w-0 max-w-7xl px-1 py-4 sm:px-2 sm:py-6 lg:px-4">
         {/* PAGE HEADER */}
         <div className="mb-6">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">

@@ -638,9 +638,7 @@ const JobPreviewCard = ({
 ===================================== */
 
 interface WorkspaceCardProps {
-  icon: React.ComponentType<
-    React.SVGProps<SVGSVGElement>
-  >;
+  icon: React.ElementType;
   title: string;
   description: string;
   onClick: () => void;

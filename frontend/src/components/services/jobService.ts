@@ -6,6 +6,7 @@ import type {
   JobReviewsResponse,
 } from "../../shared/types/job";
 import API_BASE_URL from "@/api/config";
+import apiClient from "@/api/client";
 
 /* =========================================================
    CREATE JOB
@@ -309,39 +310,12 @@ export const deleteJob = async (
 export const confirmJob = async (
   jobId: number
 ) => {
-  const token =
-    localStorage.getItem("access_token");
-
-  const response = await fetch(
-    `${API_BASE_URL}/jobs/${jobId}/confirm/`,
-    {
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-
-        ...(token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : {}),
-      },
-
-      body: JSON.stringify({}),
-    }
-  );
-
-  const result = await response.json();
-
-  if (!response.ok) {
-    const errorMessage =
-      result?.detail ||
-      result?.error ||
-      Object.values(result || {})[0] ||
-      "Failed to confirm job completion.";
-
-    throw new Error(String(errorMessage));
+  if (!Number.isInteger(jobId) || jobId <= 0) {
+    throw new Error("The selected job is invalid.");
   }
 
-  return result;
+  return apiClient(`/jobs/${jobId}/confirm/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
 };

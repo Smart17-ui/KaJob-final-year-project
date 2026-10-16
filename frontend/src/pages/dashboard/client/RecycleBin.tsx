@@ -41,7 +41,7 @@ const ClientRecycleBin = () => {
 
       const response = await getMyHiddenJobs();
 
-      setDeletedJobs(response.results);
+      setDeletedJobs(response.results ?? []);
     } catch (err) {
       console.error(
         "Failed to load Recycle Bin:",

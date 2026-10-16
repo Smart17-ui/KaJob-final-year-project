@@ -24,10 +24,6 @@ import {
   ApiError,
 } from "@/api/auth/auth";
 
-import {
-  type RoleValue,
-} from "@/shared/types";
-
 import { saveAuth } from "@/shared/auth";
 
 interface FormState {
@@ -128,8 +124,11 @@ export default function ClientLogin() {
       const data = await loginUser({
         email: form.email.trim(),
         password: form.password,
-        role: "CLIENT",
       });
+
+      const selectedRole = data.available_roles.includes("CLIENT")
+        ? "CLIENT"
+        : data.detected_role;
 
       console.log(
         "LOGIN SUCCESS:",
@@ -138,18 +137,18 @@ export default function ClientLogin() {
 
       console.log(
         "SELECTED ROLE:",
-        data.selected_role
+        selectedRole
       );
 
       saveAuth(
         data.tokens.access,
         data.tokens.refresh,
         data.user,
-        data.selected_role as RoleValue
+        selectedRole
       );
 
       if (
-        data.selected_role === "CLIENT"
+        selectedRole === "CLIENT"
       ) {
         navigate(
           "/client/dashboard",

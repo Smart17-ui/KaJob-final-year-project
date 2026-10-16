@@ -9,7 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { NavLink } from "react-router-dom";
 
-import { getCurrentUser } from "@/shared/auth";
+import { getCurrentUser, getSelectedRole } from "@/shared/auth";
 
 /* =========================================================
    SETTINGS SIDEBAR
@@ -65,7 +65,7 @@ const workerItems: SettingsItem[] = [
 const SettingsSidebar = () => {
   const user = getCurrentUser();
 
-  const isWorker = user?.role === "WORKER";
+  const isWorker = (getSelectedRole() ?? (user?.is_worker ? "WORKER" : "CLIENT")) === "WORKER";
 
   const items = isWorker
     ? [...commonItems, ...workerItems]

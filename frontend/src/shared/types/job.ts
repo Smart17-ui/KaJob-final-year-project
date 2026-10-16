@@ -479,6 +479,12 @@ export interface Worker {
 
   average_rating?: number | null;
 
+  rating?: number | null;
+
+  reviews_count?: number | null;
+
+  is_verified?: boolean;
+
   jobs_completed?: number | null;
 
   skills?: string[];

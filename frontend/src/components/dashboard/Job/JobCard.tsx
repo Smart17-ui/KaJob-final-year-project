@@ -38,7 +38,7 @@ const formatBudget = (
 
 
 const formatPostedDate = (
-  dateString?: string
+  dateString?: string | null
 ) => {
 
   if (!dateString) {

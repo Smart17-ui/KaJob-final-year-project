@@ -68,7 +68,7 @@ const TopBar = ({
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
-      <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+      <div className="flex h-[72px] items-center justify-between px-4 sm:px-6">
         {/* LEFT — hamburger + logo */}
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -76,7 +76,7 @@ const TopBar = ({
             type="button"
             onClick={onMenuOpen}
             className="
-              flex h-10 w-10 items-center justify-center
+              flex h-11 w-11 items-center justify-center
               rounded-lg text-slate-500
               transition-all duration-200
               hover:bg-slate-100
@@ -90,13 +90,13 @@ const TopBar = ({
             "
             aria-label="Open menu"
           >
-            <Bars3Icon className="h-5 w-5" />
+            <Bars3Icon className="h-6 w-6" />
           </button>
 
           <img
             src={Logo}
             alt="KaJob"
-            className="h-6 w-auto select-none sm:h-7 lg:h-8"
+            className="h-7 w-auto select-none sm:h-8 lg:h-9"
             draggable={false}
           />
         </div>

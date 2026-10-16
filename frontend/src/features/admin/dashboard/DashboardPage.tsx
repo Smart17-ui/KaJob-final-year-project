@@ -117,7 +117,7 @@ export const DashboardPage = () => {
                     title="Verified Users"
                     value={stats?.users.verified ?? 0}
                     icon={<CheckCircle size={20} />}
-                    subtitle={`${stats?.users.active_today ?? 0} active today`}
+                    subtitle={`${stats?.users.active ?? 0} active accounts`}
                     trend={4.2}
                     loading={loading}
                 />

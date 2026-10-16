@@ -85,7 +85,7 @@ const JobStatusSidebar = ({
         </p>
       </div>
 
-      <nav className="space-y-1">
+      <nav className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:flex md:flex-col">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = status === item.value;
@@ -101,8 +101,7 @@ const JobStatusSidebar = ({
                 items-center
                 gap-3
                 rounded-xl
-                px-3
-                py-3
+                px-2 py-2.5 sm:px-3 md:py-3
                 text-left
                 text-sm
                 font-medium
@@ -127,7 +126,7 @@ const JobStatusSidebar = ({
                 `}
               />
 
-              <span className="flex-1">
+              <span className="min-w-0 flex-1 text-left text-xs sm:text-sm">
                 {item.label}
               </span>
 

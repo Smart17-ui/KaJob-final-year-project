@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 
 import { deactivateAccount, deleteAccount, logoutUser } from "@/api/auth/auth";
 import { getUserProfile, UserProfile } from "@/api/profile";
-import { clearAuth, getRefreshToken } from "@/shared/auth";
+import { clearAuth, getRefreshToken, getSelectedRole } from "@/shared/auth";
 
 const AccountSection = () => {
   const navigate = useNavigate();
@@ -156,6 +156,7 @@ const AccountSection = () => {
   }
 
   const user = profile.user;
+  const currentRole = getSelectedRole() ?? (user.is_worker ? "WORKER" : "CLIENT");
 
   return (
     <div className="space-y-8">
@@ -287,7 +288,7 @@ const AccountSection = () => {
                   Current role
                 </p>
                 <p className="mt-1 text-sm text-gray-500">
-                  {formatRole(user.role_display)}
+                  {formatRole(currentRole)}
                 </p>
               </div>
             </div>

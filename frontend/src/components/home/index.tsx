@@ -33,7 +33,7 @@ const Home = ({ setSelectedPage }: Props) => {
 
       <section
         id="home"
-        className="relative w-full bg-gradient-to-b from-white via-primary-50/30 to-white px-4 py-12 md:px-10 md:py-20"
+        className="relative w-full bg-gradient-to-b from-white via-primary-50/30 to-white px-5 pb-16 pt-10 sm:px-8 sm:py-16 md:px-10 md:py-20"
       >
         <motion.div
           className="mx-auto max-w-7xl"
@@ -46,7 +46,7 @@ const Home = ({ setSelectedPage }: Props) => {
               HERO GRID
           ========================= */}
 
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+          <div className="grid gap-10 md:gap-12 lg:grid-cols-2 lg:items-center">
 
             {/* =========================
                 LEFT SIDE
@@ -69,7 +69,7 @@ const Home = ({ setSelectedPage }: Props) => {
                 duration: 0.7,
                 ease: "easeOut",
               }}
-              className="space-y-8"
+              className="space-y-7 md:space-y-8"
             >
 
               {/* =========================
@@ -100,7 +100,7 @@ const Home = ({ setSelectedPage }: Props) => {
 
                 <div className="relative">
 
-                  <h1 className="text-5xl font-bold tracking-tight text-gray-900 md:text-6xl lg:text-7xl">
+                  <h1 className="text-[2.65rem] font-bold leading-[1.06] tracking-tight text-gray-900 sm:text-5xl md:text-6xl lg:text-7xl">
                     Find Work.
                     <br />
 
@@ -148,7 +148,7 @@ const Home = ({ setSelectedPage }: Props) => {
                     DESCRIPTION
                 ========================= */}
 
-                <p className="mt-6 max-w-lg text-lg leading-8 text-gray-600">
+                <p className="mt-5 max-w-lg text-base leading-7 text-gray-600 sm:mt-6 sm:text-lg sm:leading-8">
                   Connect with skilled workers or find opportunities in your
                   neighborhood. KaJob makes local piecework easier, faster,
                   and more reliable.
@@ -161,7 +161,7 @@ const Home = ({ setSelectedPage }: Props) => {
               ========================= */}
 
               <motion.div
-                className="flex flex-col gap-4 sm:flex-row sm:gap-6"
+                className="flex flex-col gap-3 sm:flex-row sm:gap-4"
                 initial={{
                   opacity: 0,
                   y: 20,
@@ -198,8 +198,10 @@ const Home = ({ setSelectedPage }: Props) => {
                     bg-gradient-to-r
                     from-secondary-500
                     to-secondary-700
-                    px-8
-                    py-4
+                    px-6
+                    py-3.5
+                    sm:px-8
+                    sm:py-4
                     font-semibold
                     text-white
                     shadow-lg
@@ -248,8 +250,10 @@ const Home = ({ setSelectedPage }: Props) => {
                     bg-gradient-to-r
                     from-secondary-500
                     to-secondary-700
-                    px-8
-                    py-4
+                    px-6
+                    py-3.5
+                    sm:px-8
+                    sm:py-4
                     font-semibold
                     text-white
                     shadow-lg
@@ -325,8 +329,10 @@ const Home = ({ setSelectedPage }: Props) => {
                   }}
                   className="
                     absolute
-                    h-96
-                    w-96
+                    h-72
+                    w-72
+                    sm:h-96
+                    sm:w-96
                     rounded-full
                     border-2
                     border-primary-200/30
@@ -344,8 +350,10 @@ const Home = ({ setSelectedPage }: Props) => {
                   }}
                   className="
                     absolute
-                    h-80
-                    w-80
+                    h-60
+                    w-60
+                    sm:h-80
+                    sm:w-80
                     rounded-full
                     border-2
                     border-primary-100/30
@@ -374,7 +382,8 @@ const Home = ({ setSelectedPage }: Props) => {
                   className="
                     h-auto
                     w-full
-                    max-w-md
+                    max-w-xs
+                    sm:max-w-md
                     object-contain
                     drop-shadow-2xl
                   "

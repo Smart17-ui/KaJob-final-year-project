@@ -17,6 +17,7 @@ import {
 } from "react-router-dom";
 
 import { useState } from "react";
+import Logo from "@/assets/Logo.png";
 
 type UserRole = "CLIENT" | "WORKER";
 
@@ -258,7 +259,7 @@ const Sidebar = ({
         <div
           className="
             flex
-            h-16
+            h-[72px]
             flex-shrink-0
             items-center
             justify-between
@@ -267,30 +268,12 @@ const Sidebar = ({
             px-5
           "
         >
-          <div className="flex items-center gap-2.5">
-            <div
-              className="
-                flex
-                h-8
-                w-8
-                items-center
-                justify-center
-                rounded-lg
-                bg-gradient-to-br
-                from-emerald-400
-                to-emerald-600
-                shadow-sm
-              "
-            >
-              <span className="text-xs font-bold text-white">
-                KJ
-              </span>
-            </div>
-
-            <span className="text-sm font-semibold text-slate-900">
-              KaJob
-            </span>
-          </div>
+          <img
+            src={Logo}
+            alt="KaJob"
+            className="h-8 w-auto select-none"
+            draggable={false}
+          />
 
           <button
             type="button"
@@ -322,26 +305,28 @@ const Sidebar = ({
             CURRENT ROLE
             =================================================== */}
 
-        <div className="px-4 pt-5 pb-3">
+        <div className="px-4 pb-3 pt-5">
           <div
             className="
               flex
               items-center
               gap-3
               rounded-xl
-              bg-slate-50
+              border
+              border-slate-100
+              bg-slate-50/80
               px-3
-              py-2.5
+              py-3
             "
           >
             <div
               className="
                 flex
-                h-8
-                w-8
+                h-10
+                w-10
                 items-center
                 justify-center
-                rounded-lg
+                rounded-xl
                 bg-white
                 shadow-sm
               "

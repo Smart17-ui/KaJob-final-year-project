@@ -20,8 +20,8 @@ type FindJobsHeaderProps = {
 
   categories: string[];
 
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
+  viewMode?: ViewMode;
+  setViewMode?: (mode: ViewMode) => void;
 
   jobsLoading: boolean;
   onRefresh: () => void;
@@ -35,7 +35,7 @@ const FindJobsHeader = ({
   selectedCategory,
   onCategoryChange,
   categories,
-  viewMode,
+  viewMode = "list",
   setViewMode,
   jobsLoading,
   onRefresh,
@@ -109,7 +109,7 @@ const FindJobsHeader = ({
 
             {/* LIST / MAP */}
 
-            <div className="flex h-9 items-center rounded-lg border border-gray-200 bg-white p-1">
+            {setViewMode && <div className="flex h-9 items-center rounded-lg border border-gray-200 bg-white p-1">
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
@@ -135,7 +135,7 @@ const FindJobsHeader = ({
                 <MapIcon className="h-3.5 w-3.5" />
                 <span className="hidden xs:inline sm:inline">Map</span>
               </button>
-            </div>
+            </div>}
           </div>
         </div>
 

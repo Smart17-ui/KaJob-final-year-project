@@ -751,11 +751,20 @@ const MyJobs = () => {
             jobId
           );
 
-          /*
-           * Refresh the jobs list so the UI
-           * immediately reflects COMPLETED.
-           */
-          await loadJobs();
+          // The confirmation request is the source of truth. Update the
+          // card immediately so a later list refresh cannot make a
+          // successful confirmation look like a failed action.
+          setJobs((currentJobs) =>
+            currentJobs.map((job) =>
+              job.id === jobId
+                ? {
+                    ...job,
+                    status: "COMPLETED",
+                    status_display: "Completed",
+                  }
+                : job
+            )
+          );
 
           /*
            * Close the confirmation modal.
@@ -913,12 +922,8 @@ const MyJobs = () => {
     return (
       <div
         className="
-          flex
-          h-[calc(100vh-136px)]
-          min-h-0
-          flex-col
-          sm:h-[calc(100vh-144px)]
-          lg:h-[calc(100vh-152px)]
+          flex min-h-[calc(100vh-152px)] flex-col
+          lg:h-[calc(100vh-160px)] lg:min-h-0
         "
       >
         <div className="shrink-0 pb-6">
@@ -962,12 +967,8 @@ const MyJobs = () => {
     return (
       <div
         className="
-          flex
-          h-[calc(100vh-136px)]
-          min-h-0
-          flex-col
-          sm:h-[calc(100vh-144px)]
-          lg:h-[calc(100vh-152px)]
+          flex min-h-[calc(100vh-152px)] flex-col
+          lg:h-[calc(100vh-160px)] lg:min-h-0
         "
       >
         <div className="shrink-0 pb-6">
@@ -1041,12 +1042,8 @@ const MyJobs = () => {
     <>
       <div
         className="
-          flex
-          h-[calc(100vh-136px)]
-          min-h-0
-          flex-col
-          sm:h-[calc(100vh-144px)]
-          lg:h-[calc(100vh-152px)]
+          flex min-h-[calc(100vh-152px)] flex-col
+          lg:h-[calc(100vh-160px)] lg:min-h-0
         "
       >
         {/* =================================================
@@ -1142,12 +1139,12 @@ const MyJobs = () => {
             />
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 gap-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row md:gap-6">
             {/* =================================================
                 STATUS SIDEBAR
             ================================================= */}
 
-            <aside className="-mt-4 w-60 shrink-0">
+            <aside className="w-full shrink-0 md:-mt-4 md:w-60">
               <JobStatusSidebar
                 status={status}
                 setStatus={setStatus}
@@ -1164,8 +1161,7 @@ const MyJobs = () => {
                 min-h-0
                 min-w-0
                 flex-1
-                overflow-y-auto
-                pr-2
+                md:overflow-y-auto md:pr-2
                 [scrollbar-width:none]
                 [-ms-overflow-style:none]
                 [&::-webkit-scrollbar]:hidden

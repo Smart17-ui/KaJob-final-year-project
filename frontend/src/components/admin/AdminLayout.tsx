@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import NotificationBell from '@/components/dashboard/TopBar/NotificationBell';
+import Logo from '@/assets/Logo.png';
 
 // ============================================
 // NAVIGATION CONFIG
@@ -69,49 +70,42 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     };
 
     return (
-        <div className="min-h-screen bg-admin-bg-page">
+        <div className="min-h-screen bg-slate-50">
             {/* ============================================ */}
             {/* TOP BAR */}
             {/* ============================================ */}
-            <header className="sticky top-0 z-30 bg-white border-b border-admin-border-light">
-                <div className="flex items-center justify-between h-16 px-4 lg:px-6">
+            <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
+                <div className="flex h-[72px] items-center justify-between px-4 sm:px-6">
                     {/* Left: Mobile menu + Logo */}
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setMobileMenuOpen(true)}
-                            className="lg:hidden p-2 -ml-2 text-admin-text-secondary hover:text-admin-text-primary rounded-md hover:bg-admin-bg-hover transition-colors"
+                            className="-ml-2 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 lg:hidden"
                             aria-label="Open menu"
                         >
-                            <Menu size={20} />
+                            <Menu size={24} />
                         </button>
 
                         <Link
                             to="/admin/dashboard"
-                            className="flex items-center gap-2"
+                            className="flex items-center"
                         >
-                            <div className="w-8 h-8 bg-admin-primary-500 rounded-lg flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">
-                                    K
-                                </span>
-                            </div>
-                            <span className="text-lg font-semibold text-admin-text-primary hidden sm:block">
-                                KaJob{' '}
-                                <span className="text-admin-text-secondary font-normal">
-                                    Admin
-                                </span>
-                            </span>
+                            <img src={Logo} alt="KaJob Admin" className="h-8 w-auto select-none" draggable={false} />
                         </Link>
                     </div>
 
                     {/* Right: Notifications + Settings + Profile */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                         {/* Notifications */}
                         <NotificationBell userRole="ADMIN" />
 
                         {/* Settings */}
                         <button
-                            className="p-2 text-admin-text-secondary hover:text-admin-text-primary rounded-md hover:bg-admin-bg-hover transition-colors"
-                            aria-label="Settings"
+                            type="button"
+                            onClick={() => navigate('/admin/profile')}
+                            className="hidden h-10 w-10 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-emerald-700 sm:flex"
+                            aria-label="Open admin profile and settings"
+                            title="Profile and settings"
                         >
                             <Settings size={20} />
                         </button>
@@ -123,10 +117,10 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                         <div className="relative">
                             <button
                                 onClick={() => setProfileOpen(!profileOpen)}
-                                className="flex items-center gap-2 p-1.5 rounded-md hover:bg-admin-bg-hover transition-colors"
+                                className="flex items-center gap-2 rounded-xl p-1.5 transition hover:bg-slate-50"
                             >
-                                <div className="w-8 h-8 bg-admin-primary-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-sm font-medium">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100">
+                                    <span className="text-sm font-semibold text-emerald-800">
                                         {getInitials()}
                                     </span>
                                 </div>
@@ -182,8 +176,8 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                 {/* ============================================ */}
                 {/* DESKTOP NAVIGATION */}
                 {/* ============================================ */}
-                <nav className="hidden lg:block border-t border-admin-border-light">
-                    <div className="flex items-center gap-1 px-6 overflow-x-auto">
+                <nav className="border-t border-slate-100">
+                    <div className="mx-auto flex max-w-7xl items-center overflow-x-auto px-2 sm:px-6 lg:px-8">
                         {navigation.map((item) => {
                             const Icon = item.icon;
                             const active = isActive(item.href);
@@ -192,20 +186,18 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                                     key={item.name}
                                     to={item.href}
                                     className={`
-                                        relative flex items-center gap-2 px-4 py-3
+                                        relative flex shrink-0 items-center gap-2 border-b-2 px-4 py-4
                                         text-sm font-medium whitespace-nowrap
                                         transition-colors duration-150
                                         ${active
-                                            ? 'text-admin-primary-600'
-                                            : 'text-admin-text-secondary hover:text-admin-text-primary'
+                                            ? 'border-emerald-500 text-slate-900'
+                                            : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900'
                                         }
                                     `}
                                 >
                                     <Icon size={16} />
                                     {item.name}
-                                    {active && (
-                                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-admin-primary-500" />
-                                    )}
+                                    {active && <span className="sr-only">Current page</span>}
                                 </Link>
                             );
                         })}
@@ -227,20 +219,11 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                     {/* Drawer */}
                     <aside className="absolute inset-y-0 left-0 w-72 bg-white shadow-xl flex flex-col">
                         {/* Drawer Header */}
-                        <div className="flex items-center justify-between h-16 px-4 border-b border-admin-border-light shrink-0">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-admin-primary-500 rounded-lg flex items-center justify-center">
-                                    <span className="text-white font-bold text-sm">
-                                        K
-                                    </span>
-                                </div>
-                                <span className="text-lg font-semibold text-admin-text-primary">
-                                    KaJob Admin
-                                </span>
-                            </div>
+                        <div className="flex h-[72px] items-center justify-between border-b border-slate-100 px-5 shrink-0">
+                            <img src={Logo} alt="KaJob Admin" className="h-8 w-auto select-none" draggable={false} />
                             <button
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="p-2 text-admin-text-secondary hover:text-admin-text-primary rounded-md hover:bg-admin-bg-hover transition-colors"
+                                className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                 aria-label="Close menu"
                             >
                                 <X size={20} />
@@ -248,7 +231,12 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                         </div>
 
                         {/* Drawer Navigation */}
-                        <nav className="flex-1 overflow-y-auto p-4">
+                        <div className="mx-4 mt-5 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Current role</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-800">Administrator</p>
+                        </div>
+
+                        <nav className="flex-1 overflow-y-auto px-3 py-4">
                             {navigation.map((item) => {
                                 const Icon = item.icon;
                                 const active = isActive(item.href);
@@ -258,12 +246,12 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                                         to={item.href}
                                         onClick={() => setMobileMenuOpen(false)}
                                         className={`
-                                            flex items-center gap-3 px-4 py-3 rounded-admin-button mb-1
+                                            flex items-center gap-3 rounded-xl px-3 py-3 mb-1
                                             text-sm font-medium
                                             transition-colors duration-150
                                             ${active
-                                                ? 'bg-admin-primary-50 text-admin-primary-700'
-                                                : 'text-admin-text-secondary hover:bg-admin-bg-hover hover:text-admin-text-primary'
+                                                ? 'bg-emerald-50 text-emerald-700'
+                                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                             }
                                         `}
                                     >
@@ -275,10 +263,10 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
                         </nav>
 
                         {/* Drawer Footer - User Info */}
-                        <div className="p-4 border-t border-admin-border-light shrink-0">
+                        <div className="border-t border-slate-100 p-4 shrink-0">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className="w-9 h-9 bg-admin-primary-500 rounded-full flex items-center justify-center shrink-0">
-                                    <span className="text-white text-sm font-medium">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                                    <span className="text-sm font-semibold text-emerald-800">
                                         {getInitials()}
                                     </span>
                                 </div>
@@ -306,8 +294,8 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
             {/* ============================================ */}
             {/* MAIN CONTENT */}
             {/* ============================================ */}
-            <main className="p-4 lg:p-6">
-                <div className="max-w-[1600px] mx-auto">
+            <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-7xl">
                     {children}
                 </div>
             </main>

@@ -4,6 +4,7 @@ import type {
   UpdateApplicationStatusResponse,
 } from "../../shared/types/application";
 import API_BASE_URL from "@/api/config";
+import apiClient from "@/api/client";
 
 /*
  * =========================
@@ -62,52 +63,13 @@ export type WorkerDetails = {
 export async function getWorkerDetails(
   workerId: number
 ): Promise<WorkerDetails> {
-  const accessToken =
-    localStorage.getItem("access_token");
-
-  if (!accessToken) {
-    throw new Error(
-      "You are not authenticated. Please log in."
-    );
+  if (!Number.isInteger(workerId) || workerId <= 0) {
+    throw new Error("Worker information is not available for this application.");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/workers/${workerId}/`,
-    {
-      method: "GET",
-
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-
-  let result: any = null;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      "The server returned an invalid response."
-    );
-  }
-
-  if (!response.ok) {
-    if (result?.error) {
-      throw new Error(result.error);
-    }
-
-    if (result?.detail) {
-      throw new Error(result.detail);
-    }
-
-    throw new Error(
-      "Failed to load worker details."
-    );
-  }
-
-  return result as WorkerDetails;
+  return apiClient(`/workers/${workerId}/`, {
+    method: "GET",
+  }) as Promise<WorkerDetails>;
 }
 
 /*
