@@ -7,6 +7,7 @@ from django.db.models import Avg, Count
 from apps.accounts.models import User, WorkerProfile
 from apps.common.permissions import IsClient, IsActiveUser
 from apps.common.exceptions import ResourceNotFound
+from apps.common.utils.media import build_absolute_media_url
 
 
 class WorkerDetailView(APIView):
@@ -61,17 +62,20 @@ class WorkerDetailView(APIView):
             'jobs_completed': worker_profile.jobs_completed or 0,
             'skills': skills,
             'availability_status': worker_profile.availability_status,
-            'profile_photo': self._get_profile_photo(user),
+            'profile_photo': self._get_profile_photo(user, request),
             'location': self._get_user_location(user),
             'recent_reviews': reviews_data['recent_reviews'],
             'verified': user.is_verified,
             'member_since': user.created_at.strftime('%Y-%m-%d') if user.created_at else None,
         }, status=status.HTTP_200_OK)
 
-    def _get_profile_photo(self, user):
-        """Get user's profile photo path."""
+    def _get_profile_photo(self, user, request=None):
+        """Return the user's profile photo as an absolute URL."""
         if hasattr(user, 'profile') and user.profile:
-            return user.profile.profile_photo_path if user.profile.profile_photo_path else None
+            return build_absolute_media_url(
+                user.profile.profile_photo_path,
+                request,
+            )
         return None
 
     def _get_user_location(self, user):
