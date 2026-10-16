@@ -35,10 +35,13 @@ class WorkerDetailView(APIView):
                 'error': 'User is not a worker.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Older/partially migrated worker accounts may have the worker role
-        # without a profile row. Create the default profile so clients can
-        # still view the worker and the account can be completed later.
-        worker_profile, _ = WorkerProfile.objects.get_or_create(user=user)
+        # Get worker profile
+        try:
+            worker_profile = WorkerProfile.objects.get(user=user)
+        except WorkerProfile.DoesNotExist:
+            return Response({
+                'error': 'Worker profile not found.'
+            }, status=status.HTTP_404_NOT_FOUND)
 
         # Get worker's skills
         skills = [skill.name for skill in worker_profile.skills.all()]
