@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
 
+import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import {
@@ -48,27 +48,16 @@ const initialState: FormState = {
   acceptTerms: false,
 };
 
-const EMAIL_RE =
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function WorkerRegister() {
   const navigate = useNavigate();
 
-  const [form, setForm] =
-    useState<FormState>(initialState);
-
-  const [errors, setErrors] =
-    useState<FormErrors>({});
-
-  const [formError, setFormError] =
-    useState("");
-
-  const [isSubmitting, setIsSubmitting] =
-    useState(false);
-
-  const [showPassword, setShowPassword] =
-    useState(false);
-
+  const [form, setForm] = useState<FormState>(initialState);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
 
@@ -93,31 +82,25 @@ export default function WorkerRegister() {
     const newErrors: FormErrors = {};
 
     if (!form.first_name.trim()) {
-      newErrors.first_name =
-        "First name is required.";
+      newErrors.first_name = "First name is required.";
     }
 
     if (!form.last_name.trim()) {
-      newErrors.last_name =
-        "Last name is required.";
+      newErrors.last_name = "Last name is required.";
     }
 
     if (!form.email.trim()) {
-      newErrors.email =
-        "Email is required.";
+      newErrors.email = "Email is required.";
     } else if (!EMAIL_RE.test(form.email.trim())) {
-      newErrors.email =
-        "Enter a valid email address.";
+      newErrors.email = "Enter a valid email address.";
     }
 
     if (!form.phone_number.trim()) {
-      newErrors.phone_number =
-        "Phone number is required.";
+      newErrors.phone_number = "Phone number is required.";
     }
 
     if (!form.password) {
-      newErrors.password =
-        "Password is required.";
+      newErrors.password = "Password is required.";
     } else if (form.password.length < 8) {
       newErrors.password =
         "Password must be at least 8 characters.";
@@ -126,11 +109,8 @@ export default function WorkerRegister() {
     if (!form.password_confirm) {
       newErrors.password_confirm =
         "Please confirm your password.";
-    } else if (
-      form.password !== form.password_confirm
-    ) {
-      newErrors.password_confirm =
-        "Passwords do not match.";
+    } else if (form.password !== form.password_confirm) {
+      newErrors.password_confirm = "Passwords do not match.";
     }
 
     if (!form.acceptTerms) {
@@ -147,7 +127,6 @@ export default function WorkerRegister() {
     event: FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
-
     setFormError("");
 
     if (!validate()) {
@@ -181,71 +160,55 @@ export default function WorkerRegister() {
         const backendErrors: FormErrors = {};
         const fields = error.fields ?? {};
 
-        const firstNameError =
-          fields.first_name;
-
-        const lastNameError =
-          fields.last_name;
-
-        const emailError =
-          fields.email;
-
-        const phoneError =
-          fields.phone_number;
-
-        const passwordError =
-          fields.password;
-
-        const confirmPasswordError =
-          fields.password_confirm;
+        const firstNameError = fields.first_name;
+        const lastNameError = fields.last_name;
+        const emailError = fields.email;
+        const phoneError = fields.phone_number;
+        const passwordError = fields.password;
+        const confirmPasswordError = fields.password_confirm;
 
         if (firstNameError) {
-          backendErrors.first_name =
-            Array.isArray(firstNameError)
-              ? String(firstNameError[0])
-              : String(firstNameError);
+          backendErrors.first_name = Array.isArray(firstNameError)
+            ? String(firstNameError[0])
+            : String(firstNameError);
         }
 
         if (lastNameError) {
-          backendErrors.last_name =
-            Array.isArray(lastNameError)
-              ? String(lastNameError[0])
-              : String(lastNameError);
+          backendErrors.last_name = Array.isArray(lastNameError)
+            ? String(lastNameError[0])
+            : String(lastNameError);
         }
 
         if (emailError) {
-          backendErrors.email =
-            Array.isArray(emailError)
-              ? String(emailError[0])
-              : String(emailError);
+          backendErrors.email = Array.isArray(emailError)
+            ? String(emailError[0])
+            : String(emailError);
         }
 
         if (phoneError) {
-          backendErrors.phone_number =
-            Array.isArray(phoneError)
-              ? String(phoneError[0])
-              : String(phoneError);
+          backendErrors.phone_number = Array.isArray(phoneError)
+            ? String(phoneError[0])
+            : String(phoneError);
         }
 
         if (passwordError) {
-          backendErrors.password =
-            Array.isArray(passwordError)
-              ? String(passwordError[0])
-              : String(passwordError);
+          backendErrors.password = Array.isArray(passwordError)
+            ? String(passwordError[0])
+            : String(passwordError);
         }
 
         if (confirmPasswordError) {
-          backendErrors.password_confirm =
-            Array.isArray(confirmPasswordError)
-              ? String(confirmPasswordError[0])
-              : String(confirmPasswordError);
+          backendErrors.password_confirm = Array.isArray(
+            confirmPasswordError
+          )
+            ? String(confirmPasswordError[0])
+            : String(confirmPasswordError);
         }
 
         setErrors(backendErrors);
 
         setFormError(
-          error.message ||
-            "Unable to create your account."
+          error.message || "Unable to create your account."
         );
 
         return;
@@ -260,12 +223,12 @@ export default function WorkerRegister() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4 py-8">
       {/* Back button */}
       <button
         type="button"
         onClick={() => navigate("/register")}
-        className="absolute left-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600 sm:left-8 sm:top-8"
+        className="absolute left-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800 sm:left-8 sm:top-8"
         aria-label="Go back"
       >
         <ArrowLeftIcon className="h-5 w-5" />
@@ -279,7 +242,7 @@ export default function WorkerRegister() {
           className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8"
         >
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
               <WrenchScrewdriverIcon className="h-7 w-7" />
             </div>
 
@@ -298,10 +261,7 @@ export default function WorkerRegister() {
             </div>
           )}
 
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5"
-          >
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -312,12 +272,9 @@ export default function WorkerRegister() {
                   type="text"
                   value={form.first_name}
                   onChange={(event) =>
-                    updateField(
-                      "first_name",
-                      event.target.value
-                    )
+                    updateField("first_name", event.target.value)
                   }
-                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 ${
+                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 ${
                     errors.first_name
                       ? "border-red-400"
                       : "border-slate-200"
@@ -342,12 +299,9 @@ export default function WorkerRegister() {
                   type="text"
                   value={form.last_name}
                   onChange={(event) =>
-                    updateField(
-                      "last_name",
-                      event.target.value
-                    )
+                    updateField("last_name", event.target.value)
                   }
-                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 ${
+                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 ${
                     errors.last_name
                       ? "border-red-400"
                       : "border-slate-200"
@@ -373,12 +327,9 @@ export default function WorkerRegister() {
                 type="email"
                 value={form.email}
                 onChange={(event) =>
-                  updateField(
-                    "email",
-                    event.target.value
-                  )
+                  updateField("email", event.target.value)
                 }
-                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 ${
+                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 ${
                   errors.email
                     ? "border-red-400"
                     : "border-slate-200"
@@ -403,12 +354,9 @@ export default function WorkerRegister() {
                 type="tel"
                 value={form.phone_number}
                 onChange={(event) =>
-                  updateField(
-                    "phone_number",
-                    event.target.value
-                  )
+                  updateField("phone_number", event.target.value)
                 }
-                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 ${
+                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 ${
                   errors.phone_number
                     ? "border-red-400"
                     : "border-slate-200"
@@ -431,19 +379,12 @@ export default function WorkerRegister() {
 
               <div className="relative">
                 <input
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
+                  type={showPassword ? "text" : "password"}
                   value={form.password}
                   onChange={(event) =>
-                    updateField(
-                      "password",
-                      event.target.value
-                    )
+                    updateField("password", event.target.value)
                   }
-                  className={`w-full rounded-xl border px-4 py-3 pr-12 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 ${
+                  className={`w-full rounded-xl border px-4 py-3 pr-12 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 ${
                     errors.password
                       ? "border-red-400"
                       : "border-slate-200"
@@ -455,11 +396,12 @@ export default function WorkerRegister() {
                 <button
                   type="button"
                   onClick={() =>
-                    setShowPassword(
-                      (previous) => !previous
-                    )
+                    setShowPassword((previous) => !previous)
                   }
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  aria-label={
+                    showPassword ? "Hide password" : "Show password"
+                  }
                 >
                   {showPassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
@@ -483,11 +425,7 @@ export default function WorkerRegister() {
 
               <div className="relative">
                 <input
-                  type={
-                    showConfirmPassword
-                      ? "text"
-                      : "password"
-                  }
+                  type={showConfirmPassword ? "text" : "password"}
                   value={form.password_confirm}
                   onChange={(event) =>
                     updateField(
@@ -495,7 +433,7 @@ export default function WorkerRegister() {
                       event.target.value
                     )
                   }
-                  className={`w-full rounded-xl border px-4 py-3 pr-12 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 ${
+                  className={`w-full rounded-xl border px-4 py-3 pr-12 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 ${
                     errors.password_confirm
                       ? "border-red-400"
                       : "border-slate-200"
@@ -512,6 +450,11 @@ export default function WorkerRegister() {
                     )
                   }
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  aria-label={
+                    showConfirmPassword
+                      ? "Hide confirm password"
+                      : "Show confirm password"
+                  }
                 >
                   {showConfirmPassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
@@ -534,12 +477,9 @@ export default function WorkerRegister() {
                   type="checkbox"
                   checked={form.acceptTerms}
                   onChange={(event) =>
-                    updateField(
-                      "acceptTerms",
-                      event.target.checked
-                    )
+                    updateField("acceptTerms", event.target.checked)
                   }
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-slate-700 focus:ring-slate-500"
                 />
 
                 <span>
@@ -557,7 +497,7 @@ export default function WorkerRegister() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting
                 ? "Creating account..."
@@ -569,7 +509,7 @@ export default function WorkerRegister() {
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-semibold text-emerald-600 hover:text-emerald-700"
+              className="font-semibold text-slate-700 hover:text-slate-900"
             >
               Log in
             </Link>

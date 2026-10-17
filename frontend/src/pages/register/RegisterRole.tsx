@@ -1,3 +1,4 @@
+
 import {
   ArrowLeftIcon,
   BriefcaseIcon,
@@ -29,12 +30,12 @@ export default function RegisterRole() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       {/* Back button */}
       <button
         type="button"
         onClick={() => navigate("/")}
-        className="absolute left-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600 sm:left-8 sm:top-8"
+        className="absolute left-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900 sm:left-8 sm:top-8"
         aria-label="Go back"
       >
         <ArrowLeftIcon className="h-5 w-5" />
@@ -52,7 +53,7 @@ export default function RegisterRole() {
             {/* Logo / Brand */}
             <div className="mb-8 text-center">
               <div className="mb-5 flex justify-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 shadow-lg shadow-emerald-600/20">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 shadow-lg shadow-slate-900/20">
                   <BriefcaseIcon className="h-7 w-7 text-white" />
                 </div>
               </div>
@@ -84,9 +85,9 @@ export default function RegisterRole() {
                     }}
                     whileHover={{ y: -3 }}
                     whileTap={{ scale: 0.98 }}
-                    className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40 hover:shadow-md"
+                    className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-400 hover:bg-slate-50 hover:shadow-md"
                   >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition group-hover:bg-emerald-600 group-hover:text-white">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-slate-800 group-hover:text-white">
                       <Icon className="h-5 w-5" />
                     </div>
 
@@ -108,7 +109,7 @@ export default function RegisterRole() {
               <button
                 type="button"
                 onClick={() => navigate("/login")}
-                className="font-semibold text-emerald-600 transition hover:text-emerald-700"
+                className="font-semibold text-slate-700 transition hover:text-slate-950"
               >
                 Log in
               </button>

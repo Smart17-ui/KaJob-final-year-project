@@ -1,3 +1,4 @@
+
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, Mail } from "lucide-react";
@@ -61,10 +62,10 @@ export default function ForgotPassword() {
       <button
         type="button"
         onClick={() => navigate("/login")}
-        className="absolute left-6 top-6 flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
         aria-label="Back to login"
+        className="fixed left-6 top-6 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition-all duration-200 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
       >
-        <ArrowLeft size={22} />
+        <ArrowLeft size={24} />
       </button>
 
       {/* Main Content */}
@@ -74,11 +75,8 @@ export default function ForgotPassword() {
           <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
             {/* Mail Icon */}
             <div className="mb-6 flex justify-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-                <Mail
-                  className="text-green-600"
-                  size={26}
-                />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+                <Mail className="text-slate-700" size={26} />
               </div>
             </div>
 
@@ -147,14 +145,14 @@ export default function ForgotPassword() {
                     placeholder="you@example.com"
                     autoComplete="email"
                     disabled={loading}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100 disabled:bg-gray-100"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-slate-600 focus:ring-2 focus:ring-slate-100 disabled:bg-gray-100"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-lg bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading ? "Sending..." : "Send reset link"}
                 </button>
@@ -166,7 +164,7 @@ export default function ForgotPassword() {
               <button
                 type="button"
                 onClick={() => navigate("/login")}
-                className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                className="w-full rounded-lg bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Back to login
               </button>

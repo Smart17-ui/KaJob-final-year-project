@@ -1,3 +1,4 @@
+
 "use client";
 
 import { FC } from "react";
@@ -26,16 +27,16 @@ const About: FC<Props> = ({ setSelectedPage }) => {
       title: "Local Opportunities",
       description:
         "Find piecework and workers in your local area using location-based matching.",
-      color: "from-blue-500 to-blue-600",
-      bgColor: "from-blue-50 to-blue-100/50",
+      color: "from-emerald-500 to-emerald-600",
+      bgColor: "from-emerald-50 to-emerald-100/50",
     },
     {
       icon: UserGroupIcon,
       title: "Connect Easily",
       description:
         "KaJob brings clients and workers together on one simple platform.",
-      color: "from-purple-500 to-purple-600",
-      bgColor: "from-purple-50 to-purple-100/50",
+      color: "from-slate-500 to-slate-600",
+      bgColor: "from-slate-50 to-slate-100/50",
     },
     {
       icon: ShieldCheckIcon,
@@ -50,8 +51,8 @@ const About: FC<Props> = ({ setSelectedPage }) => {
       title: "Simple & Fast",
       description:
         "Discover opportunities, apply for work, and connect with clients without unnecessary complexity.",
-      color: "from-orange-500 to-orange-600",
-      bgColor: "from-orange-50 to-orange-100/50",
+      color: "from-slate-500 to-slate-600",
+      bgColor: "from-slate-50 to-slate-100/50",
     },
   ];
 
@@ -102,7 +103,6 @@ const About: FC<Props> = ({ setSelectedPage }) => {
       <div className="absolute bottom-0 left-1/4 -z-10 h-96 w-96 rounded-full bg-primary-100/20 blur-3xl" />
 
       <div className="mx-auto w-[90%] max-w-7xl">
-
         {/* ====================
             HEADER
         ==================== */}
@@ -145,7 +145,6 @@ const About: FC<Props> = ({ setSelectedPage }) => {
         ==================== */}
 
         <div className="mb-8 grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-20">
-
           {/* ====================
               IMAGE SIDE
           ==================== */}
@@ -219,7 +218,6 @@ const About: FC<Props> = ({ setSelectedPage }) => {
             }}
             className="space-y-8"
           >
-
             {/* HEADING + DESCRIPTION */}
 
             <div>
@@ -267,7 +265,7 @@ const About: FC<Props> = ({ setSelectedPage }) => {
                   className="flex items-center gap-3"
                 >
                   <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
-                    <CheckIcon className="h-5 w-5 text-primary-600" />
+                    <CheckIcon className="h-5 w-5 text-emerald-600" />
                   </div>
 
                   <span className="text-base leading-6 text-gray-700">
@@ -294,7 +292,6 @@ const About: FC<Props> = ({ setSelectedPage }) => {
 
               <ArrowRightIcon className="h-5 w-5" />
             </motion.button>
-
           </motion.div>
         </div>
 
@@ -303,7 +300,6 @@ const About: FC<Props> = ({ setSelectedPage }) => {
         ==================== */}
 
         <div>
-
           <motion.h3
             className="mb-10 text-center text-3xl font-bold text-gray-900 md:mb-12"
             initial={{
@@ -349,7 +345,6 @@ const About: FC<Props> = ({ setSelectedPage }) => {
                   }}
                   className="group relative overflow-hidden rounded-2xl bg-white p-7 shadow-sm ring-1 ring-gray-100 transition-shadow duration-300 hover:shadow-xl"
                 >
-
                   {/* BACKGROUND GRADIENT */}
 
                   <div
@@ -389,15 +384,12 @@ const About: FC<Props> = ({ setSelectedPage }) => {
 
                   {/* BOTTOM ACCENT */}
 
-                  <div className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-primary-500 to-transparent transition-all duration-300 group-hover:w-full" />
-
+                  <div className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-emerald-600 to-transparent transition-all duration-300 group-hover:w-full" />
                 </motion.div>
               );
             })}
           </motion.div>
-
         </div>
-
       </div>
     </motion.section>
   );

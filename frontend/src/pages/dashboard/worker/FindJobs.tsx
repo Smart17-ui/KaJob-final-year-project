@@ -1,10 +1,15 @@
+
 import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import API_BASE_URL from "@/api/config";
 
 import {
@@ -22,8 +27,6 @@ import {
 } from "@/components/services/applicationService";
 import { getMyActiveJobs } from "@/api/jobs";
 import { getVerificationStatus } from "@/api/verification";
-
-import { getCurrentUser } from "@/shared/auth";
 
 import FeedbackModal from "@/components/pop/FeedbackModal/FeedbackModal";
 import DetailsModal from "@/components/pop/DetailsModal/DetailsModal";
@@ -183,12 +186,18 @@ const getLocationErrorMessage = (
     switch (geoError.code) {
       case geoError.PERMISSION_DENIED:
         return "Location access denied. Enable it in your browser settings.";
+
       case geoError.POSITION_UNAVAILABLE:
         return "Location information is unavailable.";
+
       case geoError.TIMEOUT:
         return "Location request timed out. Try again.";
+
       default:
-        return geoError.message || "Unable to get your location.";
+        return (
+          geoError.message ||
+          "Unable to get your location."
+        );
     }
   }
 
@@ -199,9 +208,7 @@ const getLocationErrorMessage = (
   return "Unable to get your location.";
 };
 
-const formatBudget = (
-  budget: string
-): string => {
+const formatBudget = (budget: string): string => {
   if (!budget) {
     return "K0";
   }
@@ -213,9 +220,7 @@ const formatBudget = (
   return `K${budget}`;
 };
 
-const formatDate = (
-  date: string | null
-): string => {
+const formatDate = (date: string | null): string => {
   if (!date) {
     return "Flexible";
   }
@@ -226,25 +231,19 @@ const formatDate = (
     return date;
   }
 
-  return parsedDate.toLocaleDateString(
-    "en-ZM",
-    {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }
-  );
+  return parsedDate.toLocaleDateString("en-ZM", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 };
 
-const formatTime = (
-  time?: string | null
-): string => {
+const formatTime = (time?: string | null): string => {
   if (!time) {
     return "Flexible";
   }
 
-  const [hours, minutes] =
-    time.split(":").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
 
   if (
     Number.isNaN(hours) ||
@@ -255,58 +254,39 @@ const formatTime = (
 
   const date = new Date();
 
-  date.setHours(
-    hours,
-    minutes,
-    0,
-    0
-  );
+  date.setHours(hours, minutes, 0, 0);
 
-  return date.toLocaleTimeString(
-    "en-ZM",
-    {
-      hour: "numeric",
-      minute: "2-digit",
-    }
-  );
+  return date.toLocaleTimeString("en-ZM", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 };
 
-const formatPostedDate = (
-  date: string
-): string => {
+const formatPostedDate = (date: string): string => {
   const parsedDate = new Date(date);
 
   if (Number.isNaN(parsedDate.getTime())) {
     return date;
   }
 
-  return parsedDate.toLocaleDateString(
-    "en-ZM",
-    {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }
-  );
+  return parsedDate.toLocaleDateString("en-ZM", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 };
 
-const formatStatus = (
-  status: string
-): string => {
+const formatStatus = (status: string): string => {
   return status
     .replace(/_/g, " ")
     .toLowerCase()
-    .replace(
-      /\b\w/g,
-      (letter) => letter.toUpperCase()
-    );
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
 const isActiveApplicationStatus = (
   status: string
 ): boolean => {
-  const normalizedStatus =
-    status.toUpperCase();
+  const normalizedStatus = status.toUpperCase();
 
   return (
     normalizedStatus === "PENDING" ||
@@ -316,61 +296,93 @@ const isActiveApplicationStatus = (
 
 export default function FindJobs() {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [jobs, setJobs] =
-    useState<NearbyJob[]>([]);
+  /*
+   * Remember the previous route when it is provided
+   * through React Router navigation state.
+   */
+  const previousPathRef = useRef<string | null>(null);
+  const hasHandledVerificationRef = useRef(false);
 
-  const [
-    hasLoadedJobs,
-    setHasLoadedJobs,
-  ] = useState(false);
+  useEffect(() => {
+    const state = location.state as
+      | {
+          from?: {
+            pathname?: string;
+            search?: string;
+            hash?: string;
+          };
+        }
+      | null;
 
-  const [
-    applicationsByJobId,
-    setApplicationsByJobId,
-  ] = useState<
-    Map<number, ApplicationInfo>
-  >(new Map());
+    if (state?.from?.pathname) {
+      previousPathRef.current =
+        `${state.from.pathname}${state.from.search || ""}${state.from.hash || ""}`;
+    }
+  }, [location.state]);
+
+  const returnToPreviousPage = useCallback(() => {
+    const previousPath = previousPathRef.current;
+
+    if (
+      previousPath &&
+      previousPath !== location.pathname
+    ) {
+      navigate(previousPath, { replace: true });
+      return;
+    }
+
+    /*
+     * If no previous route was passed through router state,
+     * use browser history when possible.
+     */
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/worker/dashboard", { replace: true });
+  }, [location.pathname, navigate]);
+
+  const [jobs, setJobs] = useState<NearbyJob[]>([]);
+
+  const [hasLoadedJobs, setHasLoadedJobs] =
+    useState(false);
+
+  const [applicationsByJobId, setApplicationsByJobId] =
+    useState<Map<number, ApplicationInfo>>(new Map());
 
   const [activeJob, setActiveJob] =
     useState<Job | null>(null);
 
-  const [
-    checkingActiveJob,
-    setCheckingActiveJob,
-  ] = useState(true);
-
-  const [
-    showActiveJobPopup,
-    setShowActiveJobPopup,
-  ] = useState(false);
-
-  const [radius, setRadius] =
-    useState<number>(5);
-
-  const [searchQuery, setSearchQuery] =
-    useState("");
-
-  const [
-    selectedCategory,
-    setSelectedCategory,
-  ] = useState<string>("all");
-
-  const [
-    checkingVerification,
-    setCheckingVerification,
-  ] = useState(true);
-
-  const [
-    showVerificationPopup,
-    setShowVerificationPopup,
-  ] = useState(false);
-
-  const [jobsLoading, setJobsLoading] =
+  const [checkingActiveJob, setCheckingActiveJob] =
     useState(true);
 
-  const [error, setError] =
-    useState("");
+  const [showActiveJobPopup, setShowActiveJobPopup] =
+    useState(false);
+
+  const [radius, setRadius] = useState<number>(5);
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [selectedCategory, setSelectedCategory] =
+    useState<string>("all");
+
+  /*
+   * Verification starts in the checking state.
+   * The Find Jobs interface will not render until
+   * the verification check has finished.
+   */
+  const [checkingVerification, setCheckingVerification] =
+    useState(true);
+
+  const [showVerificationPopup, setShowVerificationPopup] =
+    useState(false);
+
+  const [jobsLoading, setJobsLoading] = useState(true);
+
+  const [error, setError] = useState("");
 
   const [selectedJob, setSelectedJob] =
     useState<NearbyJob | null>(null);
@@ -378,63 +390,45 @@ export default function FindJobs() {
   const [applyingJobId, setApplyingJobId] =
     useState<number | null>(null);
 
-  const [
-    withdrawingJobId,
-    setWithdrawingJobId,
-  ] = useState<number | null>(null);
+  const [withdrawingJobId, setWithdrawingJobId] =
+    useState<number | null>(null);
 
-  const [
-    applicationToCancel,
-    setApplicationToCancel,
-  ] = useState<ApplicationInfo | null>(
-    null
-  );
+  const [applicationToCancel, setApplicationToCancel] =
+    useState<ApplicationInfo | null>(null);
 
-  const [
-    updatingLocation,
-    setUpdatingLocation,
-  ] = useState(false);
+  const [updatingLocation, setUpdatingLocation] =
+    useState(false);
 
-  const [feedback, setFeedback] =
-    useState<{
-      isOpen: boolean;
-      type:
-        | "success"
-        | "error"
-        | "warning"
-        | "info";
-      title: string;
-      message: string;
-    }>({
-      isOpen: false,
-      type: "info",
-      title: "",
-      message: "",
-    });
+  const [feedback, setFeedback] = useState<{
+    isOpen: boolean;
+    type: "success" | "error" | "warning" | "info";
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
 
   /* CHECK WORKER VERIFICATION */
 
   const checkWorkerVerification =
     useCallback(async (): Promise<boolean> => {
-      // Fast path: user object already carries is_verified
-      const user = getCurrentUser();
-      if (user?.is_verified === true) {
-        return true;
-      }
-
       try {
         setCheckingVerification(true);
+        setError("");
 
-        const verification =
-          await getVerificationStatus();
+        const verification = await getVerificationStatus();
 
-        const isFullyVerified =
-          verification.fully_verified;
-
-        if (!isFullyVerified) {
+        if (!verification.fully_verified) {
+          hasHandledVerificationRef.current = false;
           setShowVerificationPopup(true);
+
           return false;
         }
+
+        setShowVerificationPopup(false);
 
         return true;
       } catch (err) {
@@ -462,15 +456,11 @@ export default function FindJobs() {
       try {
         setCheckingActiveJob(true);
 
-        const response =
-          await getMyActiveJobs();
-
-        const activeJobs =
-          response.results || [];
+        const response = await getMyActiveJobs();
+        const activeJobs = response.results || [];
 
         if (activeJobs.length > 0) {
-          const currentActiveJob =
-            activeJobs[0] as Job;
+          const currentActiveJob = activeJobs[0] as Job;
 
           setActiveJob(currentActiveJob);
           setShowActiveJobPopup(true);
@@ -497,236 +487,189 @@ export default function FindJobs() {
 
   /* LOAD EXISTING APPLICATIONS */
 
-  const loadAppliedJobs =
-    useCallback(async () => {
-      try {
-        const response =
-          await getMyApplications();
+  const loadAppliedJobs = useCallback(async () => {
+    try {
+      const response = await getMyApplications();
+      const applications = response.results || [];
 
-        const applications =
-          response.results || [];
+      const applicationMap =
+        new Map<number, ApplicationInfo>();
 
-        const applicationMap =
-          new Map<
-            number,
-            ApplicationInfo
-          >();
+      applications.forEach((application) => {
+        const applicationId = Number(application.id);
+        const jobId = Number(application.job);
 
-        applications.forEach(
-          (application) => {
-            const applicationId =
-              Number(application.id);
+        if (
+          !Number.isNaN(applicationId) &&
+          !Number.isNaN(jobId)
+        ) {
+          applicationMap.set(jobId, {
+            id: applicationId,
+            jobId,
+            status: String(application.status || ""),
+          });
+        }
+      });
 
-            const jobId =
-              Number(application.job);
-
-            if (
-              !Number.isNaN(applicationId) &&
-              !Number.isNaN(jobId)
-            ) {
-              applicationMap.set(
-                jobId,
-                {
-                  id: applicationId,
-                  jobId,
-                  status:
-                    String(
-                      application.status || ""
-                    ),
-                }
-              );
-            }
-          }
-        );
-
-        setApplicationsByJobId(
-          applicationMap
-        );
-      } catch (err) {
-        console.error(
-          "Failed to load existing applications:",
-          err
-        );
-      }
-    }, []);
+      setApplicationsByJobId(applicationMap);
+    } catch (err) {
+      console.error(
+        "Failed to load existing applications:",
+        err
+      );
+    }
+  }, []);
 
   /* FETCH NEARBY JOBS */
 
-  const fetchNearbyJobs =
-    useCallback(
-      async (selectedRadius: number) => {
-        setJobsLoading(true);
-        setError("");
-
-        const token = getToken();
-
-        if (!token) {
-          setError(
-            "You are not authenticated."
-          );
-          setJobs([]);
-          setJobsLoading(false);
-          return;
-        }
-
-        const hasActiveJob =
-          await checkActiveJob();
-
-        if (hasActiveJob) {
-          setJobs([]);
-          setHasLoadedJobs(false);
-          setJobsLoading(false);
-          return;
-        }
-
-        try {
-          const response = await fetch(
-            `${API_BASE_URL}/matching/nearby/?radius=${selectedRadius}`,
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
-
-          const data =
-            await parseJsonResponse(response);
-
-          if (!response.ok) {
-            if (data) {
-              const errorMessage =
-                data.error ||
-                data.detail ||
-                data.message ||
-                `Failed to load nearby jobs (${response.status}).`;
-
-              throw new Error(errorMessage);
-            }
-
-            throw new Error(
-              `Failed to load nearby jobs (${response.status}).`
-            );
-          }
-
-          if (!data) {
-            throw new Error(
-              "The server returned an invalid jobs response."
-            );
-          }
-
-          const nearbyJobsResponse =
-            data as NearbyJobsResponse;
-
-          setJobs(
-            nearbyJobsResponse.results || []
-          );
-
-          setHasLoadedJobs(true);
-        } catch (err) {
-          console.error(
-            "Failed to fetch nearby jobs:",
-            err
-          );
-
-          setJobs([]);
-
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Failed to load nearby jobs."
-          );
-        } finally {
-          setJobsLoading(false);
-        }
-      },
-      [checkActiveJob]
-    );
-
-  /* REQUEST LOCATION (AUTOMATIC ON MOUNT — silent) */
-
-  const requestLocation =
-    useCallback(async () => {
+  const fetchNearbyJobs = useCallback(
+    async (selectedRadius: number) => {
       setJobsLoading(true);
+      setError("");
+
+      const token = getToken();
+
+      if (!token) {
+        setError("You are not authenticated.");
+        setJobs([]);
+        setJobsLoading(false);
+        return;
+      }
+
+      const hasActiveJob = await checkActiveJob();
+
+      if (hasActiveJob) {
+        setJobs([]);
+        setHasLoadedJobs(false);
+        setJobsLoading(false);
+        return;
+      }
 
       try {
-        const position =
-          await getCurrentLocation();
-
-        const latitude =
-          position.coords.latitude;
-
-        const longitude =
-          position.coords.longitude;
-
-        await updateWorkerLocation(
-          latitude,
-          longitude
+        const response = await fetch(
+          `${API_BASE_URL}/matching/nearby/?radius=${selectedRadius}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
         );
 
-        await fetchNearbyJobs(radius);
+        const data = await parseJsonResponse(response);
+
+        if (!response.ok) {
+          if (data) {
+            const errorMessage =
+              data.error ||
+              data.detail ||
+              data.message ||
+              `Failed to load nearby jobs (${response.status}).`;
+
+            throw new Error(errorMessage);
+          }
+
+          throw new Error(
+            `Failed to load nearby jobs (${response.status}).`
+          );
+        }
+
+        if (!data) {
+          throw new Error(
+            "The server returned an invalid jobs response."
+          );
+        }
+
+        const nearbyJobsResponse =
+          data as NearbyJobsResponse;
+
+        setJobs(nearbyJobsResponse.results || []);
+        setHasLoadedJobs(true);
       } catch (err) {
         console.error(
-          "Location update failed:",
+          "Failed to fetch nearby jobs:",
           err
         );
 
         setJobs([]);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load nearby jobs."
+        );
+      } finally {
         setJobsLoading(false);
       }
-    }, [
-      fetchNearbyJobs,
-      radius,
-    ]);
+    },
+    [checkActiveJob]
+  );
 
-  /* MANUAL LOCATION UPDATE (BUTTON CLICK) */
+  /* REQUEST LOCATION */
 
-  const handleUseMyLocation =
-    async () => {
-      setUpdatingLocation(true);
+  const requestLocation = useCallback(async () => {
+    setJobsLoading(true);
 
-      try {
-        const position =
-          await getCurrentLocation();
+    try {
+      const position = await getCurrentLocation();
 
-        const result =
-          await updateWorkerLocation(
-            position.coords.latitude,
-            position.coords.longitude
-          );
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
 
-        setFeedback({
-          isOpen: true,
-          type: "success",
-          title: "Location updated",
-          message:
-            result.nearby_jobs_count > 0
-              ? `You now have ${result.nearby_jobs_count} job${
-                  result.nearby_jobs_count === 1
-                    ? ""
-                    : "s"
-                } near you.`
-              : "Location saved. No jobs within range yet.",
-        });
+      await updateWorkerLocation(latitude, longitude);
 
-        await fetchNearbyJobs(radius);
-      } catch (err) {
-        console.error(
-          "Manual location update failed:",
-          err
-        );
+      await fetchNearbyJobs(radius);
+    } catch (err) {
+      console.error("Location update failed:", err);
 
-        setFeedback({
-          isOpen: true,
-          type: "error",
-          title: "Unable to update location",
-          message: getLocationErrorMessage(err),
-        });
-      } finally {
-        setUpdatingLocation(false);
-      }
-    };
+      setJobs([]);
+      setJobsLoading(false);
+    }
+  }, [fetchNearbyJobs, radius]);
+
+  /* MANUAL LOCATION UPDATE */
+
+  const handleUseMyLocation = async () => {
+    setUpdatingLocation(true);
+
+    try {
+      const position = await getCurrentLocation();
+
+      const result = await updateWorkerLocation(
+        position.coords.latitude,
+        position.coords.longitude
+      );
+
+      setFeedback({
+        isOpen: true,
+        type: "success",
+        title: "Location updated",
+        message:
+          result.nearby_jobs_count > 0
+            ? `You now have ${result.nearby_jobs_count} job${
+                result.nearby_jobs_count === 1 ? "" : "s"
+              } near you.`
+            : "Location saved. No jobs within range yet.",
+      });
+
+      await fetchNearbyJobs(radius);
+    } catch (err) {
+      console.error(
+        "Manual location update failed:",
+        err
+      );
+
+      setFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Unable to update location",
+        message: getLocationErrorMessage(err),
+      });
+    } finally {
+      setUpdatingLocation(false);
+    }
+  };
 
   /* INITIALIZE FIND JOBS */
 
@@ -760,252 +703,207 @@ export default function FindJobs() {
     loadAppliedJobs,
   ]);
 
+  /* CLOSE VERIFICATION MODAL AND RETURN */
+
+  const handleCloseVerificationPopup = () => {
+    setShowVerificationPopup(false);
+
+    if (hasHandledVerificationRef.current) {
+      return;
+    }
+
+    hasHandledVerificationRef.current = true;
+
+    returnToPreviousPage();
+  };
+
   /* RADIUS */
 
-  const handleRadiusChange =
-    async (newRadius: number) => {
-      setRadius(newRadius);
-
-      await fetchNearbyJobs(
-        newRadius
-      );
-    };
+  const handleRadiusChange = async (
+    newRadius: number
+  ) => {
+    setRadius(newRadius);
+    await fetchNearbyJobs(newRadius);
+  };
 
   /* JOB ACTIONS */
 
-  const handleViewJob = (
-    item: NearbyJob
-  ) => {
+  const handleViewJob = (item: NearbyJob) => {
     setSelectedJob(item);
   };
 
-  const handleApplyFromCard =
-    async (item: NearbyJob) => {
-      const application =
-        applicationsByJobId.get(
-          item.job.id
-        );
-
-      if (
-        application &&
-        isActiveApplicationStatus(
-          application.status
-        )
-      ) {
-        return;
-      }
-
-      const hasActiveJob =
-        await checkActiveJob();
-
-      if (hasActiveJob) {
-        return;
-      }
-
-      setApplyingJobId(item.job.id);
-
-      try {
-        const response =
-          await applyForJob(
-            item.job.id
-          );
-
-        if (
-          response.application?.id
-        ) {
-          setApplicationsByJobId(
-            (currentApplications) => {
-              const updated =
-                new Map(
-                  currentApplications
-                );
-
-              updated.set(
-                item.job.id,
-                {
-                  id: Number(
-                    response.application
-                      .id
-                  ),
-                  jobId: item.job.id,
-                  status:
-                    String(
-                      response.application
-                        .status ||
-                        "pending"
-                    ),
-                }
-              );
-
-              return updated;
-            }
-          );
-        }
-      } catch (err) {
-        console.error(
-          "Failed to apply for job:",
-          err
-        );
-
-        setFeedback({
-          isOpen: true,
-          type: "error",
-          title: "Unable to Apply",
-          message:
-            err instanceof Error
-              ? err.message
-              : "Failed to apply for this job.",
-        });
-      } finally {
-        setApplyingJobId(null);
-      }
-    };
-
-  /*
-   * OPEN CANCEL CONFIRMATION
-   *
-   * This works from both:
-   * 1. Job card
-   * 2. Job details modal
-   */
-
-  const openCancelConfirmationForJob =
-    (jobId: number) => {
-      const application =
-        applicationsByJobId.get(
-          jobId
-        );
-
-      if (!application) {
-        console.error(
-          "No application found for job:",
-          jobId
-        );
-
-        setFeedback({
-          isOpen: true,
-          type: "error",
-          title:
-            "Application Not Found",
-          message:
-            "We could not find your application for this job. Please refresh the page and try again.",
-        });
-
-        return;
-      }
-
-      if (
-        !isActiveApplicationStatus(
-          application.status
-        )
-      ) {
-        return;
-      }
-
-      setApplicationToCancel(
-        application
-      );
-    };
-
-  /*
-   * CANCEL FROM JOB CARD
-   */
-
-  const handleCancelFromCard = (
+  const handleApplyFromCard = async (
     item: NearbyJob
   ) => {
-    openCancelConfirmationForJob(
-      item.job.id
-    );
-  };
+    const application =
+      applicationsByJobId.get(item.job.id);
 
-  /*
-   * CANCEL FROM DETAILS MODAL
-   */
+    if (
+      application &&
+      isActiveApplicationStatus(application.status)
+    ) {
+      return;
+    }
 
-  const handleOpenCancelConfirmation =
-    () => {
-      if (!selectedJob) {
-        return;
-      }
+    const hasActiveJob = await checkActiveJob();
 
-      openCancelConfirmationForJob(
-        selectedJob.job.id
-      );
-    };
+    if (hasActiveJob) {
+      return;
+    }
 
-  /*
-   * CONFIRM CANCEL / WITHDRAW
-   */
+    setApplyingJobId(item.job.id);
 
-  const handleCancelApplication =
-    async () => {
-      if (!applicationToCancel) {
-        return;
-      }
+    try {
+      const response = await applyForJob(item.job.id);
 
-      try {
-        setWithdrawingJobId(
-          applicationToCancel.jobId
-        );
-
-        await withdrawApplication(
-          applicationToCancel.id
-        );
-
+      if (response.application?.id) {
         setApplicationsByJobId(
           (currentApplications) => {
             const updated =
-              new Map(
-                currentApplications
-              );
+              new Map(currentApplications);
 
-            updated.set(
-              applicationToCancel.jobId,
-              {
-                ...applicationToCancel,
-                status: "withdrawn",
-              }
-            );
+            updated.set(item.job.id, {
+              id: Number(response.application.id),
+              jobId: item.job.id,
+              status: String(
+                response.application.status || "pending"
+              ),
+            });
 
             return updated;
           }
         );
-
-        setApplicationToCancel(null);
-
-        setFeedback({
-          isOpen: true,
-          type: "success",
-          title:
-            "Application Cancelled",
-          message:
-            "Your application has been successfully withdrawn.",
-        });
-      } catch (err) {
-        console.error(
-          "Failed to withdraw application:",
-          err
-        );
-
-        setApplicationToCancel(null);
-
-        setFeedback({
-          isOpen: true,
-          type: "error",
-          title:
-            "Unable to Cancel Application",
-          message:
-            err instanceof Error
-              ? err.message
-              : "Failed to cancel your application. Please try again.",
-        });
-      } finally {
-        setWithdrawingJobId(
-          null
-        );
       }
-    };
+    } catch (err) {
+      console.error("Failed to apply for job:", err);
+
+      setFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Unable to Apply",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to apply for this job.",
+      });
+    } finally {
+      setApplyingJobId(null);
+    }
+  };
+
+  /* OPEN CANCEL CONFIRMATION */
+
+  const openCancelConfirmationForJob = (
+    jobId: number
+  ) => {
+    const application =
+      applicationsByJobId.get(jobId);
+
+    if (!application) {
+      console.error(
+        "No application found for job:",
+        jobId
+      );
+
+      setFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Application Not Found",
+        message:
+          "We could not find your application for this job. Please refresh the page and try again.",
+      });
+
+      return;
+    }
+
+    if (
+      !isActiveApplicationStatus(application.status)
+    ) {
+      return;
+    }
+
+    setApplicationToCancel(application);
+  };
+
+  /* CANCEL FROM JOB CARD */
+
+  const handleCancelFromCard = (item: NearbyJob) => {
+    openCancelConfirmationForJob(item.job.id);
+  };
+
+  /* CANCEL FROM DETAILS MODAL */
+
+  const handleOpenCancelConfirmation = () => {
+    if (!selectedJob) {
+      return;
+    }
+
+    openCancelConfirmationForJob(selectedJob.job.id);
+  };
+
+  /* CONFIRM CANCEL / WITHDRAW */
+
+  const handleCancelApplication = async () => {
+    if (!applicationToCancel) {
+      return;
+    }
+
+    try {
+      setWithdrawingJobId(
+        applicationToCancel.jobId
+      );
+
+      await withdrawApplication(
+        applicationToCancel.id
+      );
+
+      setApplicationsByJobId(
+        (currentApplications) => {
+          const updated =
+            new Map(currentApplications);
+
+          updated.set(
+            applicationToCancel.jobId,
+            {
+              ...applicationToCancel,
+              status: "withdrawn",
+            }
+          );
+
+          return updated;
+        }
+      );
+
+      setApplicationToCancel(null);
+
+      setFeedback({
+        isOpen: true,
+        type: "success",
+        title: "Application Cancelled",
+        message:
+          "Your application has been successfully withdrawn.",
+      });
+    } catch (err) {
+      console.error(
+        "Failed to withdraw application:",
+        err
+      );
+
+      setApplicationToCancel(null);
+
+      setFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Unable to Cancel Application",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to cancel your application. Please try again.",
+      });
+    } finally {
+      setWithdrawingJobId(null);
+    }
+  };
 
   const handleCloseJob = () => {
     if (
@@ -1019,105 +917,81 @@ export default function FindJobs() {
   };
 
   const handleCloseFeedback = () => {
-    setFeedback(
-      (current) => ({
-        ...current,
-        isOpen: false,
-      })
-    );
+    setFeedback((current) => ({
+      ...current,
+      isOpen: false,
+    }));
   };
 
-  const handleApplyForJob =
-    async () => {
-      if (!selectedJob) {
-        return;
-      }
+  const handleApplyForJob = async () => {
+    if (!selectedJob) {
+      return;
+    }
 
-      const jobId =
-        selectedJob.job.id;
+    const jobId = selectedJob.job.id;
 
-      const existingApplication =
-        applicationsByJobId.get(
-          jobId
+    const existingApplication =
+      applicationsByJobId.get(jobId);
+
+    if (
+      existingApplication &&
+      isActiveApplicationStatus(
+        existingApplication.status
+      )
+    ) {
+      return;
+    }
+
+    const hasActiveJob = await checkActiveJob();
+
+    if (hasActiveJob) {
+      setSelectedJob(null);
+      return;
+    }
+
+    setApplyingJobId(jobId);
+
+    try {
+      const response = await applyForJob(jobId);
+
+      if (response.application?.id) {
+        setApplicationsByJobId(
+          (currentApplications) => {
+            const updated =
+              new Map(currentApplications);
+
+            updated.set(jobId, {
+              id: Number(response.application.id),
+              jobId,
+              status: String(
+                response.application.status || "pending"
+              ),
+            });
+
+            return updated;
+          }
         );
-
-      if (
-        existingApplication &&
-        isActiveApplicationStatus(
-          existingApplication.status
-        )
-      ) {
-        return;
       }
 
-      const hasActiveJob =
-        await checkActiveJob();
+      setSelectedJob(null);
+    } catch (err) {
+      console.error("Failed to apply for job:", err);
 
-      if (hasActiveJob) {
-        setSelectedJob(null);
-        return;
-      }
+      setSelectedJob(null);
 
-      setApplyingJobId(jobId);
-
-      try {
-        const response =
-          await applyForJob(jobId);
-
-        if (
-          response.application?.id
-        ) {
-          setApplicationsByJobId(
-            (currentApplications) => {
-              const updated =
-                new Map(
-                  currentApplications
-                );
-
-              updated.set(
-                jobId,
-                {
-                  id: Number(
-                    response.application
-                      .id
-                  ),
-                  jobId,
-                  status:
-                    String(
-                      response.application
-                        .status ||
-                        "pending"
-                    ),
-                }
-              );
-
-              return updated;
-            }
-          );
-        }
-
-        setSelectedJob(null);
-      } catch (err) {
-        console.error(
-          "Failed to apply for job:",
-          err
-        );
-
-        setSelectedJob(null);
-
-        setFeedback({
-          isOpen: true,
-          type: "error",
-          title: "Unable to Apply",
-          message:
-            err instanceof Error
-              ? err.message
-              : "Failed to apply for this job.",
-        });
-      } finally {
-        setApplyingJobId(null);
-      }
-    };
+      setFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Unable to Apply",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to apply for this job.",
+      });
+    } finally {
+      setApplyingJobId(null);
+    }
+  };
 
   /* CATEGORIES */
 
@@ -1126,14 +1000,9 @@ export default function FindJobs() {
       Array.from(
         new Set(
           jobs
-            .map(
-              (item) =>
-                item.job.category_name
-            )
+            .map((item) => item.job.category_name)
             .filter(
-              (
-                category
-              ): category is string =>
+              (category): category is string =>
                 Boolean(category)
             )
         )
@@ -1145,96 +1014,112 @@ export default function FindJobs() {
 
   const filteredJobs = useMemo(() => {
     const normalizedSearch =
-      searchQuery
-        .trim()
-        .toLowerCase();
+      searchQuery.trim().toLowerCase();
 
-    return jobs.filter(
-      (item) => {
-        const job = item.job;
+    return jobs.filter((item) => {
+      const job = item.job;
 
-        const matchesSearch =
-          normalizedSearch === "" ||
-          job.title
-            .toLowerCase()
-            .includes(
-              normalizedSearch
-            ) ||
-          job.description
-            .toLowerCase()
-            .includes(
-              normalizedSearch
-            ) ||
-          job.general_location
-            .toLowerCase()
-            .includes(
-              normalizedSearch
-            );
+      const matchesSearch =
+        normalizedSearch === "" ||
+        job.title
+          .toLowerCase()
+          .includes(normalizedSearch) ||
+        job.description
+          .toLowerCase()
+          .includes(normalizedSearch) ||
+        job.general_location
+          .toLowerCase()
+          .includes(normalizedSearch);
 
-        const matchesCategory =
-          selectedCategory ===
-            "all" ||
-          job.category_name ===
-            selectedCategory;
+      const matchesCategory =
+        selectedCategory === "all" ||
+        job.category_name === selectedCategory;
 
-        return (
-          matchesSearch &&
-          matchesCategory
-        );
-      }
-    );
-  }, [
-    jobs,
-    searchQuery,
-    selectedCategory,
-  ]);
+      return matchesSearch && matchesCategory;
+    });
+  }, [jobs, searchQuery, selectedCategory]);
 
   /* SELECTED JOB APPLICATION */
 
-  const selectedJobApplication =
-    selectedJob
-      ? applicationsByJobId.get(
-          selectedJob.job.id
-        )
-      : undefined;
+  const selectedJobApplication = selectedJob
+    ? applicationsByJobId.get(selectedJob.job.id)
+    : undefined;
 
-  const selectedJobHasActiveApplication =
-    Boolean(
-      selectedJobApplication &&
-        isActiveApplicationStatus(
-          selectedJobApplication.status
-        )
-    );
+  const selectedJobHasActiveApplication = Boolean(
+    selectedJobApplication &&
+      isActiveApplicationStatus(
+        selectedJobApplication.status
+      )
+  );
 
   const selectedJobIsWithdrawn =
     selectedJobApplication?.status.toLowerCase() ===
     "withdrawn";
+
+  /*
+   * IMPORTANT:
+   *
+   * Do not render the Find Jobs interface while checking
+   * verification. This prevents the jobs page from flashing
+   * briefly before the verification result is received.
+   */
+
+  if (checkingVerification) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-white">
+        <div className="flex flex-col items-center text-center">
+          <div className="relative h-12 w-12">
+            <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+
+            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-green-500" />
+          </div>
+
+          <p className="mt-4 text-sm font-semibold text-gray-800">
+            Checking your verification status...
+          </p>
+
+          <p className="mt-1 text-xs text-gray-500">
+            Please wait a moment.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  /*
+   * Render the verification popup by itself.
+   * The Find Jobs page is not rendered behind it.
+   */
+
+  if (showVerificationPopup) {
+    return (
+      <div className="min-h-screen bg-white">
+        <VerifyFirstModal
+          open={true}
+          role="WORKER"
+          actionLabel="find and apply for jobs"
+          onClose={handleCloseVerificationPopup}
+        />
+      </div>
+    );
+  }
 
   /* MAIN PAGE */
 
   return (
     <div className="min-h-full bg-white">
       <div className="mx-auto max-w-[1600px] px-6 py-2">
-
         {!activeJob && (
           <FindJobsHeader
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             radius={radius}
-            onRadiusChange={
-              handleRadiusChange
-            }
-            selectedCategory={
-              selectedCategory
-            }
-            onCategoryChange={
-              setSelectedCategory
-            }
+            onRadiusChange={handleRadiusChange}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
             categories={categories}
             jobsLoading={jobsLoading}
-            onRefresh={() =>
-              fetchNearbyJobs(radius)
-            }
+            onRefresh={() => fetchNearbyJobs(radius)}
           />
         )}
 
@@ -1258,23 +1143,7 @@ export default function FindJobs() {
               type="button"
               onClick={handleUseMyLocation}
               disabled={updatingLocation}
-              className="
-                inline-flex
-                items-center
-                justify-center
-                gap-2
-                rounded-lg
-                bg-blue-600
-                px-4
-                py-2
-                text-sm
-                font-semibold
-                text-white
-                transition
-                hover:bg-blue-700
-                disabled:cursor-not-allowed
-                disabled:opacity-60
-              "
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {updatingLocation ? (
                 <>
@@ -1291,30 +1160,24 @@ export default function FindJobs() {
           </div>
         )}
 
-        {!checkingActiveJob &&
-          activeJob && (
-            <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-              <div className="flex items-center gap-3">
-                <BriefcaseIcon className="h-5 w-5 shrink-0 text-blue-600" />
+        {!checkingActiveJob && activeJob && (
+          <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <BriefcaseIcon className="h-5 w-5 shrink-0 text-blue-600" />
 
-                <p className="text-sm text-blue-800">
-                  You currently have an active
-                  job. Complete it before applying
-                  for another job.
-                </p>
-              </div>
+              <p className="text-sm text-blue-800">
+                You currently have an active job. Complete it before applying
+                for another job.
+              </p>
             </div>
-          )}
+          </div>
+        )}
 
         {!activeJob && (
           <div className="mt-3 flex items-center justify-between">
             <p className="text-xs text-gray-500">
               {filteredJobs.length}{" "}
-              {filteredJobs.length ===
-              1
-                ? "job"
-                : "jobs"}{" "}
-              within {radius} km
+              {filteredJobs.length === 1 ? "job" : "jobs"} within {radius} km
             </p>
 
             {jobsLoading && (
@@ -1338,78 +1201,56 @@ export default function FindJobs() {
           </div>
         )}
 
-        {!activeJob &&
-          jobsLoading && (
-            <div className="mt-8 flex min-h-[260px] items-center justify-center">
-              <div className="flex flex-col items-center text-center">
+        {!activeJob && jobsLoading && (
+          <div className="mt-8 flex min-h-[260px] items-center justify-center">
+            <div className="flex flex-col items-center text-center">
+              <div className="relative h-14 w-14">
+                <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
 
-                <div className="relative h-14 w-14">
-                  <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
-
-                  <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-green-500" />
-                </div>
-
-                <p className="mt-5 text-sm font-semibold text-gray-800">
-                  Finding jobs near you...
-                </p>
-
-                <p className="mt-1 text-xs text-gray-500">
-                  Updating available jobs within{" "}
-                  {radius} km
-                </p>
+                <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-green-500" />
               </div>
+
+              <p className="mt-5 text-sm font-semibold text-gray-800">
+                Finding jobs near you...
+              </p>
+
+              <p className="mt-1 text-xs text-gray-500">
+                Updating available jobs within {radius} km
+              </p>
             </div>
-          )}
+          </div>
+        )}
 
         {!activeJob &&
           hasLoadedJobs &&
           !jobsLoading && (
             <JobsGrid
               jobs={filteredJobs}
-              applyingJobId={
-                applyingJobId
-              }
-              cancellingJobId={
-                withdrawingJobId
-              }
+              applyingJobId={applyingJobId}
+              cancellingJobId={withdrawingJobId}
               appliedJobIds={
                 new Set(
                   Array.from(
                     applicationsByJobId.entries()
                   )
-                    .filter(
-                      ([, application]) =>
-                        isActiveApplicationStatus(
-                          application.status
-                        )
+                    .filter(([, application]) =>
+                      isActiveApplicationStatus(
+                        application.status
+                      )
                     )
-                    .map(
-                      ([jobId]) =>
-                        jobId
-                    )
+                    .map(([jobId]) => jobId)
                 )
               }
               radius={radius}
-              onViewJob={
-                handleViewJob
-              }
-              onApply={
-                handleApplyFromCard
-              }
-              onCancel={
-                handleCancelFromCard
-              }
+              onViewJob={handleViewJob}
+              onApply={handleApplyFromCard}
+              onCancel={handleCancelFromCard}
               onSearchWider={() =>
                 handleRadiusChange(
-                  Math.min(
-                    radius * 2,
-                    10
-                  )
+                  Math.min(radius * 2, 10)
                 )
               }
-              canSearchWider={
-                radius < 10
-              }
+              canSearchWider={radius < 10}
             />
           )}
 
@@ -1417,26 +1258,17 @@ export default function FindJobs() {
 
         {selectedJob && (
           <DetailsModal
-            title={
-              selectedJob.job.title
-            }
-            onClose={
-              handleCloseJob
-            }
+            title={selectedJob.job.title}
+            onClose={handleCloseJob}
             width="xl"
             footer={
               <div className="flex flex-col gap-3 sm:flex-row">
-
                 <button
                   type="button"
-                  onClick={
-                    handleCloseJob
-                  }
+                  onClick={handleCloseJob}
                   disabled={
-                    applyingJobId !==
-                      null ||
-                    withdrawingJobId !==
-                      null
+                    applyingJobId !== null ||
+                    withdrawingJobId !== null
                   }
                   className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1446,14 +1278,10 @@ export default function FindJobs() {
                 {selectedJobHasActiveApplication ? (
                   <button
                     type="button"
-                    onClick={
-                      handleOpenCancelConfirmation
-                    }
+                    onClick={handleOpenCancelConfirmation}
                     disabled={
-                      applyingJobId !==
-                        null ||
-                      withdrawingJobId !==
-                        null
+                      applyingJobId !== null ||
+                      withdrawingJobId !== null
                     }
                     className="flex-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -1462,19 +1290,14 @@ export default function FindJobs() {
                 ) : (
                   <button
                     type="button"
-                    onClick={
-                      handleApplyForJob
-                    }
+                    onClick={handleApplyForJob}
                     disabled={
-                      applyingJobId !==
-                        null ||
-                      withdrawingJobId !==
-                        null
+                      applyingJobId !== null ||
+                      withdrawingJobId !== null
                     }
                     className="flex-1 rounded-lg bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {applyingJobId ===
-                    selectedJob.job.id ? (
+                    {applyingJobId === selectedJob.job.id ? (
                       <span className="inline-flex items-center justify-center gap-2">
                         <ArrowPathIcon className="h-5 w-5 animate-spin" />
                         Applying...
@@ -1490,13 +1313,9 @@ export default function FindJobs() {
             }
           >
             <div>
-              {selectedJob.job
-                .category_name && (
+              {selectedJob.job.category_name && (
                 <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-                  {
-                    selectedJob.job
-                      .category_name
-                  }
+                  {selectedJob.job.category_name}
                 </span>
               )}
 
@@ -1507,10 +1326,8 @@ export default function FindJobs() {
                   </p>
 
                   <p className="mt-1 text-xs text-green-700">
-                    You have already applied for
-                    this job. You can withdraw your
-                    application if you no longer want
-                    to be considered.
+                    You have already applied for this job. You can withdraw
+                    your application if you no longer want to be considered.
                   </p>
                 </div>
               )}
@@ -1522,8 +1339,7 @@ export default function FindJobs() {
                   </p>
 
                   <p className="mt-1 text-xs text-gray-600">
-                    Your previous application for this
-                    job was withdrawn.
+                    Your previous application for this job was withdrawn.
                   </p>
                 </div>
               )}
@@ -1534,10 +1350,7 @@ export default function FindJobs() {
                 </p>
 
                 <p className="mt-1 text-3xl font-bold text-gray-900">
-                  {formatBudget(
-                    selectedJob.job
-                      .budget
-                  )}
+                  {formatBudget(selectedJob.job.budget)}
                 </p>
               </div>
 
@@ -1547,10 +1360,7 @@ export default function FindJobs() {
                 </h3>
 
                 <p className="mt-2 whitespace-pre-line text-sm leading-7 text-gray-700">
-                  {
-                    selectedJob.job
-                      .description
-                  }
+                  {selectedJob.job.description}
                 </p>
               </div>
 
@@ -1565,17 +1375,11 @@ export default function FindJobs() {
                       </p>
 
                       <p className="mt-1 text-sm font-semibold text-gray-900">
-                        {
-                          selectedJob
-                            .job
-                            .general_location
-                        }
+                        {selectedJob.job.general_location}
                       </p>
 
                       <p className="mt-1 text-xs text-gray-500">
-                        {
-                          selectedJob.distance_display
-                        }
+                        {selectedJob.distance_display}
                       </p>
                     </div>
                   </div>
@@ -1591,15 +1395,10 @@ export default function FindJobs() {
                       </p>
 
                       <p className="mt-1 text-sm font-semibold text-gray-900">
-                        {formatDate(
-                          selectedJob
-                            .job
-                            .job_date
-                        )}
+                        {formatDate(selectedJob.job.job_date)}
                       </p>
 
-                      {selectedJob.job
-                        .is_flexible && (
+                      {selectedJob.job.is_flexible && (
                         <p className="mt-1 text-xs text-gray-500">
                           Date is flexible
                         </p>
@@ -1618,11 +1417,7 @@ export default function FindJobs() {
                       </p>
 
                       <p className="mt-1 text-sm font-semibold text-gray-900">
-                        {formatTime(
-                          selectedJob
-                            .job
-                            .job_time
-                        )}
+                        {formatTime(selectedJob.job.job_time)}
                       </p>
                     </div>
                   </div>
@@ -1638,8 +1433,7 @@ export default function FindJobs() {
                       </p>
 
                       <p className="mt-1 text-sm font-semibold text-gray-900">
-                        {selectedJob.job
-                          .duration_hours
+                        {selectedJob.job.duration_hours
                           ? `${selectedJob.job.duration_hours} hours`
                           : "Not specified"}
                       </p>
@@ -1657,53 +1451,40 @@ export default function FindJobs() {
                       </p>
 
                       <p className="mt-1 text-sm font-semibold text-gray-900">
-                        {
-                          selectedJob.distance_display
-                        }
+                        {selectedJob.distance_display}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {selectedJob.job
-                .urgency_display && (
+              {selectedJob.job.urgency_display && (
                 <div className="mt-6 rounded-xl bg-gray-50 p-4">
                   <p className="text-xs font-medium text-gray-500">
                     Urgency
                   </p>
 
                   <p className="mt-1 text-sm font-semibold text-gray-800">
-                    {
-                      selectedJob.job
-                        .urgency_display
-                    }
+                    {selectedJob.job.urgency_display}
                   </p>
                 </div>
               )}
 
-              {selectedJob.job
-                .status && (
+              {selectedJob.job.status && (
                 <div className="mt-5">
                   <p className="text-xs font-medium text-gray-500">
                     Status
                   </p>
 
                   <p className="mt-1 text-sm font-medium text-gray-800">
-                    {formatStatus(
-                      selectedJob.job
-                        .status
-                    )}
+                    {formatStatus(selectedJob.job.status)}
                   </p>
                 </div>
               )}
 
               <div className="mt-5 text-xs text-gray-500">
                 Posted on{" "}
-                {formatPostedDate(
-                  selectedJob.job
-                    .posted_at
-                )}
+                {formatPostedDate(selectedJob.job.posted_at)}
               </div>
             </div>
           </DetailsModal>
@@ -1712,28 +1493,8 @@ export default function FindJobs() {
         {/* CANCEL CONFIRMATION */}
 
         {applicationToCancel && (
-          <div
-            className="
-              fixed
-              inset-0
-              z-[9999]
-              flex
-              items-center
-              justify-center
-              bg-black/40
-              p-4
-            "
-          >
-            <div
-              className="
-                w-full
-                max-w-md
-                rounded-2xl
-                bg-white
-                p-6
-                shadow-xl
-              "
-            >
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-lg font-bold text-amber-600">
                   !
@@ -1745,8 +1506,7 @@ export default function FindJobs() {
                   </h2>
 
                   <p className="mt-1 text-sm leading-6 text-gray-600">
-                    You are about to cancel your
-                    application for this job.
+                    You are about to cancel your application for this job.
                   </p>
                 </div>
               </div>
@@ -1754,58 +1514,22 @@ export default function FindJobs() {
               <div className="mt-6 flex justify-end gap-2">
                 <button
                   type="button"
-                  disabled={
-                    withdrawingJobId !==
-                    null
-                  }
+                  disabled={withdrawingJobId !== null}
                   onClick={() =>
-                    setApplicationToCancel(
-                      null
-                    )
+                    setApplicationToCancel(null)
                   }
-                  className="
-                    rounded-xl
-                    border
-                    border-gray-200
-                    px-4
-                    py-2.5
-                    text-sm
-                    font-semibold
-                    text-gray-700
-                    transition
-                    hover:bg-gray-50
-                    disabled:cursor-not-allowed
-                    disabled:opacity-60
-                  "
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Keep Application
                 </button>
 
                 <button
                   type="button"
-                  disabled={
-                    withdrawingJobId !==
-                    null
-                  }
-                  onClick={
-                    handleCancelApplication
-                  }
-                  className="
-                    rounded-xl
-                    bg-red-600
-                    px-4
-                    py-2.5
-                    text-sm
-                    font-semibold
-                    text-white
-                    transition
-                    hover:bg-red-700
-                    disabled:cursor-not-allowed
-                    disabled:opacity-60
-                  "
+                  disabled={withdrawingJobId !== null}
+                  onClick={handleCancelApplication}
+                  className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {withdrawingJobId !==
-                  null
+                  {withdrawingJobId !== null
                     ? "Cancelling..."
                     : "Cancel Application"}
                 </button>
@@ -1814,21 +1538,10 @@ export default function FindJobs() {
           </div>
         )}
 
-        {/* VERIFICATION POPUP */}
-
-        <VerifyFirstModal
-          open={showVerificationPopup}
-          role="WORKER"
-          actionLabel="find and apply for jobs"
-          onClose={() => setShowVerificationPopup(false)}
-        />
-
         {/* ACTIVE JOB POPUP */}
 
         <FeedbackModal
-          isOpen={
-            showActiveJobPopup
-          }
+          isOpen={showActiveJobPopup}
           type="info"
           title="Active Job"
           message={
@@ -1845,15 +1558,11 @@ export default function FindJobs() {
         {/* GENERAL FEEDBACK */}
 
         <FeedbackModal
-          isOpen={
-            feedback.isOpen
-          }
+          isOpen={feedback.isOpen}
           type={feedback.type}
           title={feedback.title}
           message={feedback.message}
-          onClose={
-            handleCloseFeedback
-          }
+          onClose={handleCloseFeedback}
         />
       </div>
     </div>

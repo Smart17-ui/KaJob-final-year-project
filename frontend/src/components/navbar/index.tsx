@@ -178,6 +178,7 @@ const Navbar = ({
                       setSelectedPage={
                         setSelectedPage
                       }
+                    className="py-2"
                     />
 
                     <Link
@@ -188,6 +189,7 @@ const Navbar = ({
                       setSelectedPage={
                         setSelectedPage
                       }
+                    className="py-2"
                     />
 
                     <Link
@@ -196,6 +198,7 @@ const Navbar = ({
                       setSelectedPage={
                         setSelectedPage
                       }
+                    className="py-2"
                     />
 
                     <Link
@@ -206,6 +209,7 @@ const Navbar = ({
                       setSelectedPage={
                         setSelectedPage
                       }
+                    className="py-2"
                     />
                   </div>
 
@@ -223,7 +227,7 @@ const Navbar = ({
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="cursor-pointer transition duration-300 hover:text-green-900"
+                        className="cursor-pointer font-normal text-slate-900 transition duration-300 hover:text-emerald-600"
                       >
                         Log Out
                       </button>
@@ -236,7 +240,7 @@ const Navbar = ({
                         <button
                           type="button"
                           onClick={handleLogin}
-                          className="cursor-pointer transition duration-300 hover:text-green-900"
+                          className="cursor-pointer font-normal text-slate-900 transition duration-300 hover:text-emerald-600"
                         >
                           Log In
                         </button>
@@ -263,7 +267,7 @@ const Navbar = ({
                   aria-label="Open navigation menu"
                   aria-expanded={isMenuToggled}
                   aria-controls="mobile-navigation"
-                  className="ml-auto rounded-full bg-secondary-600 p-2.5 shadow-md shadow-secondary-600/20 transition hover:bg-secondary-700 focus:outline-none focus:ring-2 focus:ring-secondary-300"
+                  className="ml-auto rounded-full bg-slate-900 p-2.5 shadow-md shadow-slate-900/20 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-300"
                   onClick={() =>
                     setIsMenuToggled(true)
                   }
@@ -304,7 +308,7 @@ const Navbar = ({
                     setIsMenuToggled(false);
                     navigate("/");
                   }}
-                  className="flex items-center rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-300"
+                  className="flex items-center rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300"
                   aria-label="KaJob home"
                 >
                   <img src={Logo} alt="KaJob" className="h-10 w-auto object-contain" />
@@ -313,7 +317,7 @@ const Navbar = ({
                   type="button"
                   aria-label="Close navigation menu"
                   onClick={() => setIsMenuToggled(false)}
-                  className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-secondary-300"
+                  className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-300"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -332,6 +336,7 @@ const Navbar = ({
                   setSelectedPage
                 }
                 onNavigate={() => setIsMenuToggled(false)}
+                mobile
                 className="rounded-xl px-4 py-3 text-base hover:bg-slate-50"
               />
 
@@ -344,6 +349,7 @@ const Navbar = ({
                   setSelectedPage
                 }
                 onNavigate={() => setIsMenuToggled(false)}
+                mobile
                 className="rounded-xl px-4 py-3 text-base hover:bg-slate-50"
               />
 
@@ -354,6 +360,7 @@ const Navbar = ({
                   setSelectedPage
                 }
                 onNavigate={() => setIsMenuToggled(false)}
+                mobile
                 className="rounded-xl px-4 py-3 text-base hover:bg-slate-50"
               />
 
@@ -366,6 +373,7 @@ const Navbar = ({
                   setSelectedPage
                 }
                 onNavigate={() => setIsMenuToggled(false)}
+                mobile
                 className="rounded-xl px-4 py-3 text-base hover:bg-slate-50"
               />
 
@@ -379,7 +387,7 @@ const Navbar = ({
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="mt-4 rounded-xl px-4 py-3 text-left font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="mt-4 rounded-xl px-4 py-3 text-left font-normal text-slate-700 transition hover:bg-slate-50 hover:text-emerald-600"
                 >
                   Log Out
                 </button>
@@ -390,7 +398,7 @@ const Navbar = ({
                   <button
                     type="button"
                     onClick={handleLogin}
-                    className="mt-4 rounded-xl px-4 py-3 text-left font-semibold text-slate-700 transition hover:bg-slate-50"
+                    className="mt-4 rounded-xl px-4 py-3 text-left font-normal text-slate-700 transition hover:bg-slate-50 hover:text-emerald-600"
                   >
                     Log In
                   </button>
@@ -398,7 +406,7 @@ const Navbar = ({
                   <button
                     type="button"
                     onClick={handleRegister}
-                    className="rounded-xl bg-secondary-600 px-4 py-3 text-center font-semibold text-white shadow-sm transition hover:bg-secondary-700"
+                    className="rounded-xl bg-slate-900 px-4 py-3 text-center font-medium text-white shadow-sm transition hover:bg-slate-800"
                   >
                     Create Account
                   </button>

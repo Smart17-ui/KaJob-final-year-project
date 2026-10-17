@@ -1,3 +1,4 @@
+
 import {
   HomeIcon,
   BriefcaseIcon,
@@ -97,14 +98,13 @@ const DashboardTabs = ({ role }: DashboardTabsProps) => {
                 transition-colors
                 ${
                   isActive
-                    ? "border-emerald-500 text-slate-900"
+                    ? "border-slate-700 text-slate-900"
                     : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900"
                 }
                 `
               }
             >
               <Icon className="h-4 w-4" />
-
               {tab.name}
             </NavLink>
           );

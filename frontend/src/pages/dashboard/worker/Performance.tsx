@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 
 import {
@@ -25,23 +26,14 @@ const Performance = () => {
     useState<WorkerJobHistoryItem[]>([]);
 
   const [earningsTrend, setEarningsTrend] =
-    useState<WorkerEarningsTrendResponse | null>(
-      null
-    );
+    useState<WorkerEarningsTrendResponse | null>(null);
 
   const [selectedPeriod, setSelectedPeriod] =
-    useState<"week" | "month" | "quarter">(
-      "month"
-    );
+    useState<"week" | "month" | "quarter">("month");
 
-  const [isLoading, setIsLoading] =
-    useState(true);
-
-  const [isLoadingTrend, setIsLoadingTrend] =
-    useState(false);
-
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTrend, setIsLoadingTrend] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const loadPerformanceData = async () => {
@@ -60,27 +52,19 @@ const Performance = () => {
         ]);
 
         setAnalytics(analyticsData);
-
-        setJobHistory(
-          jobHistoryData.results ?? []
-        );
-
-        setEarningsTrend(
-          earningsTrendData
-        );
+        setJobHistory(jobHistoryData.results ?? []);
+        setEarningsTrend(earningsTrendData);
       } catch (error) {
         console.error(
           "Failed to load worker performance:",
           error
         );
 
-        if (error instanceof Error) {
-          setErrorMessage(error.message);
-        } else {
-          setErrorMessage(
-            "Failed to load performance data."
-          );
-        }
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Failed to load performance data."
+        );
       } finally {
         setIsLoading(false);
       }
@@ -94,10 +78,9 @@ const Performance = () => {
       setIsLoadingTrend(true);
 
       try {
-        const data =
-          await getWorkerEarningsTrend(
-            selectedPeriod
-          );
+        const data = await getWorkerEarningsTrend(
+          selectedPeriod
+        );
 
         setEarningsTrend(data);
       } catch (error) {
@@ -115,9 +98,7 @@ const Performance = () => {
     }
   }, [selectedPeriod]);
 
-  const formatCurrency = (
-    value: number
-  ) => {
+  const formatCurrency = (value: number) => {
     return `K${Number(value || 0).toLocaleString(
       "en-ZM",
       {
@@ -127,15 +108,11 @@ const Performance = () => {
     )}`;
   };
 
-  const formatPercentage = (
-    value: number
-  ) => {
+  const formatPercentage = (value: number) => {
     return `${Number(value || 0).toFixed(1)}%`;
   };
 
-  const formatDate = (
-    value: string | null
-  ) => {
+  const formatDate = (value: string | null) => {
     if (!value) {
       return "Not available";
     }
@@ -146,31 +123,24 @@ const Performance = () => {
       return "Not available";
     }
 
-    return date.toLocaleDateString(
-      "en-ZM",
-      {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }
-    );
+    return date.toLocaleDateString("en-ZM", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   };
 
-  const getStatusClass = (
-    status: string
-  ) => {
+  const getStatusClass = (status: string) => {
     switch (status) {
       case "COMPLETED":
-        return "border-emerald-200 bg-emerald-50 text-emerald-700";
+        return "border-slate-200 bg-slate-100 text-slate-700";
 
       case "IN_PROGRESS":
-        return "border-blue-200 bg-blue-50 text-blue-700";
-
       case "ASSIGNED":
-        return "border-amber-200 bg-amber-50 text-amber-700";
+        return "border-slate-200 bg-slate-100 text-slate-700";
 
       case "CANCELLED":
-        return "border-red-200 bg-red-50 text-red-700";
+        return "border-slate-200 bg-slate-100 text-slate-700";
 
       default:
         return "border-slate-200 bg-slate-50 text-slate-700";
@@ -188,14 +158,11 @@ const Performance = () => {
 
   const totalRatings =
     Object.values(ratingDistribution).reduce(
-      (total, value) =>
-        total + Number(value || 0),
+      (total, value) => total + Number(value || 0),
       0
     );
 
-  const getRatingPercentage = (
-    rating: number
-  ) => {
+  const getRatingPercentage = (rating: number) => {
     if (totalRatings === 0) {
       return 0;
     }
@@ -214,10 +181,7 @@ const Performance = () => {
   const maxEarnings =
     earningsTrend?.data?.reduce(
       (maximum, item) =>
-        Math.max(
-          maximum,
-          Number(item.earnings || 0)
-        ),
+        Math.max(maximum, Number(item.earnings || 0)),
       0
     ) ?? 0;
 
@@ -225,13 +189,11 @@ const Performance = () => {
     return (
       <div className="min-h-full bg-slate-50">
         <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 lg:px-8">
-          {/* Header skeleton */}
           <div className="animate-pulse">
             <div className="h-3 w-28 rounded-full bg-slate-200" />
             <div className="mt-2 h-5 w-52 rounded bg-slate-200" />
           </div>
 
-          {/* Hero skeleton */}
           <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="animate-pulse bg-slate-900 px-6 py-8 sm:px-8 sm:py-10">
               <div className="h-3 w-24 rounded-full bg-slate-700" />
@@ -240,7 +202,6 @@ const Performance = () => {
             </div>
           </div>
 
-          {/* Metrics skeleton */}
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((item) => (
               <div
@@ -250,7 +211,6 @@ const Performance = () => {
             ))}
           </div>
 
-          {/* Two-column skeleton */}
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
             {[1, 2].map((item) => (
               <div
@@ -284,19 +244,19 @@ const Performance = () => {
 
         {/* ERROR STATE */}
         {errorMessage && (
-          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 shadow-sm">
-            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100">
-              <span className="text-sm font-bold text-red-600">
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+              <span className="text-sm font-bold text-slate-700">
                 !
               </span>
             </div>
 
             <div>
-              <p className="text-sm font-semibold text-red-800">
+              <p className="text-sm font-semibold text-slate-900">
                 Unable to load your performance
               </p>
 
-              <p className="mt-1 text-sm leading-6 text-red-700">
+              <p className="mt-1 text-sm leading-6 text-slate-600">
                 {errorMessage}
               </p>
             </div>
@@ -308,10 +268,9 @@ const Performance = () => {
             {/* EARNINGS HERO */}
             <section>
               <div className="relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-[0_18px_45px_-25px_rgba(15,23,42,0.55)]">
-                {/* Soft lighting */}
                 <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
-                <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-amber-400/10 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-slate-500/10 blur-3xl" />
 
                 <div className="relative px-6 py-8 sm:px-8 sm:py-10">
                   <div className="flex items-center gap-2">
@@ -324,9 +283,7 @@ const Performance = () => {
 
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
                     <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                      {formatCurrency(
-                        analytics.earnings.total
-                      )}
+                      {formatCurrency(analytics.earnings.total)}
                     </h2>
 
                     <p className="text-sm text-slate-400 sm:mb-2 sm:text-base">
@@ -337,9 +294,7 @@ const Performance = () => {
                   <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-300">
                     <span>
                       {analytics.jobs.completed}{" "}
-                      {analytics.jobs.completed === 1
-                        ? "job"
-                        : "jobs"}{" "}
+                      {analytics.jobs.completed === 1 ? "job" : "jobs"}{" "}
                       completed
                     </span>
 
@@ -350,8 +305,7 @@ const Performance = () => {
                     <span>
                       Average{" "}
                       {formatCurrency(
-                        analytics.earnings
-                          .average_per_job
+                        analytics.earnings.average_per_job
                       )}{" "}
                       per job
                     </span>
@@ -383,8 +337,7 @@ const Performance = () => {
 
                       <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
                         {Number(
-                          analytics.performance
-                            .average_rating || 0
+                          analytics.performance.average_rating || 0
                         ).toFixed(1)}
                       </p>
 
@@ -396,20 +349,19 @@ const Performance = () => {
                       </p>
                     </div>
 
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50">
-                      <StarIcon className="h-5 w-5 text-amber-500" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                      <StarIcon className="h-5 w-5 text-emerald-600" />
                     </div>
                   </div>
 
                   <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                      className="h-full rounded-full bg-emerald-600 transition-all duration-500"
                       style={{
                         width: `${Math.min(
                           Math.max(
                             (Number(
-                              analytics.performance
-                                .average_rating || 0
+                              analytics.performance.average_rating || 0
                             ) /
                               5) *
                               100,
@@ -432,22 +384,13 @@ const Performance = () => {
 
                       <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
                         {formatPercentage(
-                          analytics.overview
-                            .acceptance_rate
+                          analytics.overview.acceptance_rate
                         )}
                       </p>
 
                       <p className="mt-1 text-xs text-slate-500">
-                        {
-                          analytics.overview
-                            .accepted_applications
-                        }{" "}
-                        of{" "}
-                        {
-                          analytics.overview
-                            .total_applications
-                        }{" "}
-                        accepted
+                        {analytics.overview.accepted_applications} of{" "}
+                        {analytics.overview.total_applications} accepted
                       </p>
                     </div>
 
@@ -458,13 +401,12 @@ const Performance = () => {
 
                   <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      className="h-full rounded-full bg-emerald-600 transition-all duration-500"
                       style={{
                         width: `${Math.min(
                           Math.max(
                             Number(
-                              analytics.overview
-                                .acceptance_rate || 0
+                              analytics.overview.acceptance_rate || 0
                             ),
                             0
                           ),
@@ -485,34 +427,30 @@ const Performance = () => {
 
                       <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
                         {formatPercentage(
-                          analytics.performance
-                            .completion_rate
+                          analytics.performance.completion_rate
                         )}
                       </p>
 
                       <p className="mt-1 text-xs text-slate-500">
                         {analytics.jobs.completed}{" "}
-                        {analytics.jobs.completed === 1
-                          ? "job"
-                          : "jobs"}{" "}
+                        {analytics.jobs.completed === 1 ? "job" : "jobs"}{" "}
                         finished
                       </p>
                     </div>
 
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                      <CheckCircleIcon className="h-5 w-5 text-blue-600" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
                     </div>
                   </div>
 
                   <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                      className="h-full rounded-full bg-emerald-600 transition-all duration-500"
                       style={{
                         width: `${Math.min(
                           Math.max(
                             Number(
-                              analytics.performance
-                                .completion_rate || 0
+                              analytics.performance.completion_rate || 0
                             ),
                             0
                           ),
@@ -540,51 +478,43 @@ const Performance = () => {
                     </p>
                   </div>
 
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50">
-                    <StarIcon className="h-5 w-5 text-amber-500" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
+                    <StarIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                 </div>
 
                 <div className="mt-7 space-y-4">
-                  {[5, 4, 3, 2, 1].map(
-                    (rating) => {
-                      const count =
-                        Number(
-                          ratingDistribution[
-                            rating as keyof typeof ratingDistribution
-                          ] || 0
-                        );
+                  {[5, 4, 3, 2, 1].map((rating) => {
+                    const count = Number(
+                      ratingDistribution[
+                        rating as keyof typeof ratingDistribution
+                      ] || 0
+                    );
 
-                      const percentage =
-                        getRatingPercentage(
-                          rating
-                        );
+                    const percentage = getRatingPercentage(rating);
 
-                      return (
-                        <div
-                          key={rating}
-                          className="flex items-center gap-3"
-                        >
-                          <span className="w-10 shrink-0 text-xs font-semibold text-slate-600">
-                            {rating} star
-                          </span>
+                    return (
+                      <div
+                        key={rating}
+                        className="flex items-center gap-3"
+                      >
+                        <span className="w-10 shrink-0 text-xs font-semibold text-slate-600">
+                          {rating} star
+                        </span>
 
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className="h-full rounded-full bg-amber-500 transition-all duration-500"
-                              style={{
-                                width: `${percentage}%`,
-                              }}
-                            />
-                          </div>
-
-                          <span className="w-8 shrink-0 text-right text-xs font-semibold text-slate-500">
-                            {count}
-                          </span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
                         </div>
-                      );
-                    }
-                  )}
+
+                        <span className="w-8 shrink-0 text-right text-xs font-semibold text-slate-500">
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="mt-6 border-t border-slate-100 pt-4">
@@ -592,9 +522,7 @@ const Performance = () => {
                     {totalRatings === 0
                       ? "No ratings have been received yet."
                       : `${totalRatings} ${
-                          totalRatings === 1
-                            ? "rating"
-                            : "ratings"
+                          totalRatings === 1 ? "rating" : "ratings"
                         } received`}
                   </p>
                 </div>
@@ -625,94 +553,68 @@ const Performance = () => {
                     }
                     className="
                       rounded-xl
-                      border
-                      border-slate-200
+                      border border-slate-200
                       bg-white
-                      px-3
-                      py-2
-                      text-xs
-                      font-semibold
+                      px-3 py-2
+                      text-xs font-semibold
                       text-slate-700
                       shadow-sm
                       outline-none
                       transition
                       hover:border-slate-300
-                      focus:border-emerald-500
+                      focus:border-emerald-600
                       focus:ring-2
                       focus:ring-emerald-100
                     "
                   >
-                    <option value="week">
-                      This Week
-                    </option>
-
-                    <option value="month">
-                      This Month
-                    </option>
-
-                    <option value="quarter">
-                      This Quarter
-                    </option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="quarter">This Quarter</option>
                   </select>
                 </div>
 
                 {isLoadingTrend ? (
                   <div className="mt-7 space-y-4">
-                    {[1, 2, 3, 4].map(
-                      (item) => (
-                        <div
-                          key={item}
-                          className="h-5 animate-pulse rounded-full bg-slate-100"
-                        />
-                      )
-                    )}
+                    {[1, 2, 3, 4].map((item) => (
+                      <div
+                        key={item}
+                        className="h-5 animate-pulse rounded-full bg-slate-100"
+                      />
+                    ))}
                   </div>
                 ) : earningsTrend?.data &&
                   earningsTrend.data.length > 0 ? (
                   <div className="mt-7 space-y-4">
-                    {earningsTrend.data.map(
-                      (item) => {
-                        const earnings =
-                          Number(
-                            item.earnings || 0
-                          );
+                    {earningsTrend.data.map((item) => {
+                      const earnings = Number(item.earnings || 0);
 
-                        const width =
-                          maxEarnings > 0
-                            ? (earnings /
-                                maxEarnings) *
-                              100
-                            : 0;
+                      const width =
+                        maxEarnings > 0
+                          ? (earnings / maxEarnings) * 100
+                          : 0;
 
-                        return (
-                          <div
-                            key={item.date}
-                            className="flex items-center gap-3"
-                          >
-                            <span className="w-16 shrink-0 text-[11px] font-medium text-slate-500">
-                              {formatDate(
-                                item.date
-                              )}
-                            </span>
+                      return (
+                        <div
+                          key={item.date}
+                          className="flex items-center gap-3"
+                        >
+                          <span className="w-16 shrink-0 text-[11px] font-medium text-slate-500">
+                            {formatDate(item.date)}
+                          </span>
 
-                            <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
-                              <div
-                                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                style={{
-                                  width: `${width}%`,
-                                }}
-                              />
-                            </div>
-
-                            <span className="w-24 shrink-0 text-right text-xs font-bold text-slate-900">
-                              {formatCurrency(
-                                earnings
-                              )}
-                            </span>
+                          <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                              style={{ width: `${width}%` }}
+                            />
                           </div>
-                        );
-                      }
-                    )}
+
+                          <span className="w-24 shrink-0 text-right text-xs font-bold text-slate-900">
+                            {formatCurrency(earnings)}
+                          </span>
+                        </div>
+                      );
+                    })}
 
                     <div className="mt-6 border-t border-slate-100 pt-5">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
@@ -728,8 +630,8 @@ const Performance = () => {
                   </div>
                 ) : (
                   <div className="mt-7 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
-                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
-                      <CurrencyDollarIcon className="h-5 w-5 text-slate-400" />
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                      <CurrencyDollarIcon className="h-5 w-5 text-emerald-600" />
                     </div>
 
                     <p className="mt-3 text-xs font-medium text-slate-500">
@@ -760,8 +662,8 @@ const Performance = () => {
                       Total jobs
                     </p>
 
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50">
-                      <BriefcaseIcon className="h-5 w-5 text-slate-500" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
+                      <BriefcaseIcon className="h-5 w-5 text-emerald-600" />
                     </div>
                   </div>
 
@@ -777,12 +679,12 @@ const Performance = () => {
                       Active
                     </p>
 
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50">
-                      <BriefcaseIcon className="h-5 w-5 text-amber-600" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
+                      <BriefcaseIcon className="h-5 w-5 text-emerald-600" />
                     </div>
                   </div>
 
-                  <p className="mt-4 text-3xl font-bold tracking-tight text-amber-600">
+                  <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
                     {analytics.jobs.active}
                   </p>
                 </div>
@@ -794,12 +696,12 @@ const Performance = () => {
                       In progress
                     </p>
 
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                      <ClockIcon className="h-5 w-5 text-blue-600" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
+                      <ClockIcon className="h-5 w-5 text-emerald-600" />
                     </div>
                   </div>
 
-                  <p className="mt-4 text-3xl font-bold tracking-tight text-blue-600">
+                  <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
                     {analytics.jobs.in_progress}
                   </p>
                 </div>
@@ -816,7 +718,7 @@ const Performance = () => {
                     </div>
                   </div>
 
-                  <p className="mt-4 text-3xl font-bold tracking-tight text-emerald-600">
+                  <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
                     {analytics.jobs.completed}
                   </p>
                 </div>
@@ -864,97 +766,83 @@ const Performance = () => {
                       </thead>
 
                       <tbody className="divide-y divide-slate-100">
-                        {jobHistory
-                          .slice(0, 8)
-                          .map((job) => (
-                            <tr
-                              key={job.job_id}
-                              className="transition-colors hover:bg-slate-50/60"
-                            >
-                              <td className="px-6 py-4">
-                                <p className="text-sm font-semibold text-slate-900">
-                                  {job.title}
-                                </p>
+                        {jobHistory.slice(0, 8).map((job) => (
+                          <tr
+                            key={job.job_id}
+                            className="transition-colors hover:bg-slate-50/60"
+                          >
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-semibold text-slate-900">
+                                {job.title}
+                              </p>
 
-                                <p className="mt-1 text-[11px] text-slate-500">
-                                  Assigned{" "}
-                                  {formatDate(
-                                    job.assigned_at
-                                  )}
-                                </p>
-                              </td>
+                              <p className="mt-1 text-[11px] text-slate-500">
+                                Assigned {formatDate(job.assigned_at)}
+                              </p>
+                            </td>
 
-                              <td className="px-6 py-4 text-sm text-slate-600">
-                                {job.client_name}
-                              </td>
+                            <td className="px-6 py-4 text-sm text-slate-600">
+                              {job.client_name}
+                            </td>
 
-                              <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                                {formatCurrency(
-                                  job.budget
-                                )}
-                              </td>
+                            <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                              {formatCurrency(job.budget)}
+                            </td>
 
-                              <td className="px-6 py-4">
-                                <span
-                                  className={`
-                                    inline-flex
-                                    rounded-full
-                                    border
-                                    px-2.5
-                                    py-1
-                                    text-[11px]
-                                    font-semibold
-                                    ${getStatusClass(
-                                      job.status
-                                    )}
-                                  `}
-                                >
-                                  {job.status_display ||
-                                    job.status}
-                                </span>
-                              </td>
+                            <td className="px-6 py-4">
+                              <span
+                                className={`
+                                  inline-flex
+                                  rounded-full
+                                  border
+                                  px-2.5 py-1
+                                  text-[11px]
+                                  font-semibold
+                                  ${getStatusClass(job.status)}
+                                `}
+                              >
+                                {job.status_display || job.status}
+                              </span>
+                            </td>
 
-                              <td className="px-6 py-4">
-                                {job.rating !== null &&
-                                job.rating !==
-                                  undefined ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <StarIcon className="h-4 w-4 text-amber-500" />
+                            <td className="px-6 py-4">
+                              {job.rating !== null &&
+                              job.rating !== undefined ? (
+                                <div className="flex items-center gap-1.5">
+                                  <StarIcon className="h-4 w-4 text-emerald-600" />
 
-                                    <span className="text-sm font-semibold text-slate-700">
-                                      {Number(
-                                        job.rating
-                                      ).toFixed(1)}
-                                    </span>
-
-                                    <span className="text-xs text-slate-400">
-                                      / 5
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-slate-400">
-                                    Not rated
+                                  <span className="text-sm font-semibold text-slate-700">
+                                    {Number(job.rating).toFixed(1)}
                                   </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+
+                                  <span className="text-xs text-slate-400">
+                                    / 5
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400">
+                                  Not rated
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
                 ) : (
                   <div className="px-6 py-12 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50">
-                      <BriefcaseIcon className="h-6 w-6 text-slate-400" />
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50">
+                      <BriefcaseIcon className="h-6 w-6 text-emerald-600" />
                     </div>
 
-                    <p className="mt-4 text-sm font-semibold text-slate-800">
+                    <p className="mt-4 text-sm font-semibold text-slate-900">
                       No work history yet
                     </p>
 
                     <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-500">
-                      Apply to available jobs and your completed
-                      work will appear here.
+                      Apply to available jobs and your completed work will
+                      appear here.
                     </p>
                   </div>
                 )}

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -26,31 +27,31 @@ type Props = {
 const contactInformation = [
   {
     title: "Call Us",
-    description: "+260 97X XXX XXX",
+    description: "+260770595933",
     icon: PhoneIcon,
-    color: "from-blue-50 to-blue-100",
-    iconColor: "text-blue-600",
+    color: "from-slate-50 to-slate-100",
+    iconColor: "text-emerald-600",
   },
   {
     title: "Email Us",
     description: "support@kajob.com",
     icon: EnvelopeIcon,
-    color: "from-purple-50 to-purple-100",
-    iconColor: "text-purple-600",
+    color: "from-slate-50 to-slate-100",
+    iconColor: "text-slate-600",
   },
   {
     title: "Location",
     description: "Lusaka, Zambia",
     icon: MapPinIcon,
-    color: "from-emerald-50 to-emerald-100",
+    color: "from-slate-50 to-slate-100",
     iconColor: "text-emerald-600",
   },
   {
     title: "Live Support",
     description: "Chat with our team",
     icon: ChatBubbleLeftRightIcon,
-    color: "from-orange-50 to-orange-100",
-    iconColor: "text-orange-600",
+    color: "from-slate-50 to-slate-100",
+    iconColor: "text-slate-600",
   },
 ];
 
@@ -79,7 +80,7 @@ const itemVariants = {
 
     transition: {
       duration: 0.4,
-      ease: "easeOut",
+      ease: "easeOut" as const,
     },
   },
 };
@@ -166,16 +167,15 @@ const ContactUs = ({ setSelectedPage }: Props) => {
           DECORATIVE BACKGROUND
       ========================= */}
 
-      <div className="absolute right-0 top-0 -z-10 h-96 w-96 rounded-full bg-primary-50/20 blur-3xl" />
+      <div className="absolute right-0 top-0 -z-10 h-96 w-96 rounded-full bg-slate-100/40 blur-3xl" />
 
-      <div className="absolute bottom-0 left-0 -z-10 h-96 w-96 rounded-full bg-primary-50/10 blur-3xl" />
+      <div className="absolute bottom-0 left-0 -z-10 h-96 w-96 rounded-full bg-slate-100/30 blur-3xl" />
 
       {/* =========================
           MAIN CONTAINER
       ========================= */}
 
       <div className="mx-auto w-5/6 max-w-7xl">
-
         {/* =========================
             HEADER
         ========================= */}
@@ -202,7 +202,7 @@ const ContactUs = ({ setSelectedPage }: Props) => {
           {/* Badge */}
 
           <div className="mb-4 inline-block">
-            <span className="rounded-full bg-primary-100 px-4 py-2 text-sm font-semibold text-primary-600">
+            <span className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
               Get in Touch
             </span>
           </div>
@@ -241,17 +241,24 @@ const ContactUs = ({ setSelectedPage }: Props) => {
               <motion.div
                 key={item.title}
                 variants={itemVariants}
-                className="group relative overflow-hidden rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+                whileHover={{
+                  y: -5,
+                  transition: {
+                    duration: 0.25,
+                    ease: "easeOut",
+                  },
+                }}
+                className="group relative overflow-hidden rounded-xl bg-white p-6 shadow-md shadow-slate-900/5 ring-1 ring-slate-200/70 transition-all duration-300 hover:shadow-xl hover:shadow-slate-900/10"
               >
                 {/* Hover Background */}
 
                 <div
-                  className={`absolute inset-0 -z-10 bg-gradient-to-br ${item.color} opacity-0 transition duration-300 group-hover:opacity-50`}
+                  className={`absolute inset-0 -z-10 bg-gradient-to-br ${item.color} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
                 />
 
                 {/* Icon */}
 
-                <div className="mb-4 inline-flex rounded-lg bg-gray-50 p-3 transition group-hover:bg-gray-100">
+                <div className="mb-4 inline-flex rounded-lg bg-slate-50 p-3 transition-colors duration-300 group-hover:bg-slate-200">
                   <Icon
                     className={`h-6 w-6 ${item.iconColor}`}
                   />
@@ -265,13 +272,13 @@ const ContactUs = ({ setSelectedPage }: Props) => {
 
                 {/* Description */}
 
-                <p className="mt-2 text-sm text-gray-600 transition group-hover:text-gray-700">
+                <p className="mt-2 text-sm text-gray-600 transition-colors duration-300 group-hover:text-slate-800">
                   {item.description}
                 </p>
 
                 {/* Accent Line */}
 
-                <div className="absolute bottom-0 left-0 h-1 w-0 bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-300 group-hover:w-full" />
+                <div className="absolute bottom-0 left-0 h-1 w-0 bg-gradient-to-r from-slate-600 to-slate-900 transition-all duration-300 group-hover:w-full" />
               </motion.div>
             );
           })}
@@ -282,7 +289,6 @@ const ContactUs = ({ setSelectedPage }: Props) => {
         ========================= */}
 
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-
           {/* =========================
               LEFT SIDE
           ========================= */}
@@ -306,7 +312,6 @@ const ContactUs = ({ setSelectedPage }: Props) => {
             }}
             className="space-y-8"
           >
-
             {/* Heading and Description */}
 
             <motion.div
@@ -359,14 +364,17 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                 delay: 0.05,
               }}
               whileHover={{
-                scale: 1.02,
+                y: -4,
+                transition: {
+                  duration: 0.25,
+                  ease: "easeOut",
+                },
               }}
-              className="rounded-xl border border-primary-200 bg-gradient-to-br from-primary-50 to-primary-100/50 p-6"
+              className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-6 shadow-md shadow-slate-900/5 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-900/10"
             >
               <div className="flex items-start gap-4">
-
                 <div className="flex-shrink-0">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-500">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900">
                     <ChatBubbleLeftRightIcon className="h-6 w-6 text-white" />
                   </div>
                 </div>
@@ -380,7 +388,6 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                     Our team typically responds within a few hours.
                   </p>
                 </div>
-
               </div>
             </motion.div>
 
@@ -407,27 +414,25 @@ const ContactUs = ({ setSelectedPage }: Props) => {
               }}
               className="grid grid-cols-2 gap-4"
             >
-
-              <div className="rounded-lg bg-gray-50 p-4">
-                <p className="text-sm font-semibold text-gray-600">
+              <div className="rounded-lg bg-slate-50 p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                <p className="text-sm font-semibold text-slate-600">
                   Average Response
                 </p>
 
-                <p className="mt-1 text-2xl font-bold text-gray-900">
+                <p className="mt-1 text-2xl font-bold text-slate-900">
                   2 hours
                 </p>
               </div>
 
-              <div className="rounded-lg bg-gray-50 p-4">
-                <p className="text-sm font-semibold text-gray-600">
+              <div className="rounded-lg bg-slate-50 p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                <p className="text-sm font-semibold text-slate-600">
                   Available
                 </p>
 
-                <p className="mt-1 text-2xl font-bold text-gray-900">
+                <p className="mt-1 text-2xl font-bold text-slate-900">
                   24/7
                 </p>
               </div>
-
             </motion.div>
           </motion.div>
 
@@ -453,8 +458,7 @@ const ContactUs = ({ setSelectedPage }: Props) => {
               ease: "easeOut",
             }}
           >
-            <div className="rounded-2xl bg-white p-8 shadow-lg ring-1 ring-gray-200/50">
-
+            <div className="rounded-2xl bg-white p-8 shadow-lg shadow-slate-900/5 ring-1 ring-slate-200/70">
               {/* Form Heading */}
 
               <motion.div
@@ -491,7 +495,6 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                 onSubmit={handleSubmit}
                 className="mt-8 space-y-6"
               >
-
                 {/* NAME */}
 
                 <motion.div
@@ -526,7 +529,7 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="John Doe"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition duration-200 placeholder:text-gray-500 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition duration-200 placeholder:text-gray-500 focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20"
                   />
                 </motion.div>
 
@@ -564,7 +567,7 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="you@example.com"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition duration-200 placeholder:text-gray-500 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition duration-200 placeholder:text-gray-500 focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20"
                   />
                 </motion.div>
 
@@ -601,7 +604,7 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                     value={formData.subject}
                     onChange={handleChange}
                     placeholder="How can we help?"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition duration-200 placeholder:text-gray-500 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition duration-200 placeholder:text-gray-500 focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20"
                   />
                 </motion.div>
 
@@ -639,7 +642,7 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                     value={formData.message}
                     onChange={handleChange}
                     placeholder="Tell us more about your inquiry..."
-                    className="mt-2 w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition duration-200 placeholder:text-gray-500 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="mt-2 w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition duration-200 placeholder:text-gray-500 focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20"
                   />
                 </motion.div>
 
@@ -707,7 +710,7 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                     formState === "loading" ||
                     formState === "success"
                   }
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 font-semibold text-white shadow-lg transition duration-300 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-3 font-semibold text-white shadow-lg shadow-slate-900/15 transition-all duration-300 hover:from-slate-900 hover:to-slate-950 hover:shadow-xl hover:shadow-slate-900/20 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {formState === "loading" ? (
                     <>
@@ -732,12 +735,10 @@ const ContactUs = ({ setSelectedPage }: Props) => {
                 <p className="text-center text-xs text-gray-500">
                   We respect your privacy. Your information is secure with us.
                 </p>
-
               </form>
             </div>
           </motion.div>
         </div>
-
       </div>
     </motion.section>
   );
