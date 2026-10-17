@@ -27,7 +27,7 @@ const EmptyJobs = ({
       <button
         type="button"
         onClick={onPostJob}
-        className="mt-6 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+        className="mt-6 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
       >
         Post a job
       </button>

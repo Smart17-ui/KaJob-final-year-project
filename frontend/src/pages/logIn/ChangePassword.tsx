@@ -183,7 +183,7 @@ export default function ChangePassword() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-lg bg-green-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:min-w-[180px]"
+                  className="w-full rounded-lg bg-slate-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:min-w-[180px]"
                 >
                   {loading ? "Changing..." : "Change password"}
                 </button>
@@ -196,7 +196,6 @@ export default function ChangePassword() {
   );
 }
 
-
 type PasswordFieldProps = {
   id: string;
   label: string;
@@ -206,7 +205,6 @@ type PasswordFieldProps = {
   onToggle: () => void;
   disabled: boolean;
 };
-
 
 function PasswordField({
   id,
@@ -239,7 +237,7 @@ function PasswordField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-12 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100 disabled:bg-gray-100"
+          className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-12 text-sm outline-none transition focus:border-slate-600 focus:ring-2 focus:ring-slate-100 disabled:bg-gray-100"
         />
 
         {/* Show/Hide Password */}

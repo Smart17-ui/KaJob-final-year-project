@@ -21,9 +21,9 @@ const Home = ({ setSelectedPage }: Props) => {
           DECORATIVE BACKGROUND
       ========================= */}
 
-      <div className="absolute top-0 right-0 -z-10 h-96 w-96 rounded-full bg-primary-200/40 blur-3xl" />
+      <div className="absolute top-0 right-0 -z-10 h-96 w-96 rounded-full bg-emerald-200/40 blur-3xl" />
 
-      <div className="absolute -bottom-20 left-1/3 -z-10 h-96 w-96 rounded-full bg-primary-100/30 blur-3xl" />
+      <div className="absolute -bottom-20 left-1/3 -z-10 h-96 w-96 rounded-full bg-emerald-100/30 blur-3xl" />
 
       <div className="absolute top-1/2 right-1/4 -z-10 h-72 w-72 rounded-full bg-blue-200/20 blur-3xl" />
 
@@ -33,7 +33,7 @@ const Home = ({ setSelectedPage }: Props) => {
 
       <section
         id="home"
-        className="relative w-full bg-gradient-to-b from-white via-primary-50/30 to-white px-5 pb-16 pt-10 sm:px-8 sm:py-16 md:px-10 md:py-20"
+        className="relative w-full bg-gradient-to-b from-white via-emerald-50/30 to-white px-5 pb-16 pt-10 sm:px-8 sm:py-16 md:px-10 md:py-20"
       >
         <motion.div
           className="mx-auto max-w-7xl"
@@ -195,9 +195,7 @@ const Home = ({ setSelectedPage }: Props) => {
                     justify-center
                     gap-2
                     rounded-lg
-                    bg-gradient-to-r
-                    from-secondary-500
-                    to-secondary-700
+                    bg-slate-900
                     px-6
                     py-3.5
                     sm:px-8
@@ -205,14 +203,12 @@ const Home = ({ setSelectedPage }: Props) => {
                     font-semibold
                     text-white
                     shadow-lg
-                    shadow-secondary-500/25
+                    shadow-slate-900/20
                     transition-all
                     duration-300
                     hover:scale-105
-                    hover:from-secondary-600
-                    hover:to-secondary-800
                     hover:shadow-xl
-                    hover:shadow-secondary-500/30
+                    hover:shadow-emerald-600/25
                     active:scale-95
                   "
                 >
@@ -247,9 +243,7 @@ const Home = ({ setSelectedPage }: Props) => {
                     justify-center
                     gap-2
                     rounded-lg
-                    bg-gradient-to-r
-                    from-secondary-500
-                    to-secondary-700
+                    bg-slate-900
                     px-6
                     py-3.5
                     sm:px-8
@@ -257,14 +251,12 @@ const Home = ({ setSelectedPage }: Props) => {
                     font-semibold
                     text-white
                     shadow-lg
-                    shadow-secondary-500/25
+                    shadow-slate-900/20
                     transition-all
                     duration-300
                     hover:scale-105
-                    hover:from-secondary-600
-                    hover:to-secondary-800
                     hover:shadow-xl
-                    hover:shadow-secondary-500/30
+                    hover:shadow-emerald-600/25
                     active:scale-95
                   "
                 >
@@ -335,7 +327,7 @@ const Home = ({ setSelectedPage }: Props) => {
                     sm:w-96
                     rounded-full
                     border-2
-                    border-primary-200/30
+                    border-emerald-200/30
                   "
                 />
 
@@ -356,7 +348,7 @@ const Home = ({ setSelectedPage }: Props) => {
                     sm:w-80
                     rounded-full
                     border-2
-                    border-primary-100/30
+                    border-emerald-100/30
                   "
                 />
 

@@ -121,13 +121,9 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
           setSelectedPage(SelectedPage.HowItWorks)
         }
       >
-        {/* =========================
-            HEADER
-        ========================= */}
+        {/* HEADER */}
 
         <div className="mb-12 flex flex-col items-center justify-between gap-6 md:flex-row md:items-start">
-          {/* TITLE */}
-
           <motion.div
             className="md:w-1/2"
             initial={{
@@ -146,14 +142,12 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
               duration: 0.5,
             }}
           >
-            <h2 className="text-3xl font-bold text-gray-900 md:text-4xl">
+            <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">
               How It Works
             </h2>
           </motion.div>
 
-          {/* =========================
-              GREEN SLIDING TOGGLE
-          ========================= */}
+          {/* SLIDING TOGGLE */}
 
           <motion.div
             className="flex justify-center"
@@ -176,19 +170,10 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
           >
             <div
               className="
-                relative
-                flex
-                h-12
-                w-[280px]
-                items-center
-                rounded-full
-                bg-gray-100
-                p-1
-                shadow-inner
+                relative flex h-12 w-[280px] items-center
+                rounded-full bg-slate-100 p-1 shadow-inner
               "
             >
-              {/* SLIDING GREEN BACKGROUND */}
-
               <motion.div
                 transition={{
                   type: "spring",
@@ -196,14 +181,8 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   damping: 30,
                 }}
                 className="
-                  absolute
-                  left-1
-                  top-1
-                  h-10
-                  w-[137px]
-                  rounded-full
-                  bg-emerald-500
-                  shadow-md
+                  absolute left-1 top-1 h-10 w-[137px]
+                  rounded-full bg-slate-700 shadow-md
                 "
                 animate={{
                   x: userType === "client" ? 0 : 139,
@@ -216,19 +195,12 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                 type="button"
                 onClick={() => setUserType("client")}
                 className={`
-                  relative
-                  z-10
-                  h-10
-                  w-1/2
-                  rounded-full
-                  text-sm
-                  font-semibold
-                  transition-colors
-                  duration-300
+                  relative z-10 h-10 w-1/2 rounded-full
+                  text-sm font-semibold transition-colors duration-300
                   ${
                     userType === "client"
                       ? "text-white"
-                      : "text-gray-600"
+                      : "text-slate-600"
                   }
                 `}
               >
@@ -241,19 +213,12 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                 type="button"
                 onClick={() => setUserType("worker")}
                 className={`
-                  relative
-                  z-10
-                  h-10
-                  w-1/2
-                  rounded-full
-                  text-sm
-                  font-semibold
-                  transition-colors
-                  duration-300
+                  relative z-10 h-10 w-1/2 rounded-full
+                  text-sm font-semibold transition-colors duration-300
                   ${
                     userType === "worker"
                       ? "text-white"
-                      : "text-gray-600"
+                      : "text-slate-600"
                   }
                 `}
               >
@@ -263,9 +228,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
           </motion.div>
         </div>
 
-        {/* =========================
-            SUBTITLE
-        ========================= */}
+        {/* SUBTITLE */}
 
         <motion.div
           className="mx-auto mb-12 max-w-2xl text-center"
@@ -286,16 +249,14 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
             delay: 0.1,
           }}
         >
-          <p className="text-sm leading-6 text-gray-600 md:text-base">
+          <p className="text-sm leading-6 text-slate-600 md:text-base">
             {userType === "client"
               ? "Post tasks, hire talented workers, and get things done quickly in your community."
               : "Find local piecework that matches your skills, apply, and start earning."}
           </p>
         </motion.div>
 
-        {/* =========================
-            STEPS CARDS
-        ========================= */}
+        {/* STEPS CARDS */}
 
         <motion.div
           className="grid gap-6 md:grid-cols-3"
@@ -316,21 +277,10 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                 key={step.id}
                 variants={cardVariant}
                 className="
-                  flex
-                  flex-col
-                  rounded-md
-                  border-2
-                  border-gray-100
-                  bg-white
-                  px-6
-                  py-10
-                  text-center
-                  shadow-sm
-                  transition
-                  duration-300
-                  hover:-translate-y-1
-                  hover:border-emerald-100
-                  hover:shadow-md
+                  flex flex-col rounded-md border-2 border-slate-100
+                  bg-white px-6 py-10 text-center shadow-sm
+                  transition duration-300 hover:-translate-y-1
+                  hover:border-slate-300 hover:shadow-md
                 "
               >
                 {/* ICON */}
@@ -338,10 +288,8 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                 <div className="mb-5 flex justify-center">
                   <div
                     className="
-                      rounded-full
-                      bg-emerald-100
-                      p-4
-                      text-emerald-600
+                      rounded-full bg-slate-100 p-4
+                      text-slate-700
                     "
                   >
                     <IconComponent className="h-7 w-7" />
@@ -350,19 +298,19 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
 
                 {/* STEP NUMBER */}
 
-                <span className="text-sm font-bold text-emerald-600">
+                <span className="text-sm font-bold text-slate-700">
                   STEP {step.id}
                 </span>
 
                 {/* TITLE */}
 
-                <h4 className="mt-2 text-lg font-bold text-gray-900">
+                <h4 className="mt-2 text-lg font-bold text-slate-900">
                   {step.title}
                 </h4>
 
                 {/* DESCRIPTION */}
 
-                <p className="mt-4 text-sm leading-6 text-gray-600">
+                <p className="mt-4 text-sm leading-6 text-slate-600">
                   {step.description}
                 </p>
               </motion.div>
@@ -370,21 +318,13 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
           })}
         </motion.div>
 
-        {/* =========================
-            KAJOB GREEN BANNER
-            ENTRANCE ANIMATION ONLY ONCE
-        ========================= */}
+        {/* KAJOB BANNER — ORIGINAL EMERALD DESIGN PRESERVED */}
 
         <motion.div
           className="
-            mt-20
-            overflow-hidden
-            rounded-3xl
-            bg-emerald-600
-            shadow-lg
-            transition-shadow
-            duration-300
-            hover:shadow-[0_15px_40px_rgba(16,185,129,0.35)]
+            mt-20 overflow-hidden rounded-3xl
+            bg-slate-900 shadow-lg transition-shadow duration-300
+            hover:shadow-[0_15px_40px_rgba(15,23,42,0.25)]
           "
           initial={{
             opacity: 0,
@@ -407,20 +347,12 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
           }}
         >
           <div className="grid min-h-[500px] md:grid-cols-2">
-
-            {/* =========================
-                LEFT SIDE
-            ========================= */}
+            {/* LEFT SIDE */}
 
             <div
               className="
-                flex
-                flex-col
-                justify-center
-                px-8
-                py-14
-                md:px-14
-                lg:px-16
+                flex flex-col justify-center
+                px-8 py-14 md:px-14 lg:px-16
               "
             >
               {/* BRAND */}
@@ -466,12 +398,8 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   delay: 0.1,
                 }}
                 className="
-                  max-w-xl
-                  text-4xl
-                  font-semibold
-                  leading-tight
-                  text-white
-                  md:text-5xl
+                  max-w-xl text-4xl font-semibold leading-tight
+                  text-white md:text-5xl
                 "
               >
                 {userType === "client"
@@ -498,12 +426,8 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   delay: 0.15,
                 }}
                 className="
-                  mt-7
-                  max-w-lg
-                  text-base
-                  leading-7
-                  text-white/85
-                  md:text-lg
+                  mt-7 max-w-lg text-base leading-7
+                  text-slate-300 md:text-lg
                 "
               >
                 {userType === "client"
@@ -511,45 +435,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   : "KaJob makes it easy to discover nearby opportunities, connect with clients, and earn from your skills."}
               </motion.p>
 
-              {/* BUTTON */}
-
-              <motion.button
-                type="button"
-                initial={{
-                  opacity: 0,
-                  y: 20,
-                }}
-                whileInView={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                viewport={{
-                  once: true,
-                }}
-                transition={{
-                  duration: 0.5,
-                  delay: 0.2,
-                }}
-                className="
-                  mt-9
-                  w-fit
-                  rounded-lg
-                  bg-white
-                  px-8
-                  py-4
-                  font-semibold
-                  text-emerald-600
-                  shadow-lg
-                  transition
-                  duration-300
-                  hover:scale-105
-                  hover:shadow-xl
-                "
-              >
-                {userType === "client"
-                  ? "Find a Worker"
-                  : "Find Work"}
-              </motion.button>
+              {/* FIND A WORKER BUTTON REMOVED */}
 
               {/* TRUST MESSAGE */}
 
@@ -571,16 +457,11 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
               >
                 <div
                   className="
-                    flex
-                    h-10
-                    w-10
-                    items-center
-                    justify-center
-                    rounded-full
-                    bg-white/15
+                    flex h-10 w-10 items-center justify-center
+                    rounded-full bg-emerald-500/15
                   "
                 >
-                  <ShieldCheckIcon className="h-5 w-5 text-white" />
+                  <ShieldCheckIcon className="h-5 w-5 text-emerald-400" />
                 </div>
 
                 <span className="text-sm font-semibold text-white">
@@ -589,45 +470,27 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
               </motion.div>
             </div>
 
-            {/* =========================
-                RIGHT SIDE
-            ========================= */}
+            {/* RIGHT SIDE */}
 
             <div
               className="
-                relative
-                flex
-                min-h-[400px]
-                items-center
-                justify-center
-                overflow-hidden
-                px-8
-                py-12
+                relative flex min-h-[400px] items-center
+                justify-center overflow-hidden px-8 py-12
               "
             >
               {/* DECORATIVE CIRCLES */}
 
               <div
                 className="
-                  absolute
-                  right-[-80px]
-                  top-[-80px]
-                  h-64
-                  w-64
-                  rounded-full
-                  bg-white/5
+                  absolute right-[-80px] top-[-80px] h-64 w-64
+                  rounded-full bg-emerald-400/10
                 "
               />
 
               <div
                 className="
-                  absolute
-                  bottom-[-100px]
-                  left-[-80px]
-                  h-72
-                  w-72
-                  rounded-full
-                  bg-white/5
+                  absolute bottom-[-100px] left-[-80px] h-72 w-72
+                  rounded-full bg-emerald-400/10
                 "
               />
 
@@ -642,25 +505,15 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   repeat: Infinity,
                 }}
                 className="
-                  absolute
-                  right-1/2
-                  top-12
-                  z-20
-                  flex
-                  -translate-x-1/2
-                  gap-2
-                  rounded-full
-                  border
-                  border-white/20
-                  bg-white/10
-                  px-7
-                  py-4
-                  backdrop-blur-sm
+                  absolute right-1/2 top-12 z-20 flex
+                  -translate-x-1/2 gap-2 rounded-full
+                  border border-white/20 bg-white/10
+                  px-7 py-4 backdrop-blur-sm
                 "
               >
-                <span className="h-2 w-2 rounded-full bg-white" />
-                <span className="h-2 w-2 rounded-full bg-white" />
-                <span className="h-2 w-2 rounded-full bg-white" />
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
               </motion.div>
 
               {/* BACK CARD */}
@@ -674,22 +527,15 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   repeat: Infinity,
                 }}
                 className="
-                  absolute
-                  right-[12%]
-                  h-[300px]
-                  w-[190px]
-                  rotate-6
-                  rounded-2xl
-                  border
-                  border-white/20
-                  bg-white/10
-                  backdrop-blur-sm
+                  absolute right-[12%] h-[300px] w-[190px]
+                  rotate-6 rounded-2xl border border-white/15
+                  bg-slate-800/80 backdrop-blur-sm
                 "
               >
                 <div className="flex h-full flex-col items-center justify-end pb-8">
-                  <UserGroupIcon className="h-10 w-10 text-white/50" />
+                  <UserGroupIcon className="h-10 w-10 text-emerald-400/70" />
 
-                  <span className="mt-3 text-sm text-white/60">
+                  <span className="mt-3 text-sm text-slate-300">
                     Local Professionals
                   </span>
                 </div>
@@ -706,22 +552,15 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   repeat: Infinity,
                 }}
                 className="
-                  absolute
-                  left-[8%]
-                  h-[280px]
-                  w-[180px]
-                  -rotate-6
-                  rounded-2xl
-                  border
-                  border-white/20
-                  bg-white/10
-                  backdrop-blur-sm
+                  absolute left-[8%] h-[280px] w-[180px]
+                  -rotate-6 rounded-2xl border border-white/15
+                  bg-slate-800/80 backdrop-blur-sm
                 "
               >
                 <div className="flex h-full flex-col items-center justify-end pb-8">
-                  <MagnifyingGlassIcon className="h-10 w-10 text-white/50" />
+                  <MagnifyingGlassIcon className="h-10 w-10 text-emerald-400/70" />
 
-                  <span className="mt-3 text-sm text-white/60">
+                  <span className="mt-3 text-sm text-slate-300">
                     Nearby Jobs
                   </span>
                 </div>
@@ -738,43 +577,26 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
                   repeat: Infinity,
                 }}
                 className="
-                  relative
-                  z-10
-                  h-[340px]
-                  w-[220px]
-                  rounded-2xl
-                  border
-                  border-white/30
-                  bg-white/15
-                  p-5
-                  shadow-2xl
-                  backdrop-blur-md
+                  relative z-10 h-[340px] w-[220px]
+                  rounded-2xl border border-white/20
+                  bg-slate-800/90 p-5 shadow-2xl backdrop-blur-md
                 "
               >
                 <div
                   className="
-                    flex
-                    h-full
-                    flex-col
-                    items-center
-                    justify-center
-                    text-center
+                    flex h-full flex-col items-center
+                    justify-center text-center
                   "
                 >
                   {/* ICON */}
 
                   <div
                     className="
-                      flex
-                      h-20
-                      w-20
-                      items-center
-                      justify-center
-                      rounded-full
-                      bg-white/15
+                      flex h-20 w-20 items-center justify-center
+                      rounded-full bg-emerald-500/15
                     "
                   >
-                    <SparklesIcon className="h-10 w-10 text-white" />
+                    <SparklesIcon className="h-10 w-10 text-emerald-400" />
                   </div>
 
                   {/* TITLE */}
@@ -785,7 +607,7 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
 
                   {/* DESCRIPTION */}
 
-                  <p className="mt-2 text-sm text-white/70">
+                  <p className="mt-2 text-sm text-slate-300">
                     {userType === "client"
                       ? "Find the right worker for your task"
                       : "Find opportunities near you"}
@@ -795,17 +617,12 @@ const HowItWorks = ({ setSelectedPage }: Props) => {
 
                   <div
                     className="
-                      mt-8
-                      flex
-                      items-center
-                      gap-2
-                      rounded-full
-                      bg-white/10
-                      px-4
-                      py-2
+                      mt-8 flex items-center gap-2 rounded-full
+                      border border-emerald-400/20
+                      bg-emerald-500/10 px-4 py-2
                     "
                   >
-                    <CheckCircleIcon className="h-5 w-5 text-white" />
+                    <CheckCircleIcon className="h-5 w-5 text-emerald-400" />
 
                     <span className="text-xs font-medium text-white">
                       Ready to connect

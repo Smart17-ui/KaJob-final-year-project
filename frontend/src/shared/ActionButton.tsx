@@ -20,9 +20,26 @@ const ActionButton = ({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      className="w-50 rounded-full bg-secondary-600 px-4 py-2 transition duration-300 hover:bg-green-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+      className="
+        w-30 rounded-full
+        bg-slate-900 px-4 py-2
+        font-normal text-white
+        transition-all duration-300 ease-in-out
+        hover:-translate-y-0.5
+        hover:shadow-lg hover:shadow-emerald-600/20
+        active:translate-y-0 active:scale-95
+        focus-visible:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-emerald-600
+        focus-visible:ring-offset-2
+        disabled:cursor-not-allowed
+        disabled:opacity-60
+        disabled:hover:translate-y-0
+        disabled:hover:bg-slate-900
+        disabled:hover:shadow-none
+      "
     >
-      {children}
+      {loading ? "Please wait..." : children}
     </button>
   );
 };

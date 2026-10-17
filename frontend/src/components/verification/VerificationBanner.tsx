@@ -1,7 +1,7 @@
-// frontend/src/components/verification/VerificationBanner.tsx
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import {
   ArrowRightIcon,
   ExclamationTriangleIcon,
@@ -21,17 +21,21 @@ const VerificationBanner = ({ role }: VerificationBannerProps) => {
   const verificationPath = `/${role.toLowerCase()}/dashboard/settings/verification`;
 
   return (
-    <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-5">
+    <div className="mt-6 mb-6 flex flex-col gap-4 rounded-2xl border border-emerald-600/10 bg-white px-4 py-4 shadow-sm shadow-emerald-600/5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="flex min-w-0 items-start gap-3 sm:items-center">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white text-amber-700 shadow-sm">
-          <ExclamationTriangleIcon className="h-5 w-5" aria-hidden="true" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-900 text-white">
+          <ExclamationTriangleIcon
+            className="h-5 w-5"
+            aria-hidden="true"
+          />
         </div>
 
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-900">
             Complete your identity verification
           </p>
-          <p className="mt-1 text-sm leading-5 text-slate-600">
+
+          <p className="mt-1 text-sm leading-5 text-black">
             {role === "CLIENT"
               ? "Verify your account to post jobs and hire with confidence."
               : "Verify your account to apply for jobs and build trust with clients."}
@@ -43,19 +47,23 @@ const VerificationBanner = ({ role }: VerificationBannerProps) => {
         <button
           type="button"
           onClick={() => navigate(verificationPath)}
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+          className="group inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
         >
           Verify identity
-          <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+
+          <ArrowRightIcon
+            className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+            aria-hidden="true"
+          />
         </button>
 
         <button
           type="button"
           onClick={() => setDismissed(true)}
           aria-label="Dismiss verification reminder"
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
         >
-          <XMarkIcon className="h-4 w-4" />
+          <XMarkIcon className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     </div>

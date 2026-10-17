@@ -1,16 +1,14 @@
+
 import {
   BriefcaseIcon,
   ArrowPathIcon,
+  CheckCircleIcon,
   ExclamationCircleIcon,
   TrashIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import EmptyJobs from "../../../components/my-jobs/EmptyJobs";
@@ -26,36 +24,24 @@ import {
   confirmJob,
 } from "../../../components/services/jobService";
 
-import {
-  hideJob,
-} from "@/api/jobs";
+import { hideJob } from "@/api/jobs";
 
 import type {
   MyJob,
   JobStatus,
 } from "../../../shared/types/job";
 
-type ConfirmationAction =
-  | "cancel"
-  | "delete"
-  | "confirm"
-  | null;
-
-type JobStatusFilter =
-  | "ALL"
-  | JobStatus;
-
 /* =========================================================
-   CLIENT JOB WITH REVIEW STATUS
+   TYPES
 ========================================================= */
+
+type ConfirmationAction = "cancel" | "delete" | "confirm" | null;
+
+type JobStatusFilter = "ALL" | JobStatus;
 
 type MyJobWithReviewStatus = MyJob & {
   clientHasReviewedWorker: boolean;
 };
-
-/* =========================================================
-   REVIEW JOB
-========================================================= */
 
 interface ReviewJob {
   jobId: number;
@@ -63,10 +49,6 @@ interface ReviewJob {
   workerName: string;
   jobTitle: string;
 }
-
-/* =========================================================
-   WORKER DETAIL
-========================================================= */
 
 type WorkerDetail = {
   id: number;
@@ -83,10 +65,6 @@ type WorkerDetail = {
   availability_status?: string;
 };
 
-/* =========================================================
-   FULL JOB DETAIL TYPE
-========================================================= */
-
 type JobWithWorker = MyJob & {
   worker?: WorkerDetail;
   worker_id?: number;
@@ -95,48 +73,32 @@ type JobWithWorker = MyJob & {
 };
 
 /* =========================================================
-   MY JOBS
+   MY JOBS PAGE
 ========================================================= */
 
 const MyJobs = () => {
   const navigate = useNavigate();
 
-  const [jobs, setJobs] =
-    useState<MyJobWithReviewStatus[]>([]);
+  const [jobs, setJobs] = useState<MyJobWithReviewStatus[]>([]);
+  const [status, setStatus] = useState<JobStatusFilter>("ALL");
 
-  const [status, setStatus] =
-    useState<JobStatusFilter>("ALL");
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const [isLoading, setIsLoading] =
-    useState(true);
-
-  const [errorMessage, setErrorMessage] =
-    useState("");
-
-  const [actionLoading, setActionLoading] =
-    useState<number | null>(null);
-
-  const [actionError, setActionError] =
-    useState("");
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
 
   const [confirmationAction, setConfirmationAction] =
     useState<ConfirmationAction>(null);
 
-  const [selectedJobId, setSelectedJobId] =
-    useState<number | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+
+  const [reviewJob, setReviewJob] = useState<ReviewJob | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   /* =======================================================
-     REVIEW STATE
-  ======================================================= */
-
-  const [reviewJob, setReviewJob] =
-    useState<ReviewJob | null>(null);
-
-  const [isReviewModalOpen, setIsReviewModalOpen] =
-    useState(false);
-
-  /* =======================================================
-     LOAD MY JOBS
+     LOAD JOBS
   ======================================================= */
 
   const loadJobs = async () => {
@@ -144,119 +106,58 @@ const MyJobs = () => {
     setErrorMessage("");
 
     try {
-      const response =
-        await getMyJobs();
+      const response = await getMyJobs();
+      const jobsFromApi = response.results ?? [];
 
-      const jobsFromApi =
-        response.results ?? [];
+      const mappedJobs = await Promise.all(
+        jobsFromApi.map(async (job) => {
+          if (job.status !== "COMPLETED") {
+            return {
+              ...job,
+              clientHasReviewedWorker: false,
+            };
+          }
 
-      /*
-       * The My Jobs list endpoint does not contain
-       * client_has_reviewed_worker.
-       *
-       * For completed jobs, fetch the normal job
-       * detail endpoint:
-       *
-       * GET /api/jobs/{job_id}/
-       *
-       * The detail endpoint is the persistent source
-       * of the client's review status.
-       */
-      const mappedJobs =
-        await Promise.all(
-          jobsFromApi.map(
-            async (job) => {
-              /*
-               * Only completed jobs can have a
-               * worker review.
-               *
-               * For every other status, the review
-               * button must not appear anyway.
-               */
-              if (
-                job.status !==
-                "COMPLETED"
-              ) {
-                return {
-                  ...job,
-                  clientHasReviewedWorker:
-                    false,
-                };
-              }
+          try {
+            const detailResponse = await getJobById(job.id);
 
-              try {
-                /*
-                 * Get the latest job details so we
-                 * know whether this client already
-                 * reviewed the worker.
-                 */
-                const detailResponse =
-                  await getJobById(
-                    job.id
-                  );
+            const detailedJob = detailResponse?.job as
+              | JobWithWorker
+              | undefined;
 
-                const detailedJob =
-                  detailResponse?.job as
-                    | JobWithWorker
-                    | undefined;
+            return {
+              ...job,
+              clientHasReviewedWorker: Boolean(
+                detailedJob?.client_has_reviewed_worker
+              ),
+            };
+          } catch (detailError) {
+            console.error(
+              `Failed to load review status for job ${job.id}:`,
+              detailError
+            );
 
-                return {
-                  ...job,
-                  clientHasReviewedWorker:
-                    Boolean(
-                      detailedJob?.client_has_reviewed_worker
-                    ),
-                };
-              } catch (detailError) {
-                /*
-                 * Keep the completed job visible even
-                 * if the detail request fails.
-                 *
-                 * The Rate Worker button may appear
-                 * in this case because we do not know
-                 * the persistent review status.
-                 */
-                console.error(
-                  `Failed to load review status for job ${job.id}:`,
-                  detailError
-                );
-
-                return {
-                  ...job,
-                  clientHasReviewedWorker:
-                    false,
-                };
-              }
-            }
-          )
-        );
-
-      setJobs(
-        mappedJobs
+            return {
+              ...job,
+              clientHasReviewedWorker: false,
+            };
+          }
+        })
       );
+
+      setJobs(mappedJobs);
     } catch (error) {
-      console.error(
-        "Failed to load jobs:",
-        error
-      );
+      console.error("Failed to load jobs:", error);
 
-      if (error instanceof Error) {
-        setErrorMessage(
-          error.message
-        );
-      } else {
-        setErrorMessage(
-          "Failed to load your jobs."
-        );
-      }
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "We couldn't load your jobs. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
   };
-
-  /* =======================================================
-     INITIAL LOAD
-  ======================================================= */
 
   useEffect(() => {
     loadJobs();
@@ -266,227 +167,116 @@ const MyJobs = () => {
      STATUS COUNTS
   ======================================================= */
 
-  const statusCounts = useMemo(() => {
-    return {
+  const statusCounts = useMemo(
+    () => ({
       ALL: jobs.length,
-
-      OPEN:
-        jobs.filter(
-          (job) =>
-            job.status ===
-            "OPEN"
-        ).length,
-
-      ASSIGNED:
-        jobs.filter(
-          (job) =>
-            job.status ===
-            "ASSIGNED"
-        ).length,
-
-      IN_PROGRESS:
-        jobs.filter(
-          (job) =>
-            job.status ===
-            "IN_PROGRESS"
-        ).length,
-
-      AWAITING_CONFIRMATION:
-        jobs.filter(
-          (job) =>
-            job.status ===
-            "AWAITING_CONFIRMATION"
-        ).length,
-
-      COMPLETED:
-        jobs.filter(
-          (job) =>
-            job.status ===
-            "COMPLETED"
-        ).length,
-
-      CANCELLED:
-        jobs.filter(
-          (job) =>
-            job.status ===
-            "CANCELLED"
-        ).length,
-    };
-  }, [jobs]);
+      OPEN: jobs.filter((job) => job.status === "OPEN").length,
+      ASSIGNED: jobs.filter((job) => job.status === "ASSIGNED").length,
+      IN_PROGRESS: jobs.filter((job) => job.status === "IN_PROGRESS").length,
+      AWAITING_CONFIRMATION: jobs.filter(
+        (job) => job.status === "AWAITING_CONFIRMATION"
+      ).length,
+      COMPLETED: jobs.filter((job) => job.status === "COMPLETED").length,
+      CANCELLED: jobs.filter((job) => job.status === "CANCELLED").length,
+    }),
+    [jobs]
+  );
 
   /* =======================================================
-     FILTERED JOBS
+     FILTER JOBS
   ======================================================= */
 
-  const filteredJobs =
-    useMemo(() => {
-      if (status === "ALL") {
-        return jobs;
-      }
+  const filteredJobs = useMemo(() => {
+    if (status === "ALL") {
+      return jobs;
+    }
 
-      return jobs.filter(
-        (job) =>
-          job.status === status
-      );
-    }, [
-      jobs,
-      status,
-    ]);
+    return jobs.filter((job) => job.status === status);
+  }, [jobs, status]);
 
-  /* =======================================================
-     VIEW JOB
-  ======================================================= */
-
-  const handleViewJob = (
-    jobId: number
-  ) => {
-    navigate(
-      `/client/dashboard/jobs/${jobId}`
-    );
+  const statusTitle: Record<JobStatusFilter, string> = {
+    ALL: "All Jobs",
+    OPEN: "Open Jobs",
+    ASSIGNED: "Assigned Jobs",
+    IN_PROGRESS: "Jobs In Progress",
+    AWAITING_CONFIRMATION: "Awaiting Confirmation",
+    COMPLETED: "Completed Jobs",
+    CANCELLED: "Cancelled Jobs",
   };
 
   /* =======================================================
-     POST JOB
+     NAVIGATION
   ======================================================= */
+
+  const handleViewJob = (jobId: number) => {
+    navigate(`/client/dashboard/jobs/${jobId}`);
+  };
 
   const handlePostJob = () => {
-    navigate(
-      "/client/dashboard/post-job"
-    );
+    navigate("/client/dashboard/post-job");
   };
-
-  /* =======================================================
-     OPEN RECYCLE BIN
-  ======================================================= */
 
   const handleOpenRecycleBin = () => {
-    navigate(
-      "/client/dashboard/recycle-bin"
-    );
+    navigate("/client/dashboard/recycle-bin");
   };
 
   /* =======================================================
-     OPEN CONFIRMATION
+     CONFIRMATION MODAL
   ======================================================= */
 
   const openConfirmation = (
-    action: Exclude<
-      ConfirmationAction,
-      null
-    >,
+    action: Exclude<ConfirmationAction, null>,
     jobId: number
   ) => {
-    setSelectedJobId(
-      jobId
-    );
-
-    setConfirmationAction(
-      action
-    );
-
+    setSelectedJobId(jobId);
+    setConfirmationAction(action);
     setActionError("");
+    setActionSuccess("");
   };
 
-  /* =======================================================
-     CLOSE CONFIRMATION
-  ======================================================= */
-
   const closeConfirmation = () => {
-    if (
-      actionLoading !== null
-    ) {
+    if (actionLoading !== null) {
       return;
     }
 
-    setConfirmationAction(
-      null
-    );
-
-    setSelectedJobId(
-      null
-    );
+    setConfirmationAction(null);
+    setSelectedJobId(null);
   };
 
   /* =======================================================
-     CLOSE REVIEW MODAL
+     REVIEW MODAL
   ======================================================= */
 
   const closeReviewModal = () => {
-    setIsReviewModalOpen(
-      false
-    );
-
-    setReviewJob(
-      null
-    );
+    setIsReviewModalOpen(false);
+    setReviewJob(null);
   };
 
   /* =======================================================
      RATE WORKER
   ======================================================= */
 
-  const handleRateWorker = async (
-    jobId: number
-  ) => {
-    /*
-     * Find the job in the current local state.
-     */
-    const job =
-      jobs.find(
-        (currentJob) =>
-          currentJob.id ===
-          jobId
-      );
+  const handleRateWorker = async (jobId: number) => {
+    const job = jobs.find((currentJob) => currentJob.id === jobId);
 
     if (!job) {
-      setActionError(
-        "We couldn't find this job."
-      );
-
+      setActionError("We couldn't find this job.");
       return;
     }
 
-    /*
-     * Only completed jobs can be reviewed.
-     */
-    if (
-      job.status !==
-      "COMPLETED"
-    ) {
-      return;
-    }
-
-    /*
-     * Prevent the review flow from opening if
-     * the client has already reviewed this worker.
-     */
-    if (
-      job.clientHasReviewedWorker
-    ) {
+    if (job.status !== "COMPLETED" || job.clientHasReviewedWorker) {
       return;
     }
 
     try {
       setActionError("");
+      setActionSuccess("");
 
-      /*
-       * Fetch the latest job information.
-       *
-       * This gives us:
-       *
-       * worker.id
-       * worker.full_name
-       * client_has_reviewed_worker
-       */
-      const response =
-        await getJobById(
-          jobId
-        );
+      const response = await getJobById(jobId);
 
-      const detailedJob =
-        response?.job as
-          | JobWithWorker
-          | undefined;
+      const detailedJob = response?.job as
+        | JobWithWorker
+        | undefined;
 
       if (!detailedJob) {
         throw new Error(
@@ -494,47 +284,18 @@ const MyJobs = () => {
         );
       }
 
-      /*
-       * Double-check the persistent server-side
-       * review status.
-       *
-       * This protects against a stale My Jobs page.
-       */
-      if (
-        detailedJob.client_has_reviewed_worker
-      ) {
-        setJobs(
-          (currentJobs) =>
-            currentJobs.map(
-              (currentJob) =>
-                currentJob.id ===
-                jobId
-                  ? {
-                      ...currentJob,
-                      clientHasReviewedWorker:
-                        true,
-                    }
-                  : currentJob
-            )
+      if (detailedJob.client_has_reviewed_worker) {
+        setJobs((currentJobs) =>
+          currentJobs.map((currentJob) =>
+            currentJob.id === jobId
+              ? { ...currentJob, clientHasReviewedWorker: true }
+              : currentJob
+          )
         );
 
         return;
       }
 
-      /*
-       * Get the worker ID.
-       *
-       * The current backend detail response returns
-       * the worker as:
-       *
-       * worker: {
-       *   id: 12,
-       *   full_name: "Christopher Banda"
-       * }
-       *
-       * Keep the older top-level fields as fallbacks
-       * in case another endpoint still provides them.
-       */
       const workerId =
         detailedJob.worker?.id ??
         detailedJob.worker_id ??
@@ -546,36 +307,22 @@ const MyJobs = () => {
         );
       }
 
-      /*
-       * Get the worker name.
-       */
       const workerName =
         detailedJob.worker?.full_name ||
         detailedJob.worker_name ||
         job.worker_name ||
         "Worker";
 
-      /*
-       * Prepare the ReviewModal.
-       */
       setReviewJob({
-        jobId:
-          detailedJob.id,
+        jobId: detailedJob.id,
         workerId,
         workerName,
-        jobTitle:
-          detailedJob.title ||
-          job.title,
+        jobTitle: detailedJob.title || job.title,
       });
 
-      setIsReviewModalOpen(
-        true
-      );
+      setIsReviewModalOpen(true);
     } catch (error) {
-      console.error(
-        "Failed to prepare worker review:",
-        error
-      );
+      console.error("Failed to prepare worker review:", error);
 
       setActionError(
         error instanceof Error
@@ -589,784 +336,446 @@ const MyJobs = () => {
      REVIEW SUCCESS
   ======================================================= */
 
-  const handleReviewSuccess =
-    async () => {
-      /*
-       * Reload the jobs from the backend.
-       *
-       * The new:
-       *
-       * client_has_reviewed_worker
-       *
-       * value will be converted into:
-       *
-       * clientHasReviewedWorker
-       *
-       * and the Rate Worker button will disappear.
-       */
-      await loadJobs();
+  const handleReviewSuccess = async () => {
+    setIsReviewModalOpen(false);
+    setReviewJob(null);
 
-      setIsReviewModalOpen(
-        false
-      );
-
-      setReviewJob(
-        null
-      );
-    };
+    await loadJobs();
+  };
 
   /* =======================================================
-     CONFIRM / CANCEL / DELETE
+     CANCEL / DELETE / CONFIRM JOB
   ======================================================= */
 
-  const handleConfirmAction =
-    async () => {
-      if (
-        selectedJobId === null ||
-        confirmationAction === null
-      ) {
-        return;
-      }
+  const handleConfirmAction = async () => {
+    if (selectedJobId === null || confirmationAction === null) {
+      return;
+    }
 
-      const jobId =
-        selectedJobId;
+    const jobId = selectedJobId;
+    const action = confirmationAction;
 
-      const action =
-        confirmationAction;
+    try {
+      setActionLoading(jobId);
+      setActionError("");
+      setActionSuccess("");
 
-      try {
-        setActionLoading(
-          jobId
+      if (action === "cancel") {
+        await cancelJob(jobId);
+
+        setConfirmationAction(null);
+        setSelectedJobId(null);
+
+        await loadJobs();
+
+        setActionSuccess("The job has been cancelled.");
+      } else if (action === "delete") {
+        const job = jobs.find((currentJob) => currentJob.id === jobId);
+
+        if (
+          !job ||
+          (job.status !== "COMPLETED" && job.status !== "CANCELLED")
+        ) {
+          setActionError(
+            "Only completed or cancelled jobs can be moved to the Recycle Bin."
+          );
+          return;
+        }
+
+        await hideJob(jobId);
+
+        setJobs((currentJobs) =>
+          currentJobs.filter((currentJob) => currentJob.id !== jobId)
         );
 
-        setActionError("");
+        setConfirmationAction(null);
+        setSelectedJobId(null);
+        setActionSuccess("Job moved to the Recycle Bin.");
+      } else if (action === "confirm") {
+        const jobBeingConfirmed = jobs.find((job) => job.id === jobId);
 
-        /* =================================================
-           CANCEL
-        ================================================= */
+        await confirmJob(jobId);
 
-        if (
-          action === "cancel"
-        ) {
-          await cancelJob(
-            jobId
-          );
-
-          await loadJobs();
-
-          setConfirmationAction(
-            null
-          );
-
-          setSelectedJobId(
-            null
-          );
-        }
-
-        /* =================================================
-           MOVE TO RECYCLE BIN
-        ================================================= */
-
-        if (
-          action === "delete"
-        ) {
-          const job =
-            jobs.find(
-              (currentJob) =>
-                currentJob.id ===
-                jobId
-            );
-
-          /*
-           * Only completed and cancelled jobs
-           * can be moved to the Recycle Bin.
-           */
-          if (
-            !job ||
-            (
-              job.status !==
-                "COMPLETED" &&
-              job.status !==
-                "CANCELLED"
-            )
-          ) {
-            return;
-          }
-
-          /*
-           * Backend calls this "hide".
-           * Frontend presents it as "Delete".
-           */
-          await hideJob(
-            jobId
-          );
-
-          /*
-           * Remove it from the current My Jobs
-           * list immediately.
-           */
-          setJobs(
-            (currentJobs) =>
-              currentJobs.filter(
-                (currentJob) =>
-                  currentJob.id !==
-                  jobId
-              )
-          );
-
-          setConfirmationAction(
-            null
-          );
-
-          setSelectedJobId(
-            null
-          );
-        }
-
-        /* =================================================
-           CONFIRM COMPLETION
-        ================================================= */
-
-        if (
-          action === "confirm"
-        ) {
-          /*
-           * Save the job information before
-           * refreshing the jobs list.
-           *
-           * We need the worker information
-           * to open the review modal.
-           */
-          const jobBeingConfirmed =
-            jobs.find(
-              (job) =>
-                job.id ===
-                jobId
-            );
-
-          /*
-           * Confirm the job on the backend.
-           */
-          await confirmJob(
-            jobId
-          );
-
-          // The confirmation request is the source of truth. Update the
-          // card immediately so a later list refresh cannot make a
-          // successful confirmation look like a failed action.
-          setJobs((currentJobs) =>
-            currentJobs.map((job) =>
-              job.id === jobId
-                ? {
-                    ...job,
-                    status: "COMPLETED",
-                    status_display: "Completed",
-                  }
-                : job
-            )
-          );
-
-          /*
-           * Close the confirmation modal.
-           */
-          setConfirmationAction(
-            null
-          );
-
-          setSelectedJobId(
-            null
-          );
-
-          /*
-           * Open the review modal after the
-           * completion has been confirmed.
-           *
-           * Use the worker fields from the job
-           * list when available.
-           */
-          if (
-            jobBeingConfirmed?.worker_id &&
-            jobBeingConfirmed.worker_name
-          ) {
-            setReviewJob({
-              jobId:
-                jobBeingConfirmed.id,
-              workerId:
-                jobBeingConfirmed.worker_id,
-              workerName:
-                jobBeingConfirmed.worker_name,
-              jobTitle:
-                jobBeingConfirmed.title,
-            });
-
-            setIsReviewModalOpen(
-              true
-            );
-          }
-        }
-      } catch (error) {
-        console.error(
-          `Failed to ${action} job:`,
-          error
+        setJobs((currentJobs) =>
+          currentJobs.map((job) =>
+            job.id === jobId
+              ? {
+                  ...job,
+                  status: "COMPLETED",
+                  status_display: "Completed",
+                }
+              : job
+          )
         );
 
+        setConfirmationAction(null);
+        setSelectedJobId(null);
+        setActionSuccess("Job completion confirmed successfully.");
+
         if (
-          error instanceof Error
+          jobBeingConfirmed?.worker_id &&
+          jobBeingConfirmed.worker_name
         ) {
-          setActionError(
-            error.message
-          );
-        } else if (
-          action === "cancel"
-        ) {
-          setActionError(
-            "Failed to cancel the job. Please try again."
-          );
-        } else if (
-          action === "delete"
-        ) {
-          setActionError(
-            "Failed to move the job to the Recycle Bin. Please try again."
-          );
+          setReviewJob({
+            jobId: jobBeingConfirmed.id,
+            workerId: jobBeingConfirmed.worker_id,
+            workerName: jobBeingConfirmed.worker_name,
+            jobTitle: jobBeingConfirmed.title,
+          });
+
+          setIsReviewModalOpen(true);
         } else {
-          setActionError(
-            "Failed to confirm completion. Please try again."
-          );
+          await loadJobs();
         }
-      } finally {
-        setActionLoading(
-          null
+      }
+    } catch (error) {
+      console.error(`Failed to ${action} job:`, error);
+
+      if (error instanceof Error) {
+        setActionError(error.message);
+      } else if (action === "cancel") {
+        setActionError("Failed to cancel the job. Please try again.");
+      } else if (action === "delete") {
+        setActionError(
+          "Failed to move the job to the Recycle Bin. Please try again."
+        );
+      } else {
+        setActionError(
+          "Failed to confirm completion. Please try again."
         );
       }
-    };
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   /* =======================================================
      CONFIRMATION CONTENT
   ======================================================= */
 
-  const confirmationContent =
-    useMemo(() => {
-      if (
-        confirmationAction ===
-        "cancel"
-      ) {
-        return {
-          title:
-            "Cancel this job?",
-          message:
-            "Are you sure you want to cancel this job? The job will no longer be available for the current workflow.",
-          confirmLabel:
-            "Cancel job",
-          cancelLabel:
-            "Keep job",
-          variant:
-            "warning" as const,
-        };
-      }
-
-      if (
-        confirmationAction ===
-        "delete"
-      ) {
-        return {
-          title:
-            "Move to Recycle Bin?",
-          message:
-            "This job will be moved to your Recycle Bin. You can restore it later.",
-          confirmLabel:
-            "Move to Recycle Bin",
-          cancelLabel:
-            "Keep job",
-          variant:
-            "danger" as const,
-        };
-      }
-
-      if (
-        confirmationAction ===
-        "confirm"
-      ) {
-        return {
-          title:
-            "Confirm job completion?",
-          message:
-            "Please confirm that the worker has completed the job satisfactorily. Once confirmed, this job will be marked as completed.",
-          confirmLabel:
-            "Confirm completion",
-          cancelLabel:
-            "Not yet",
-          variant:
-            "warning" as const,
-        };
-      }
-
+  const confirmationContent = useMemo(() => {
+    if (confirmationAction === "cancel") {
       return {
-        title: "",
-        message: "",
-        confirmLabel:
-          "Confirm",
-        cancelLabel:
-          "Cancel",
-        variant:
-          "warning" as const,
+        title: "Cancel this job?",
+        message:
+          "Are you sure you want to cancel this job? The job will no longer be available for the current workflow.",
+        confirmLabel: "Cancel job",
+        cancelLabel: "Keep job",
+        variant: "warning" as const,
       };
-    }, [
-      confirmationAction,
-    ]);
+    }
+
+    if (confirmationAction === "delete") {
+      return {
+        title: "Move to Recycle Bin?",
+        message:
+          "This job will be moved to your Recycle Bin. You can restore it later.",
+        confirmLabel: "Move to Recycle Bin",
+        cancelLabel: "Keep job",
+        variant: "danger" as const,
+      };
+    }
+
+    if (confirmationAction === "confirm") {
+      return {
+        title: "Confirm job completion?",
+        message:
+          "Please confirm that the worker has completed the job satisfactorily. Once confirmed, this job will be marked as completed.",
+        confirmLabel: "Confirm completion",
+        cancelLabel: "Not yet",
+        variant: "warning" as const,
+      };
+    }
+
+    return {
+      title: "",
+      message: "",
+      confirmLabel: "Confirm",
+      cancelLabel: "Cancel",
+      variant: "warning" as const,
+    };
+  }, [confirmationAction]);
 
   /* =======================================================
-     LOADING
+     PAGE HEADER
   ======================================================= */
 
-  if (isLoading) {
-    return (
-      <div
-        className="
-          flex min-h-[calc(100vh-152px)] flex-col
-          lg:h-[calc(100vh-160px)] lg:min-h-0
-        "
-      >
-        <div className="shrink-0 pb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-              <BriefcaseIcon className="h-6 w-6 text-green-600" />
-            </div>
-
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                My Jobs
-              </h1>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Manage the jobs you have posted.
-              </p>
-            </div>
-          </div>
+  const PageHeader = () => (
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+          <BriefcaseIcon className="h-6 w-6 text-slate-700" />
         </div>
 
-        <section className="min-h-0 flex-1 rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
-          <ArrowPathIcon className="mx-auto h-8 w-8 animate-spin text-green-600" />
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
+            My Jobs
+          </h1>
 
-          <p className="mt-4 text-sm font-medium text-gray-700">
-            Loading your jobs...
+          <p className="mt-1 text-sm text-slate-500">
+            Manage the jobs you have posted.
           </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Please wait while we fetch your jobs.
-          </p>
-        </section>
+        </div>
       </div>
-    );
-  }
 
-  /* =======================================================
-     ERROR
-  ======================================================= */
-
-  if (errorMessage) {
-    return (
-      <div
+      <button
+        type="button"
+        onClick={handleOpenRecycleBin}
         className="
-          flex min-h-[calc(100vh-152px)] flex-col
-          lg:h-[calc(100vh-160px)] lg:min-h-0
+          inline-flex w-full shrink-0 items-center justify-center gap-2
+          rounded-xl border border-slate-200 bg-white
+          px-4 py-2.5 text-sm font-semibold text-slate-700
+          shadow-sm transition hover:bg-slate-100
+          focus:outline-none focus-visible:ring-2
+          focus-visible:ring-slate-500 focus-visible:ring-offset-2
+          sm:w-auto
         "
       >
-        <div className="shrink-0 pb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-              <BriefcaseIcon className="h-6 w-6 text-green-600" />
-            </div>
-
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                My Jobs
-              </h1>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Manage the jobs you have posted.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <section className="min-h-0 flex-1 rounded-2xl border border-red-200 bg-red-50 p-6">
-          <div className="flex items-start gap-3">
-            <ExclamationCircleIcon className="h-6 w-6 shrink-0 text-red-600" />
-
-            <div className="flex-1">
-              <h2 className="font-semibold text-red-800">
-                Unable to load your jobs
-              </h2>
-
-              <p className="mt-1 text-sm text-red-700">
-                {errorMessage}
-              </p>
-
-              <button
-                type="button"
-                onClick={
-                  loadJobs
-                }
-                className="
-                  mt-4
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-xl
-                  bg-white
-                  px-4
-                  py-2.5
-                  text-sm
-                  font-semibold
-                  text-red-700
-                  shadow-sm
-                  transition
-                  hover:bg-red-50
-                "
-              >
-                <ArrowPathIcon className="h-4 w-4" />
-                Try again
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  }
+        <TrashIcon className="h-5 w-5 text-slate-600" />
+        Recycle Bin
+      </button>
+    </div>
+  );
 
   /* =======================================================
-     PAGE
+     PAGE LAYOUT
   ======================================================= */
 
   return (
     <>
-      <div
-        className="
-          flex min-h-[calc(100vh-152px)] flex-col
-          lg:h-[calc(100vh-160px)] lg:min-h-0
-        "
-      >
-        {/* =================================================
-            HEADER
-        ================================================= */}
-
-        <div className="shrink-0 pb-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-                <BriefcaseIcon className="h-6 w-6 text-green-600" />
-              </div>
-
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  My Jobs
-                </h1>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Manage the jobs you have posted.
-                </p>
-              </div>
-            </div>
-
-            {/* =================================================
-                RECYCLE BIN
-            ================================================= */}
-
-            <button
-              type="button"
-              onClick={
-                handleOpenRecycleBin
-              }
-              className="
-                inline-flex
-                items-center
-                gap-2
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-2.5
-                text-sm
-                font-semibold
-                text-gray-700
-                shadow-sm
-                transition
-                hover:bg-gray-50
-                hover:text-gray-900
-              "
-            >
-              <TrashIcon className="h-5 w-5" />
-              Recycle Bin
-            </button>
-          </div>
+      <div className="flex min-h-0 min-w-0 flex-col lg:h-[calc(100vh-152px)]">
+        {/* HEADER */}
+        <div className="shrink-0 pb-5 sm:pb-6">
+          <PageHeader />
         </div>
 
-        {/* =================================================
-            ACTION ERROR
-        ================================================= */}
+        {/* FEEDBACK MESSAGES */}
+        {(actionError || actionSuccess) && (
+          <div className="mb-4 shrink-0 space-y-2">
+            {actionSuccess && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-3">
+                <div className="flex items-center gap-3">
+                  <CheckCircleIcon className="h-5 w-5 shrink-0 text-slate-600" />
 
-        {actionError && (
-          <section className="mb-4 shrink-0 rounded-xl border border-red-200 bg-red-50 px-5 py-3">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm text-red-700">
-                {actionError}
-              </p>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setActionError("")
-                }
-                className="text-sm font-semibold text-red-700 hover:text-red-900"
-              >
-                Dismiss
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* =================================================
-            EMPTY
-        ================================================= */}
-
-        {jobs.length === 0 ? (
-          <div className="min-h-0 flex-1">
-            <EmptyJobs
-              onPostJob={
-                handlePostJob
-              }
-            />
-          </div>
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row md:gap-6">
-            {/* =================================================
-                STATUS SIDEBAR
-            ================================================= */}
-
-            <aside className="w-full shrink-0 md:-mt-4 md:w-60">
-              <JobStatusSidebar
-                status={status}
-                setStatus={setStatus}
-                counts={statusCounts}
-              />
-            </aside>
-
-            {/* =================================================
-                JOB LIST
-            ================================================= */}
-
-            <main
-              className="
-                min-h-0
-                min-w-0
-                flex-1
-                md:overflow-y-auto md:pr-2
-                [scrollbar-width:none]
-                [-ms-overflow-style:none]
-                [&::-webkit-scrollbar]:hidden
-              "
-            >
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {status === "ALL"
-                    ? "All Jobs"
-                    : status ===
-                      "OPEN"
-                    ? "Open Jobs"
-                    : status ===
-                      "ASSIGNED"
-                    ? "Assigned Jobs"
-                    : status ===
-                      "IN_PROGRESS"
-                    ? "Jobs In Progress"
-                    : status ===
-                      "AWAITING_CONFIRMATION"
-                    ? "Awaiting Confirmation"
-                    : status ===
-                      "COMPLETED"
-                    ? "Completed Jobs"
-                    : "Cancelled Jobs"}
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  {filteredJobs.length}{" "}
-                  {filteredJobs.length ===
-                  1
-                    ? "job"
-                    : "jobs"}
-                </p>
-              </div>
-
-              {/* =================================================
-                  NO FILTERED JOBS
-              ================================================= */}
-
-              {filteredJobs.length ===
-              0 ? (
-                <section className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
-                  <BriefcaseIcon className="mx-auto h-10 w-10 text-gray-300" />
-
-                  <h2 className="mt-4 text-lg font-semibold text-gray-900">
-                    No jobs found
-                  </h2>
-
-                  <p className="mt-2 text-sm text-gray-500">
-                    There are no jobs matching the selected status.
+                  <p className="flex-1 text-sm text-slate-700">
+                    {actionSuccess}
                   </p>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setStatus(
-                        "ALL"
-                      )
-                    }
+                    onClick={() => setActionSuccess("")}
+                    className="text-sm font-semibold text-slate-500 transition hover:text-slate-900"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {actionError && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-3">
+                <div className="flex items-center gap-3">
+                  <XCircleIcon className="h-5 w-5 shrink-0 text-slate-600" />
+
+                  <p className="flex-1 text-sm text-slate-700">
+                    {actionError}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setActionError("")}
+                    className="text-sm font-semibold text-slate-500 transition hover:text-slate-900"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SIDEBAR AND MAIN CONTENT */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:gap-6">
+          {/* STATUS SIDEBAR */}
+          <aside className="w-full shrink-0 lg:-mt-4 lg:w-60">
+            <JobStatusSidebar
+              status={status}
+              setStatus={setStatus}
+              counts={statusCounts}
+            />
+          </aside>
+
+          {/* MAIN CONTENT */}
+          <main
+            className="
+              min-h-0 min-w-0 flex-1
+              overflow-visible
+              lg:overflow-x-hidden lg:overflow-y-auto lg:pr-2
+              [scrollbar-width:none]
+              [-ms-overflow-style:none]
+              [&::-webkit-scrollbar]:hidden
+            "
+          >
+            {/* LOADING STATE */}
+            {isLoading ? (
+              <section className="flex min-h-[300px] items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+                <div>
+                  <ArrowPathIcon className="mx-auto h-8 w-8 animate-spin text-slate-600" />
+
+                  <p className="mt-4 text-sm font-semibold text-slate-700">
+                    Loading your jobs...
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Please wait while we fetch your jobs.
+                  </p>
+                </div>
+              </section>
+            ) : errorMessage ? (
+              /* LOAD ERROR */
+              <section className="flex min-h-[300px] items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+                <div className="max-w-md">
+                  <ExclamationCircleIcon className="mx-auto h-10 w-10 text-slate-500" />
+
+                  <h2 className="mt-4 text-lg font-semibold text-slate-900">
+                    Unable to load your jobs
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {errorMessage}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={loadJobs}
                     className="
-                      mt-5
-                      rounded-xl
-                      border
-                      border-gray-300
-                      px-5
-                      py-2.5
-                      text-sm
-                      font-semibold
-                      text-gray-700
-                      transition
-                      hover:bg-gray-50
+                      mt-5 inline-flex items-center justify-center gap-2
+                      rounded-xl bg-slate-700 px-4 py-2.5
+                      text-sm font-semibold text-white
+                      transition hover:bg-slate-800
+                      focus:outline-none focus-visible:ring-2
+                      focus-visible:ring-slate-500 focus-visible:ring-offset-2
                     "
                   >
-                    Show all jobs
+                    <ArrowPathIcon className="h-4 w-4" />
+                    Try again
                   </button>
-                </section>
-              ) : (
-                /* =================================================
-                   JOB CARDS
-                ================================================= */
+                </div>
+              </section>
+            ) : jobs.length === 0 ? (
+              /* EMPTY STATE */
+              <EmptyJobs onPostJob={handlePostJob} />
+            ) : (
+              <>
+                {/* FILTER HEADING */}
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    {statusTitle[status]}
+                  </h2>
 
-                <div className="space-y-3 pb-6">
-                  {filteredJobs.map(
-                    (job) => (
+                  <p className="mt-1 text-sm text-slate-500">
+                    {filteredJobs.length}{" "}
+                    {filteredJobs.length === 1 ? "job" : "jobs"}
+                  </p>
+                </div>
+
+                {/* NO MATCHING JOBS */}
+                {filteredJobs.length === 0 ? (
+                  <section className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100">
+                      <BriefcaseIcon className="h-7 w-7 text-slate-600" />
+                    </div>
+
+                    <h2 className="mt-4 text-lg font-semibold text-slate-800">
+                      No jobs found
+                    </h2>
+
+                    <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
+                      There are no jobs matching the selected status.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setStatus("ALL")}
+                      className="
+                        mt-5 rounded-xl border border-slate-200
+                        bg-white px-5 py-2.5 text-sm font-semibold
+                        text-slate-700 transition hover:bg-slate-100
+                        focus:outline-none focus-visible:ring-2
+                        focus-visible:ring-slate-500 focus-visible:ring-offset-2
+                      "
+                    >
+                      Show all jobs
+                    </button>
+                  </section>
+                ) : (
+                  /* JOB CARDS */
+                  <div className="space-y-3 pb-6">
+                    {filteredJobs.map((job) => (
                       <ClientJobCard
-                        key={
-                          job.id
-                        }
+                        key={job.id}
                         job={job}
-                        onView={
-                          handleViewJob
-                        }
+                        onView={handleViewJob}
                         onCancel={
-                          job.status ===
-                          "ASSIGNED"
-                            ? () =>
-                                openConfirmation(
-                                  "cancel",
-                                  job.id
-                                )
+                          job.status === "ASSIGNED"
+                            ? () => openConfirmation("cancel", job.id)
                             : undefined
                         }
                         onDelete={
-                          job.status ===
-                            "COMPLETED" ||
-                          job.status ===
-                            "CANCELLED"
-                            ? () =>
-                                openConfirmation(
-                                  "delete",
-                                  job.id
-                                )
+                          job.status === "COMPLETED" ||
+                          job.status === "CANCELLED"
+                            ? () => openConfirmation("delete", job.id)
                             : undefined
                         }
                         onConfirmCompletion={() =>
-                          openConfirmation(
-                            "confirm",
-                            job.id
-                          )
+                          openConfirmation("confirm", job.id)
                         }
                         onRate={
-                          job.status ===
-                            "COMPLETED" &&
+                          job.status === "COMPLETED" &&
                           !job.clientHasReviewedWorker
                             ? handleRateWorker
                             : undefined
                         }
                       />
-                    )
-                  )}
-                </div>
-              )}
-            </main>
-          </div>
-        )}
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </main>
+        </div>
       </div>
 
-      {/* =====================================================
-          CONFIRMATION MODAL
-      ===================================================== */}
-
+      {/* CONFIRMATION MODAL */}
       <ConfirmationModal
         isOpen={
-          confirmationAction !==
-            null &&
-          selectedJobId !==
-            null
+          confirmationAction !== null &&
+          selectedJobId !== null
         }
-        title={
-          confirmationContent.title
-        }
-        message={
-          confirmationContent.message
-        }
-        confirmLabel={
-          confirmationContent.confirmLabel
-        }
-        cancelLabel={
-          confirmationContent.cancelLabel
-        }
-        variant={
-          confirmationContent.variant
-        }
+        title={confirmationContent.title}
+        message={confirmationContent.message}
+        confirmLabel={confirmationContent.confirmLabel}
+        cancelLabel={confirmationContent.cancelLabel}
+        variant={confirmationContent.variant}
         isLoading={
           selectedJobId !== null &&
-          actionLoading ===
-            selectedJobId
+          actionLoading === selectedJobId
         }
-        onConfirm={
-          handleConfirmAction
-        }
-        onCancel={
-          closeConfirmation
-        }
+        onConfirm={handleConfirmAction}
+        onCancel={closeConfirmation}
       />
 
-      {/* =====================================================
-          WORKER REVIEW MODAL
-      ===================================================== */}
-
+      {/* WORKER REVIEW MODAL */}
       {reviewJob && (
         <ReviewModal
-          isOpen={
-            isReviewModalOpen
-          }
-          jobId={
-            reviewJob.jobId
-          }
-          revieweeId={
-            reviewJob.workerId
-          }
-          revieweeName={
-            reviewJob.workerName
-          }
+          isOpen={isReviewModalOpen}
+          jobId={reviewJob.jobId}
+          revieweeId={reviewJob.workerId}
+          revieweeName={reviewJob.workerName}
           revieweeRole="worker"
-          jobTitle={
-            reviewJob.jobTitle
-          }
-          onClose={
-            closeReviewModal
-          }
-          onSuccess={
-            handleReviewSuccess
-          }
+          jobTitle={reviewJob.jobTitle}
+          onClose={closeReviewModal}
+          onSuccess={handleReviewSuccess}
         />
       )}
     </>

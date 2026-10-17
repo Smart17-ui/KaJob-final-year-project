@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -177,16 +178,11 @@ const Analytics = () => {
       return `You posted "${activity.title}"`;
     }
 
-    if (
-      activity.type ===
-      "application_received"
-    ) {
+    if (activity.type === "application_received") {
       return `${activity.worker_name} applied for "${activity.job_title}"`;
     }
 
-    if (
-      activity.type === "worker_assigned"
-    ) {
+    if (activity.type === "worker_assigned") {
       return `${activity.worker_name} was assigned to "${activity.job_title}"`;
     }
 
@@ -204,10 +200,10 @@ const Analytics = () => {
       case "PENDING":
       case "ASSIGNED":
       case "ACTIVE":
-        return "border border-amber-200 bg-amber-50 text-amber-700";
+        return "border border-slate-200 bg-slate-100 text-slate-700";
 
       case "IN_PROGRESS":
-        return "border border-blue-200 bg-blue-50 text-blue-700";
+        return "border border-slate-200 bg-slate-100 text-slate-700";
 
       case "REJECTED":
       case "CANCELLED":
@@ -232,9 +228,7 @@ const Analytics = () => {
     }
 
     return Math.max(
-      ...chartData.map(
-        (item) => item.jobs_posted
-      ),
+      ...chartData.map((item) => item.jobs_posted),
       1
     );
   }, [chartData]);
@@ -256,8 +250,7 @@ const Analytics = () => {
 
   const totalTrendCompleted = useMemo(() => {
     return chartData.reduce(
-      (total, item) =>
-        total + item.jobs_completed,
+      (total, item) => total + item.jobs_completed,
       0
     );
   }, [chartData]);
@@ -375,16 +368,16 @@ const Analytics = () => {
 
         {/* HERO */}
         <section className="relative mb-6 overflow-hidden rounded-3xl bg-slate-900 px-4 py-6 text-white shadow-sm sm:mb-8 sm:px-8 sm:py-10">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-slate-500/15 blur-3xl" />
 
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-slate-400/10 blur-3xl" />
 
           <div className="relative">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/10">
-                    <BriefcaseIcon className="h-5 w-5 text-emerald-300" />
+                    <BriefcaseIcon className="h-5 w-5 text-slate-300" />
                   </div>
 
                   <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">
@@ -406,10 +399,8 @@ const Analytics = () => {
                   <div className="h-12 w-px bg-slate-700" />
 
                   <div>
-                    <p className="text-2xl font-bold text-amber-300">
-                      {formatCurrency(
-                        analytics.spending.total
-                      )}
+                    <p className="text-2xl font-bold text-slate-200">
+                      {formatCurrency(analytics.spending.total)}
                     </p>
 
                     <p className="mt-1 text-sm text-slate-400">
@@ -441,10 +432,8 @@ const Analytics = () => {
                 </div>
 
                 <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
-                  <p className="text-xl font-bold text-emerald-300">
-                    {formatPercentage(
-                      completionRate
-                    )}
+                  <p className="text-xl font-bold text-slate-200">
+                    {formatPercentage(completionRate)}
                   </p>
 
                   <p className="mt-1 text-xs text-slate-400">
@@ -472,8 +461,8 @@ const Analytics = () => {
             {/* APPLICATIONS */}
             <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
-                  <UserGroupIcon className="h-5 w-5 text-emerald-600" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                  <UserGroupIcon className="h-5 w-5 text-slate-600" />
                 </div>
 
                 <span className="text-xs font-medium text-slate-400">
@@ -490,16 +479,15 @@ const Analytics = () => {
               </p>
 
               <p className="mt-2 text-xs text-slate-500">
-                {analytics.applications.pending}{" "}
-                pending review
+                {analytics.applications.pending} pending review
               </p>
             </div>
 
             {/* COMPLETION */}
             <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
-                  <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                  <CheckCircleIcon className="h-5 w-5 text-slate-600" />
                 </div>
 
                 <span className="text-xs font-medium text-slate-400">
@@ -512,9 +500,7 @@ const Analytics = () => {
               </p>
 
               <p className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                {formatPercentage(
-                  completionRate
-                )}
+                {formatPercentage(completionRate)}
               </p>
 
               <p className="mt-2 text-xs text-slate-500">
@@ -525,8 +511,8 @@ const Analytics = () => {
             {/* WORKERS */}
             <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-                  <UserGroupIcon className="h-5 w-5 text-blue-600" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                  <UserGroupIcon className="h-5 w-5 text-slate-600" />
                 </div>
 
                 <span className="text-xs font-medium text-slate-400">
@@ -543,16 +529,15 @@ const Analytics = () => {
               </p>
 
               <p className="mt-2 text-xs text-slate-500">
-                {analytics.workers.active} currently
-                active
+                {analytics.workers.active} currently active
               </p>
             </div>
 
             {/* AVG PER JOB */}
             <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
-                  <CurrencyDollarIcon className="h-5 w-5 text-amber-600" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                  <CurrencyDollarIcon className="h-5 w-5 text-slate-600" />
                 </div>
 
                 <span className="text-xs font-medium text-slate-400">
@@ -598,10 +583,7 @@ const Analytics = () => {
                 value={selectedPeriod}
                 onChange={(event) =>
                   setSelectedPeriod(
-                    event.target.value as
-                      | "week"
-                      | "month"
-                      | "quarter"
+                    event.target.value as "week" | "month" | "quarter"
                   )
                 }
                 className="
@@ -611,28 +593,20 @@ const Analytics = () => {
                   text-sm font-medium text-slate-700
                   shadow-sm outline-none transition
                   hover:border-slate-300
-                  focus:border-emerald-500
-                  focus:ring-2 focus:ring-emerald-100
+                  focus:border-slate-500
+                  focus:ring-2 focus:ring-slate-200
                 "
               >
-                <option value="week">
-                  Last 7 days
-                </option>
-
-                <option value="month">
-                  Last 30 days
-                </option>
-
-                <option value="quarter">
-                  Last 90 days
-                </option>
+                <option value="week">Last 7 days</option>
+                <option value="month">Last 30 days</option>
+                <option value="quarter">Last 90 days</option>
               </select>
             </div>
 
             {isTrendLoading ? (
               <div className="mt-6 flex h-64 items-center justify-center rounded-2xl bg-slate-50">
                 <div className="text-center">
-                  <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-600" />
+                  <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
 
                   <p className="mt-3 text-sm text-slate-500">
                     Loading trend data...
@@ -649,8 +623,7 @@ const Analytics = () => {
                   </p>
 
                   <p className="mt-1 text-xs text-slate-400">
-                    Activity will appear here as you
-                    post jobs.
+                    Activity will appear here as you post jobs.
                   </p>
                 </div>
               </div>
@@ -669,9 +642,7 @@ const Analytics = () => {
                     >
                       {chartData.map((item) => {
                         const height =
-                          (item.jobs_posted /
-                            maxJobs) *
-                          100;
+                          (item.jobs_posted / maxJobs) * 100;
 
                         return (
                           <div
@@ -686,25 +657,21 @@ const Analytics = () => {
                               <div
                                 className="
                                   w-full rounded-t-lg
-                                  bg-amber-500
+                                  bg-slate-500
                                   transition-all duration-300
-                                  group-hover:bg-amber-600
+                                  group-hover:bg-slate-700
                                 "
                                 style={{
                                   height: `${Math.max(
                                     height,
-                                    item.jobs_posted > 0
-                                      ? 4
-                                      : 0
+                                    item.jobs_posted > 0 ? 4 : 0
                                   )}%`,
                                 }}
                               />
                             </div>
 
                             <span className="whitespace-nowrap text-[10px] font-medium text-slate-400">
-                              {formatShortDate(
-                                item.date
-                              )}
+                              {formatShortDate(item.date)}
                             </span>
                           </div>
                         );
@@ -715,30 +682,21 @@ const Analytics = () => {
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border border-slate-100 bg-white p-4">
-                    <p className="text-xs text-slate-500">
-                      Jobs posted
-                    </p>
-
+                    <p className="text-xs text-slate-500">Jobs posted</p>
                     <p className="mt-1 text-lg font-bold text-slate-900">
                       {totalTrendJobs}
                     </p>
                   </div>
 
                   <div className="rounded-xl border border-slate-100 bg-white p-4">
-                    <p className="text-xs text-slate-500">
-                      Applications
-                    </p>
-
+                    <p className="text-xs text-slate-500">Applications</p>
                     <p className="mt-1 text-lg font-bold text-slate-900">
                       {totalTrendApplications}
                     </p>
                   </div>
 
                   <div className="rounded-xl border border-slate-100 bg-white p-4">
-                    <p className="text-xs text-slate-500">
-                      Completed
-                    </p>
-
+                    <p className="text-xs text-slate-500">Completed</p>
                     <p className="mt-1 text-lg font-bold text-slate-900">
                       {totalTrendCompleted}
                     </p>
@@ -777,18 +735,13 @@ const Analytics = () => {
 
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    className="h-full rounded-full bg-slate-500 transition-all duration-500"
                     style={{
                       width: `${
-                        analytics.applications
-                          .total > 0
+                        analytics.applications.total > 0
                           ? Math.min(
-                              (analytics
-                                .applications
-                                .accepted /
-                                analytics
-                                  .applications
-                                  .total) *
+                              (analytics.applications.accepted /
+                                analytics.applications.total) *
                                 100,
                               100
                             )
@@ -799,8 +752,7 @@ const Analytics = () => {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  {analytics.applications.accepted}{" "}
-                  accepted
+                  {analytics.applications.accepted} accepted
                 </p>
               </div>
 
@@ -812,20 +764,15 @@ const Analytics = () => {
                   </span>
 
                   <span className="text-sm font-bold text-slate-900">
-                    {formatPercentage(
-                      completionRate
-                    )}
+                    {formatPercentage(completionRate)}
                   </span>
                 </div>
 
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                    className="h-full rounded-full bg-slate-500 transition-all duration-500"
                     style={{
-                      width: `${Math.min(
-                        completionRate,
-                        100
-                      )}%`,
+                      width: `${Math.min(completionRate, 100)}%`,
                     }}
                   />
                 </div>
@@ -839,25 +786,19 @@ const Analytics = () => {
                   </span>
 
                   <span className="text-sm font-bold text-slate-900">
-                    {
-                      analytics.workers
-                        .total_hired
-                    }
+                    {analytics.workers.total_hired}
                   </span>
                 </div>
 
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                    className="h-full rounded-full bg-slate-500 transition-all duration-500"
                     style={{
                       width: `${
-                        analytics.jobs.total >
-                        0
+                        analytics.jobs.total > 0
                           ? Math.min(
-                              (analytics.workers
-                                .total_hired /
-                                analytics.jobs
-                                  .total) *
+                              (analytics.workers.total_hired /
+                                analytics.jobs.total) *
                                 100,
                               100
                             )
@@ -870,21 +811,20 @@ const Analytics = () => {
             </div>
 
             {/* RATING */}
-            <div className="mt-7 rounded-2xl border border-amber-100 bg-amber-50/60 p-5">
+            <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
-                  <StarIcon className="h-5 w-5 text-amber-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200">
+                  <StarIcon className="h-5 w-5 text-slate-600" />
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
                     Worker rating
                   </p>
 
                   <p className="mt-1 text-xl font-bold text-slate-900">
                     {Number(
-                      analytics.workers
-                        .average_rating || 0
+                      analytics.workers.average_rating || 0
                     ).toFixed(1)}
 
                     <span className="ml-1 text-sm font-medium text-slate-400">
@@ -895,9 +835,7 @@ const Analytics = () => {
               </div>
 
               <p className="mt-3 text-xs text-slate-500">
-                Based on{" "}
-                {analytics.workers.total_reviews}{" "}
-                reviews.
+                Based on {analytics.workers.total_reviews} reviews.
               </p>
             </div>
           </div>
@@ -922,16 +860,14 @@ const Analytics = () => {
                 </p>
               </div>
 
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50">
-                <CurrencyDollarIcon className="h-5 w-5 text-amber-600" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                <CurrencyDollarIcon className="h-5 w-5 text-slate-600" />
               </div>
             </div>
 
             <div className="mt-7">
               <p className="text-4xl font-bold tracking-tight text-slate-900">
-                {formatCurrency(
-                  analytics.spending.total
-                )}
+                {formatCurrency(analytics.spending.total)}
               </p>
 
               <p className="mt-1 text-sm text-slate-500">
@@ -946,9 +882,7 @@ const Analytics = () => {
                 </span>
 
                 <span className="text-sm font-semibold text-slate-900">
-                  {formatCurrency(
-                    analytics.spending.completed
-                  )}
+                  {formatCurrency(analytics.spending.completed)}
                 </span>
               </div>
 
@@ -958,9 +892,7 @@ const Analytics = () => {
                 </span>
 
                 <span className="text-sm font-semibold text-slate-900">
-                  {formatCurrency(
-                    analytics.spending.in_progress
-                  )}
+                  {formatCurrency(analytics.spending.in_progress)}
                 </span>
               </div>
 
@@ -975,14 +907,13 @@ const Analytics = () => {
               </div>
             </div>
 
-            <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-800">
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">
                 Budget note
               </p>
 
-              <p className="mt-1.5 text-xs leading-5 text-blue-700">
-                This shows job budgets, not confirmed
-                payments.
+              <p className="mt-1.5 text-xs leading-5 text-slate-600">
+                This shows job budgets, not confirmed payments.
               </p>
             </div>
           </div>
@@ -1001,8 +932,7 @@ const Analytics = () => {
               Your most frequently posted job types.
             </p>
 
-            {analytics.top_categories.length ===
-            0 ? (
+            {analytics.top_categories.length === 0 ? (
               <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
                 <BriefcaseIcon className="mx-auto h-8 w-8 text-slate-300" />
 
@@ -1011,52 +941,41 @@ const Analytics = () => {
                 </p>
 
                 <p className="mt-1 text-xs text-slate-400">
-                  Categories will appear as you post
-                  jobs.
+                  Categories will appear as you post jobs.
                 </p>
               </div>
             ) : (
               <div className="mt-7 space-y-5">
-                {analytics.top_categories.map(
-                  (category) => {
-                    const maximum =
-                      analytics.top_categories[0]
-                        ?.count || 1;
+                {analytics.top_categories.map((category) => {
+                  const maximum =
+                    analytics.top_categories[0]?.count || 1;
 
-                    const percentage =
-                      Math.min(
-                        (category.count /
-                          maximum) *
-                          100,
-                        100
-                      );
+                  const percentage = Math.min(
+                    (category.count / maximum) * 100,
+                    100
+                  );
 
-                    return (
-                      <div
-                        key={category.name}
-                      >
-                        <div className="mb-2 flex items-center justify-between gap-4">
-                          <span className="truncate text-sm font-medium text-slate-700">
-                            {category.name}
-                          </span>
+                  return (
+                    <div key={category.name}>
+                      <div className="mb-2 flex items-center justify-between gap-4">
+                        <span className="truncate text-sm font-medium text-slate-700">
+                          {category.name}
+                        </span>
 
-                          <span className="shrink-0 text-sm font-bold text-slate-900">
-                            {category.count}
-                          </span>
-                        </div>
-
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-amber-500 transition-all duration-500"
-                            style={{
-                              width: `${percentage}%`,
-                            }}
-                          />
-                        </div>
+                        <span className="shrink-0 text-sm font-bold text-slate-900">
+                          {category.count}
+                        </span>
                       </div>
-                    );
-                  }
-                )}
+
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-slate-500 transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1095,31 +1014,31 @@ const Analytics = () => {
               </div>
 
               {/* ASSIGNED */}
-              <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 transition hover:border-amber-200 hover:bg-amber-50">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80">
-                  <UserGroupIcon className="h-4 w-4 text-amber-600" />
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
+                  <UserGroupIcon className="h-4 w-4 text-slate-600" />
                 </div>
 
-                <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+                <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">
                   Assigned
                 </p>
 
-                <p className="mt-1 text-2xl font-bold text-amber-800">
+                <p className="mt-1 text-2xl font-bold text-slate-900">
                   {analytics.jobs.assigned}
                 </p>
               </div>
 
               {/* IN PROGRESS */}
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 transition hover:border-blue-200 hover:bg-blue-50">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80">
-                  <ClockIcon className="h-4 w-4 text-blue-600" />
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
+                  <ClockIcon className="h-4 w-4 text-slate-600" />
                 </div>
 
-                <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-700">
+                <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">
                   In Progress
                 </p>
 
-                <p className="mt-1 text-2xl font-bold text-blue-800">
+                <p className="mt-1 text-2xl font-bold text-slate-900">
                   {analytics.jobs.in_progress}
                 </p>
               </div>
@@ -1171,15 +1090,14 @@ const Analytics = () => {
             </p>
 
             <div className="mt-7 flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
-                <StarIcon className="h-7 w-7 text-amber-500" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                <StarIcon className="h-7 w-7 text-slate-600" />
               </div>
 
               <div>
                 <p className="text-3xl font-bold tracking-tight text-slate-900">
                   {Number(
-                    analytics.workers
-                      .average_rating || 0
+                    analytics.workers.average_rating || 0
                   ).toFixed(1)}
 
                   <span className="ml-1 text-sm font-medium text-slate-400">
@@ -1188,8 +1106,7 @@ const Analytics = () => {
                 </p>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  {analytics.workers.total_reviews}{" "}
-                  reviews
+                  {analytics.workers.total_reviews} reviews
                 </p>
               </div>
             </div>
@@ -1201,10 +1118,7 @@ const Analytics = () => {
                 </span>
 
                 <span className="text-sm font-bold text-slate-900">
-                  {
-                    analytics.workers
-                      .total_hired
-                  }
+                  {analytics.workers.total_hired}
                 </span>
               </div>
 
@@ -1224,10 +1138,7 @@ const Analytics = () => {
                 </span>
 
                 <span className="text-sm font-bold text-slate-900">
-                  {
-                    analytics.workers
-                      .completed
-                  }
+                  {analytics.workers.completed}
                 </span>
               </div>
             </div>
@@ -1247,8 +1158,7 @@ const Analytics = () => {
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {analytics.recent_activity.length ===
-            0 ? (
+            {analytics.recent_activity.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50">
                   <ClockIcon className="h-6 w-6 text-slate-300" />
@@ -1277,21 +1187,17 @@ const Analytics = () => {
                       "
                     >
                       <div className="flex min-w-0 items-start gap-4">
-                        <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50">
-                          <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                        <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                          <div className="h-2.5 w-2.5 rounded-full bg-slate-500" />
                         </div>
 
                         <div className="min-w-0">
                           <p className="font-medium leading-6 text-slate-900">
-                            {getActivityText(
-                              activity
-                            )}
+                            {getActivityText(activity)}
                           </p>
 
                           <p className="mt-1 text-xs text-slate-500">
-                            {formatDate(
-                              activity.timestamp
-                            )}
+                            {formatDate(activity.timestamp)}
                           </p>
                         </div>
                       </div>
@@ -1301,9 +1207,7 @@ const Analytics = () => {
                           inline-flex w-fit shrink-0
                           rounded-full px-3 py-1.5
                           text-xs font-semibold
-                          ${getActivityStatusClass(
-                            activity.status
-                          )}
+                          ${getActivityStatusClass(activity.status)}
                         `}
                       >
                         {activity.status}

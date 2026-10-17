@@ -1,3 +1,4 @@
+
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -54,7 +55,10 @@ export default function Login() {
      UPDATE FORM
   ========================= */
 
-  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
+  function update<K extends keyof FormState>(
+    key: K,
+    value: FormState[K]
+  ) {
     setForm((current) => ({
       ...current,
       [key]: value,
@@ -106,16 +110,11 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      // 🆗 Login with only email + password
       const { redirectTo } = await login(
         form.email.trim(),
         form.password
       );
 
-      // 🆗 Read ?next= from the URL (set by ProtectedDashboard when
-      //    an unauthenticated user tried to reach a protected route).
-      //    Prefer it over the role-based default so the user lands
-      //    back where they were headed.
       const params = new URLSearchParams(location.search);
       const next = params.get("next");
 
@@ -164,13 +163,13 @@ export default function Login() {
   ========================= */
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4 py-12">
       {/* BACK BUTTON */}
       <button
         type="button"
         onClick={() => navigate("/")}
         aria-label="Back to home"
-        className="fixed left-6 top-6 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition-all duration-200 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+        className="fixed left-6 top-6 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition-all duration-200 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
       >
         <ArrowLeftIcon className="h-6 w-6" />
       </button>
@@ -181,12 +180,12 @@ export default function Login() {
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="w-full max-w-md"
       >
-        <div className="rounded-3xl border border-emerald-100/50 bg-white p-8 shadow-lg shadow-emerald-900/5 sm:p-10">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg shadow-slate-900/5 sm:p-10">
           {/* LOGO */}
           <div className="mb-8">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1">
-              <div className="h-2 w-2 rounded-full bg-emerald-600" />
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
+              <div className="h-2 w-2 rounded-full bg-slate-700" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
                 KaJob
               </p>
             </div>
@@ -227,14 +226,16 @@ export default function Login() {
               >
                 Email address
               </label>
+
               <div
-                className={`flex items-center gap-3 rounded-xl border-2 bg-white px-4 py-3 transition-all focus-within:ring-2 focus-within:ring-emerald-500/20 ${
+                className={`flex items-center gap-3 rounded-xl border-2 bg-white px-4 py-3 transition-all focus-within:ring-2 focus-within:ring-slate-500/20 ${
                   errors.email
                     ? "border-red-300 focus-within:border-red-400"
-                    : "border-slate-200 focus-within:border-emerald-500"
+                    : "border-slate-200 focus-within:border-slate-500"
                 }`}
               >
                 <EnvelopeIcon className="h-5 w-5 flex-shrink-0 text-slate-400" />
+
                 <input
                   id="email"
                   name="email"
@@ -247,6 +248,7 @@ export default function Login() {
                   aria-invalid={Boolean(errors.email)}
                 />
               </div>
+
               {errors.email && (
                 <motion.p
                   initial={{ opacity: 0, y: -4 }}
@@ -267,21 +269,24 @@ export default function Login() {
                 >
                   Password
                 </label>
+
                 <Link
                   to="/forgot-password"
-                  className="text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
+                  className="text-xs font-medium text-slate-600 transition-colors hover:text-slate-900"
                 >
                   Forgot?
                 </Link>
               </div>
+
               <div
-                className={`flex items-center gap-3 rounded-xl border-2 bg-white px-4 py-3 transition-all focus-within:ring-2 focus-within:ring-emerald-500/20 ${
+                className={`flex items-center gap-3 rounded-xl border-2 bg-white px-4 py-3 transition-all focus-within:ring-2 focus-within:ring-slate-500/20 ${
                   errors.password
                     ? "border-red-300 focus-within:border-red-400"
-                    : "border-slate-200 focus-within:border-emerald-500"
+                    : "border-slate-200 focus-within:border-slate-500"
                 }`}
               >
                 <LockClosedIcon className="h-5 w-5 flex-shrink-0 text-slate-400" />
+
                 <input
                   id="password"
                   name="password"
@@ -293,11 +298,12 @@ export default function Login() {
                   className="w-full border-none bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
                   aria-invalid={Boolean(errors.password)}
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="flex-shrink-0 text-slate-400 transition-colors hover:text-slate-600"
+                  className="flex-shrink-0 text-slate-400 transition-colors hover:text-slate-700"
                 >
                   {showPassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
@@ -306,6 +312,7 @@ export default function Login() {
                   )}
                 </button>
               </div>
+
               {errors.password && (
                 <motion.p
                   initial={{ opacity: 0, y: -4 }}
@@ -323,7 +330,7 @@ export default function Login() {
                 type="checkbox"
                 checked={form.rememberMe}
                 onChange={(e) => update("rememberMe", e.target.checked)}
-                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-800 focus:ring-slate-500"
               />
               Keep me signed in
             </label>
@@ -333,7 +340,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition-all hover:bg-emerald-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-75 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition-all hover:bg-slate-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-75 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
               >
                 {isSubmitting ? (
                   <>
@@ -357,7 +364,7 @@ export default function Login() {
             New to KaJob?{" "}
             <Link
               to="/register"
-              className="font-semibold text-emerald-600 transition-colors hover:text-emerald-700"
+              className="font-semibold text-slate-700 transition-colors hover:text-slate-950"
             >
               Create account
             </Link>
@@ -370,9 +377,7 @@ export default function Login() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
           className="mt-8 text-center text-xs text-slate-500"
-        >
-          Secure login • No spam • One-click sign up
-        </motion.p>
+        />
       </motion.div>
     </div>
   );
